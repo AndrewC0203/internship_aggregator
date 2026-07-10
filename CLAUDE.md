@@ -105,6 +105,13 @@ If we make a significant decision and I haven't logged it, remind me at the end 
 session. Also remind me to update the architecture diagram in the README when a decision
 changes it. I maintain the diagrams myself — never generate them for me.
 
+## Research & reference docs
+
+Put API research, comparison notes, and other reference material that should outlive the
+session in `research/` (e.g. `research/ats-api-comparison.md`), not in a temp/scratchpad
+directory. These docs inform GATED decisions (like schema normalization) and should stay
+in the repo for later reference — commit them alongside the related work.
+
 ## Challenge me
 
 - If my requirement is ambiguous, ask instead of assuming.

@@ -85,11 +85,9 @@ Options considered:
 
 Decision: Local-first, single service
 
-Reason: 
+Reason: Simplest to deploy at first, can setup later once get working product
 
-Tradeoffs accepted:
-
-Date:
+Tradeoffs accepted: Harder to test metrics, need to figure out how to deploy later
 
 ---
 

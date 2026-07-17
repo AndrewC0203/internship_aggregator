@@ -102,6 +102,11 @@ If we make a significant decision and I haven't logged it, remind me at the end 
 session. Also remind me to update the architecture diagram in the README when a decision
 changes it. I maintain the diagrams myself — never generate them for me.
 
+## FEATURES.md protocol
+
+Put bullet points documenting the features I add. All features go in Priority 0 except if listed otherwise. If you think a feature isn't worth being priority 0, question me.
+Under decisions to remember, put all important decisions or edge cases we discuss, which I must later remember when implementing.
+
 ## Research & reference docs
 
 Put API research, comparison notes, and other reference material that should outlive the

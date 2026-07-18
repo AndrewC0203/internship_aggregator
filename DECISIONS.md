@@ -201,7 +201,11 @@ extraction model is prompted to return null (or set an uncertainty flag on the d
 it is not confident about a value. A null deadline is displayed as "unknown"; rolling /
 open-ended deadlines are collapsed into the same "unknown" state.
 
-Reason:
+Reason: Extracting the deadline with an AI model (rather than leaving it Greenhouse-only)
+gives denser, more consistent structured data, which helps flag stale listings (a passed
+deadline signals a listing that is likely no longer active). It does not meaningfully help
+deduplication. Missing dates are acceptable — most filtering won't be by date anyway, so
+sparse coverage on this field is low-cost.
 
 Tradeoffs accepted: Treating extracted deadlines the same as authoritative ones in the
 filter means a wrong extraction can silently include a dead listing or exclude a live one

@@ -8,9 +8,8 @@
 
 # Priority 1
 
-- Deadline filter — let users filter listings by application deadline. Marked P1, not P0:
-  low-usage/secondary facet by your own read ("most people don't filter by closing date").
-  Bump to P0 if you want it in the first search cut.
+- Deadline filter — let users filter listings by application deadline. Confirmed P1
+  (low-usage/secondary facet — "most people don't filter by closing date").
 
 # Priority 2
 

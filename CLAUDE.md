@@ -97,7 +97,7 @@ Tradeoffs accepted:
 Date:
 ```
 
-Fill in all of the fields respectively in Decisions.md except for the reason field.
+Fill in all of the fields respectively in Decisions.md.
 If we make a significant decision and I haven't logged it, remind me at the end of the
 session. Also remind me to update the architecture diagram in the README when a decision
 changes it. I maintain the diagrams myself — never generate them for me.

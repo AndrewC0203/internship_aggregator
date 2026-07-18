@@ -114,6 +114,14 @@ session in `research/` (e.g. `research/ats-api-comparison.md`), not in a temp/sc
 directory. These docs inform GATED decisions (like schema normalization) and should stay
 in the repo for later reference — commit them alongside the related work.
 
+## Finalized specs
+
+Once a GATED decision is settled, put its clean, finalized spec in `finalized_decisions/`
+(e.g. `finalized_decisions/schema.md`). These are the "source of truth to build from"
+documents — derived from the relevant DECISIONS.md entry, and should point back to it for
+rationale rather than duplicating it (so the two don't drift). `research/` is raw
+exploration; `finalized_decisions/` is the settled result.
+
 ## Challenge me
 
 - If my requirement is ambiguous, ask instead of assuming.

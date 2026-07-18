@@ -93,25 +93,86 @@ Tradeoffs accepted: Harder to test metrics, need to figure out how to deploy lat
 
 ## Decision 5: Data model / schema normalization
 
-Status: NOT YET DISCUSSED — needed before Phase 1 adapters are built.
-
 Problem: Greenhouse, Lever, and Ashby each return differently-shaped job data
 (postedAt vs createdAt vs publishedDate, different field names for location, comp,
-grad requirements, etc). Need a strategy for unifying them into one schema.
+grad requirements, etc). Need a strategy for unifying them into one schema. See
+`research/ats-api-comparison.md` and `research/ats-field-reference.md` for the raw
+per-ATS shapes this normalizes.
 
 Options considered:
 
-1.
-2.
-3.
+1. Single normalized flat table — one row per listing with a common column set;
+   ATS-specific extras dropped or flattened, and fields a source doesn't provide are
+   AI-inferred/extracted at ingest. Simplest to query/filter; loses ATS-specific richness
+   (Greenhouse dept hierarchy, Ashby multi-tier comp, multi-location).
+2. Normalized core + raw JSONB — same core columns plus a raw payload JSONB per row to
+   preserve the full original response for later re-derivation. Future-proof against schema
+   changes; heavier storage and two places "truth" can live (normalized vs. raw drift).
+3. Two-layer staging → transform — ingest raw per-ATS rows into staging tables, normalize
+   into a reporting table in a separate step. Cleanest separation, replayable transforms;
+   most infrastructure/complexity for a solo ~1-month build.
 
-Decision:
+Decision: Option 1 — a single normalized flat table (`listings`), one row per source
+listing. Columns:
 
-Reason:
+Identity / provenance:
+- `id` — integer surrogate, PRIMARY KEY (auto-increment IDENTITY). No business meaning;
+  used for FKs/URLs. See Decision 5 discussion for surrogate-vs-natural-key reasoning.
+- `source` — enum/text: greenhouse | lever | ashby | (other, extensible)
+- `source_external_id` — text (the ATS's native id; stored as text to unify Greenhouse
+  integer ids with Lever/Ashby UUIDs)
+- `UNIQUE (source, source_external_id)` — natural key; the target of refresh upserts so a
+  listing is never re-inserted across runs
 
-Tradeoffs accepted:
+Content:
+- `company` — text (inline string; no separate companies table in v1)
+- `title` — text
+- `description_html` — text (canonical; for display — see Decision 6)
+- `description_plain` — text (derived at ingest; for classification/search — see Decision 6)
+- `location` — text (single primary location; multi-location intentionally dropped in v1)
+- `department` — text (Greenhouse hierarchy flattened to a single string)
+- `employment_type` — enum (e.g. full_time | part_time | intern | contract | temporary);
+  provided by Lever/Ashby, inferred for Greenhouse
+- `workplace_type` — enum (onsite | remote | hybrid); provided by Lever/Ashby, inferred
+  for Greenhouse
+- `comp_min` / `comp_max` — numeric, nullable
+- `comp_currency` — text, nullable
+- `comp_interval` — enum (hourly | monthly | yearly | one_time), nullable
+- `grad_year_min` / `grad_year_max` — integer, nullable (AI-extracted)
+- `citizenship_status` — enum (us_citizen_required | no_sponsorship | sponsorship_available
+  | unknown); AI-extracted (see FEATURES.md decisions-to-remember). Filter is P1.
 
-Date:
+Dates / lifecycle:
+- `published_at` — timestamptz (source publish date; Lever createdAt epoch-ms converted)
+- `application_deadline` — timestamptz, nullable (see Decision 7)
+- `first_seen_at` — timestamptz (when we first ingested it)
+- `last_seen_at` — timestamptz (updated every refresh the listing still appears)
+- `is_listed` — boolean, derived from last_seen_at (soft-delete: a stale listing flips to
+  false, the row is kept for history/dedup memory rather than hard-deleted)
+
+Links:
+- `url` — text (hosted/apply URL)
+
+Reason: A single normalized flat table is the simplest model to build and query within the
+~1-month solo timeline, and the easiest to defend end-to-end in an interview — every column
+maps to a clear product need and every dropped/flattened field was a conscious tradeoff. The
+richer options (raw JSONB, staging→transform) buy flexibility this project doesn't need yet
+at a complexity cost the timeline can't afford.
+
+Tradeoffs accepted: Chose the flat single-table model over raw-JSONB or a staging/transform
+layer, accepting loss of ATS-specific richness: Ashby's multi-tier/multi-component comp is
+collapsed to a single min/max/currency/interval; Greenhouse's department hierarchy is
+flattened to one string; multiple locations are reduced to one primary. No raw payload is
+stored, so re-deriving a field later (e.g. after fixing an extraction bug) requires
+re-fetching from the source rather than reprocessing a stored blob. Several fields
+(`employment_type` and `workplace_type` for Greenhouse, `grad_year_*`, `citizenship_status`,
+some deadlines) are AI-inferred/extracted rather than source-authoritative — accepting
+extraction-accuracy risk in exchange for coverage across all three ATSes. `is_listed` is
+derived from `last_seen_at`; the staleness threshold and removal logic that consume these
+timestamps are deferred to the freshness/quality-scoring component (FIRST-DRAFT-MINE) and
+are not designed here.
+
+Date: 2026-07-18
 
 ---
 
@@ -197,9 +258,10 @@ Decision: Option 2 for population + Option (a) for filtering — store a single
 `application_deadline`, populated from Greenhouse's structured field where present and
 from AI extraction (over `description_plain`) otherwise. Extracted and authoritative
 deadlines are treated the same for filtering, for now. To limit false positives, the
-extraction model is prompted to return null (or set an uncertainty flag on the date) when
-it is not confident about a value. A null deadline is displayed as "unknown"; rolling /
-open-ended deadlines are collapsed into the same "unknown" state.
+extraction model is prompted to return null when it is not confident about a value (no
+separate uncertainty/estimated flag is stored — see tradeoffs). A null deadline is
+displayed as "unknown"; rolling / open-ended deadlines are collapsed into the same
+"unknown" state.
 
 Reason: Extracting the deadline with an AI model (rather than leaving it Greenhouse-only)
 gives denser, more consistent structured data, which helps flag stale listings (a passed
@@ -213,9 +275,13 @@ from filtered results — mitigated (not eliminated) by instructing the model to
 when unsure. Collapsing "rolling" into "unknown" loses a distinction some applicants care
 about (rolling = apply ASAP), accepted because deadline filtering is a low-usage,
 secondary facet. The confidence distinction is captured in data (authoritative vs.
-extracted / uncertainty flag) but deliberately not surfaced in filter behavior yet —
-options (b) and (c) remain available later if the extraction false-positive rate proves
-high. Deadline data also feeds the freshness/quality score (a passed deadline signals a
+extracted) is NOT stored as an explicit flag: for Greenhouse a stored deadline could be
+either the structured field or an extraction and the two can't be told apart after the
+fact; for Lever/Ashby a deadline is always an extraction, inferable from source. This
+bets on the extraction model being high-accuracy (~90%+) and accepts that a wrong
+extracted deadline can silently drop a live listing from a filtered view. Options (b)/(c)
+(confident-only filter, or a user toggle) would require adding the estimated flag back
+later. Deadline data also feeds the freshness/quality score (a passed deadline signals a
 dead listing), but that scoring logic is a separate, self-authored component and is not
 designed here.
 

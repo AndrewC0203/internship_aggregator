@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    // Node 22 supports modern JS; ES2022 is a safe, current target.
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    // ESM ("type": "module" in package.json). NodeNext is the resolution
+    // that matches how Node actually loads ESM at runtime.
+    // NOTE: with NodeNext, relative imports need a .js extension even in .ts
+    // files (e.g. import { prisma } from "./db.js"). That's the one gotcha —
+    // ask if you'd rather switch to CommonJS to avoid it.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "outDir": "dist",
+    "rootDir": "src",
+
+    // Strictness — catches bugs at compile time; good practice to keep on.
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

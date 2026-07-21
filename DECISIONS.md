@@ -322,3 +322,54 @@ exchange for speed.
 Date: 2026-07-18
 
 ---
+
+## Decision 9: Ingestion pipeline / module structure + dedup write handling
+
+Problem: Three heterogeneous ATS APIs (Greenhouse, Lever, Ashby) each need fetch
+(HTTP + per-source pagination/rate limits) -> normalize (raw -> unified Listing) ->
+shared post-processing (dedup, internship filtering, AI extraction) -> persist. Need a
+module structure that isolates per-source quirks, keeps the shared work in one place, and
+defines what dedup does at write time given cross-source duplicates.
+
+Options considered:
+
+A. Adapter interface (strategy pattern) — each source implements a shared contract; one
+   orchestrator loops adapters. Quirks isolated, shared logic written once; risk of a
+   leaky interface when sources differ (e.g. pagination styles).
+B. Per-source self-contained modules — each source does fetch+normalize+upsert end to end.
+   Simplest, fastest first source; duplicates the upsert/orchestration logic across
+   sources and lets them drift.
+C. Staged pipeline — per-source fetch + pure normalize, then standalone shared stages
+   (dedup -> filter -> extract -> persist) wired by an orchestrator. Each stage testable;
+   clean insertion points; most files/ceremony.
+
+Decision: Hybrid landing on C. Per-source `fetch` + pure `normalize` (3 separate modules,
+because each ATS normalizes differently), feeding shared, separately-staged steps run by
+an orchestrator in order: dedup -> internship filter (cheap regex pass, then AI model) ->
+extract (grad year, visa status) -> persist. The stages are kept distinct (not one
+"program") because they differ in shape (per-record vs cross-record) and tier
+(classification is GATED, dedup is FIRST-DRAFT-MINE).
+
+Dedup write handling: links, does not hard-delete (Option A storage — an array column on
+the canonical row holding each suppressed duplicate's (source, external_id)). A duplicate
+is not written while its canonical is active; once the canonical goes inactive, the next
+refresh cycle writes the duplicate, so a still-live role resurfaces.
+
+Reason: Option A is simple, and it self-heals: if Greenhouse's posting goes away, the next
+cycle adds Lever's because the Greenhouse row is no longer active.
+
+Tradeoffs accepted: Per-source normalization divergence is isolated; the shared tail avoids
+B's duplication. Array-column dup storage is denormalized (bidirectional consistency
+burden). Suppressing the duplicate write means a live role can be invisible for up to one
+refresh cycle after its canonical goes stale, and only the canonical's apply URL is
+surfaced at a time — accepted for simplicity. KEY INVARIANT for the (self-written) dedup:
+only treat an incoming listing as a suppressible duplicate of a *currently-active*
+canonical; if the canonical is inactive, write the duplicate. Still open / not decided
+here: the exact array representation for the dup column and its migration (added when dedup
+is built), the company/board list source (config vs DB table), rate limiting (GATED) and
+retry/backoff (FIRST-DRAFT-MINE) inside fetch, and the classification/extraction approach
+(GATED).
+
+Date: 2026-07-18
+
+---

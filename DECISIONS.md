@@ -288,3 +288,37 @@ designed here.
 Date: 2026-07-17
 
 ---
+
+## Decision 8: Database access / migration tooling
+
+Problem: Need a way to define the schema (Decision 5), run migrations against the local
+Postgres `internship_aggregator` DB, and query it from the TypeScript/Fastify app. This is
+a library-with-lock-in choice.
+
+Options considered:
+
+1. Raw SQL + a thin migration runner (e.g. node-pg-migrate, or `pg` + .sql files) —
+   write real SQL, minimal abstraction, maximum understanding of what hits the DB.
+   Slowest to build, most learning.
+2. Query builder (Kysely, Drizzle) — typed, SQL-shaped TypeScript with migrations
+   included; you still see the query. Light lock-in, moderate convenience.
+3. Full ORM (Prisma) — define a schema file, it generates migrations + a typed client;
+   most convenience and type-safety, most abstraction between you and the SQL. Most
+   lock-in.
+
+Decision: Option 3 — Prisma.
+
+Reason: Prisma is a modern, convenient tool that's worth learning, and I'm running behind
+on time so the velocity and generated typed client are worth it.
+
+Tradeoffs accepted: Prisma abstracts away the SQL — the generated queries, connection
+handling, and query planning are hidden, which is exactly the layer this learning project
+would otherwise build fluency in. To keep decisions interview-defensible (esp. the
+`(source, source_external_id)` upsert and the dedup queries, which are core), I need to
+stay aware of the SQL Prisma generates rather than treating it as a black box. Accepting
+Prisma's lock-in (schema DSL, client API) over the closer-to-SQL Drizzle option, in
+exchange for speed.
+
+Date: 2026-07-18
+
+---

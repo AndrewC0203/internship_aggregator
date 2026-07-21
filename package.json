@@ -1,0 +1,29 @@
+{
+  "name": "internship_aggregator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndrewC0203/internship_aggregator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AndrewC0203/internship_aggregator/issues"
+  },
+  "homepage": "https://github.com/AndrewC0203/internship_aggregator#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  }
+}

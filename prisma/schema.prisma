@@ -1,0 +1,86 @@
+// Prisma schema — internship aggregator
+// Source of truth for the data model: finalized_decisions/schema.md (Decision 5).
+// Rationale for individual fields lives in DECISIONS.md 5/6/7 — don't duplicate it here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Source {
+  greenhouse
+  lever
+  ashby
+  other
+}
+
+enum EmploymentType {
+  full_time
+  part_time
+  intern
+  contract
+  temporary
+}
+
+enum WorkplaceType {
+  onsite
+  remote
+  hybrid
+}
+
+enum CompInterval {
+  hourly
+  monthly
+  yearly
+  one_time
+}
+
+enum CitizenshipStatus {
+  us_citizen_required
+  no_sponsorship
+  sponsorship_available
+  unknown
+}
+
+model Listing {
+  // Identity / provenance
+  id               Int    @id @default(autoincrement())
+  source           Source
+  sourceExternalId String @map("source_external_id")
+
+  // Content
+  company           String
+  title             String
+  descriptionHtml   String             @map("description_html")
+  descriptionPlain  String             @map("description_plain")
+  location          String?
+  department        String?
+  employmentType    EmploymentType?    @map("employment_type")
+  workplaceType     WorkplaceType?     @map("workplace_type")
+  compMin           Decimal?           @map("comp_min") @db.Decimal(12, 2)
+  compMax           Decimal?           @map("comp_max") @db.Decimal(12, 2)
+  compCurrency      String?            @map("comp_currency")
+  compInterval      CompInterval?      @map("comp_interval")
+  gradYearMin       Int?               @map("grad_year_min")
+  gradYearMax       Int?               @map("grad_year_max")
+  citizenshipStatus CitizenshipStatus? @map("citizenship_status")
+
+  // Dates / lifecycle
+  publishedAt         DateTime? @map("published_at") @db.Timestamptz(6)
+  applicationDeadline DateTime? @map("application_deadline") @db.Timestamptz(6)
+  firstSeenAt         DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt          DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  isListed            Boolean   @default(true) @map("is_listed")
+
+  // Links
+  url String
+
+  // Natural key: identifies "same listing across refreshes" (upsert target).
+  // Distinct from `id`; cross-source dedup is a separate layer (not this constraint).
+  @@unique([source, sourceExternalId])
+  @@map("listings")
+}

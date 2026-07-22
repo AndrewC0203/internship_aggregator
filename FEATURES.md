@@ -1,5 +1,10 @@
 # Priority 0
 
+- Opportunity-type classification & browse — classify each stored listing into an
+  `opportunity_type` (internship, co-op, fellowship, new-grad, research, part-time) and let
+  users browse/filter the hub by type. Core to the CS-opportunities-hub scope (Decision 10).
+- CS-relevance write-time filter — only CS-adjacent opportunities are ingested; non-CS and
+  non-opportunity roles are dropped before DB write (Decision 10).
 - Application deadline capture — normalize a single `application_deadline` per listing,
   populated from Greenhouse's structured field where present and from AI extraction over
   `description_plain` otherwise (Lever, Ashby, and Greenhouse posts without the field).
@@ -38,3 +43,9 @@
 - Null/unknown citizenship ≠ "no requirement" — most postings say nothing, and absence of
   a statement is not permission. High-stakes both directions (false "sponsors" wastes an
   application; false "citizens only" makes a qualified student skip a job).
+- Scope is CS-adjacent only (SWE, data/ML, security, hardware, quant, PM…). CS-relevance is
+  a HARD write-time filter — non-CS rows are dropped, not stored — so it's irreversible
+  without re-crawling. `opportunity_type` IS stored (so type filtering is reversible at read).
+- "CS-adjacent" is a fuzzy boundary (quant, PM, design) — the classifier makes judgment
+  calls there; expect to tune it. Both CS-relevance and opportunity_type are classified by
+  the same local-model pipeline (grad year / deadline / citizenship) — one path, not many.

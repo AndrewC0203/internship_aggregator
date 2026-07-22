@@ -40,6 +40,7 @@ flattened/dropped; fields a source doesn't provide are AI-inferred/extracted at 
 | `grad_year_min` | integer | yes | **AI-extracted**. |
 | `grad_year_max` | integer | yes | **AI-extracted**. Range supports "graduating 2026 or 2027". |
 | `citizenship_status` | enum | yes | `us_citizen_required` \| `no_sponsorship` \| `sponsorship_available` \| `unknown`. **AI-extracted**. Filter is P1. |
+| `opportunity_type` | enum | yes | `internship` \| `co_op` \| `fellowship` \| `new_grad` \| `research` \| `part_time`. **AI-classified** (Decision 10). Coexists with `employment_type` (raw ATS); intern/part_time overlap intentional. |
 
 ### Dates / lifecycle
 

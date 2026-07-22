@@ -46,6 +46,18 @@ enum CitizenshipStatus {
   unknown
 }
 
+// Our CS-hub classification of the opportunity kind (Decision 10). Distinct from
+// employment_type (the raw ATS value); overlap on intern/part_time is intentional —
+// employment_type = "what the ATS said", opportunity_type = "what we classified it as".
+enum OpportunityType {
+  internship
+  co_op
+  fellowship
+  new_grad
+  research
+  part_time
+}
+
 model Listing {
   // Identity / provenance
   id               Int    @id @default(autoincrement())
@@ -68,6 +80,7 @@ model Listing {
   gradYearMin       Int?               @map("grad_year_min")
   gradYearMax       Int?               @map("grad_year_max")
   citizenshipStatus CitizenshipStatus? @map("citizenship_status")
+  opportunityType   OpportunityType?   @map("opportunity_type")
 
   // Dates / lifecycle
   publishedAt         DateTime? @map("published_at") @db.Timestamptz(6)

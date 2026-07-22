@@ -141,6 +141,9 @@ Content:
 - `grad_year_min` / `grad_year_max` — integer, nullable (AI-extracted)
 - `citizenship_status` — enum (us_citizen_required | no_sponsorship | sponsorship_available
   | unknown); AI-extracted (see FEATURES.md decisions-to-remember). Filter is P1.
+- `opportunity_type` — enum (internship | co_op | fellowship | new_grad | research |
+  part_time); AI-classified, nullable (added by Decision 10). Coexists with
+  `employment_type` (raw ATS value); overlap on intern/part_time is intentional.
 
 Dates / lifecycle:
 - `published_at` — timestamptz (source publish date; Lever createdAt epoch-ms converted)
@@ -369,6 +372,47 @@ here: the exact array representation for the dup column and its migration (added
 is built), the company/board list source (config vs DB table), rate limiting (GATED) and
 retry/backoff (FIRST-DRAFT-MINE) inside fetch, and the classification/extraction approach
 (GATED).
+
+Date: 2026-07-18
+
+---
+
+## Decision 10: Ingestion scope & write-time filtering (CS opportunities hub)
+
+Problem: The project was framed as an "internship" aggregator, but the real goal is a CS
+opportunities hub spanning several opportunity types. ATS boards return ALL of a company's
+jobs with no server-side filtering, so we must define (a) what's in scope and (b) where
+filtering happens (write-time vs read-time).
+
+Options considered:
+
+1. Narrow — store only CS internships via a write-time hard filter. Smallest DB, cheapest
+   extraction; irreversibly drops the fellowships/co-ops/new-grad roles the hub needs.
+2. Coarse filter + tag — crawl broadly; at write time keep only CS-adjacent early-career
+   opportunities across the in-scope types, store `opportunity_type` as a category, and
+   filter type at read. Reversible for type; larger fetch volume + classification cost.
+3. Store everything, categorize at read — max flexibility; infeasible at aggregator scale
+   (a board returns hundreds of unrelated senior/FT/non-CS roles).
+
+Decision: Option 2.
+- In-scope opportunity types: internship, co-op, fellowship, new-grad, research, part-time.
+- Field scope: CS-adjacent (SWE, data/ML, security, hardware, quant, PM, etc.).
+- Crawl broadly. Write-time filter keeps a row only if it is BOTH CS-adjacent AND one of
+  the in-scope opportunity types; everything else is dropped before write.
+- `opportunity_type` is stored as a category (classified). CS-relevance is a hard
+  write-time filter, NOT stored as a column.
+- This refines Decision 9's "internship filter" stage into a "CS-opportunity filter +
+  opportunity_type classification" stage (still GATED; algorithm undecided).
+
+Reason: The original project goal was a CS opportunities hub (internships, fellowships,
+etc.) for CS students, not internships alone.
+
+Tradeoffs accepted: Non-CS and non-opportunity roles are dropped irreversibly at write —
+recovering them means re-crawling and re-classifying (fine; they're out of scope). Broad
+crawl raises fetch volume and classification cost vs. a curated company list. "CS-adjacent"
+is fuzzy, so the classifier makes judgment calls at the boundary (quant, PM, design). The
+ATS-provided `employment_type` and the new classified `opportunity_type` overlap on
+intern/part_time — exact enum + relationship finalized in the Decision 5 schema update.
 
 Date: 2026-07-18
 

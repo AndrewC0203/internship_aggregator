@@ -73,7 +73,14 @@ export async function fetchGreenhouse(boardToken: string): Promise<RawJob[]> {
 
   const jobs = (body as { jobs?: unknown } | null)?.jobs;
   if (jobs === undefined) {
-    return [];
+    // The real API always includes a `jobs` array, even for a board with zero
+    // postings (`jobs: []`). A missing key means the response wasn't shaped how
+    // we expect, not "no jobs" — treat it as a fetch failure, not an empty result.
+    throw new GreenhouseFetchError(
+      `Greenhouse response was missing a "jobs" field for board "${boardToken}"`,
+      boardToken,
+      res.status,
+    );
   }
   if (!Array.isArray(jobs)) {
     throw new GreenhouseFetchError(

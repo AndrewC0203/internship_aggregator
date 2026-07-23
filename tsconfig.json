@@ -3,6 +3,9 @@
     // Node 22 supports modern JS; ES2022 is a safe, current target.
     "target": "ES2022",
     "lib": ["ES2022"],
+    // Node globals (fetch, setTimeout, AbortController, etc.) come from @types/node,
+    // not from "lib". Explicit "types" keeps the IDE and tsc aligned.
+    "types": ["node"],
 
     // ESM ("type": "module" in package.json). NodeNext is the resolution
     // that matches how Node actually loads ESM at runtime.

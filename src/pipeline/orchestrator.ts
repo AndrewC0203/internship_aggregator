@@ -38,9 +38,16 @@ export async function runPipeline(): Promise<void> {
   const normalized: NormalizedListing[] = [];
   for (const src of SOURCES) {
     for (const target of src.targets) {
-      const raw = await src.fetch(target.token);
-      for (const job of raw) {
-        normalized.push(src.normalize(job, { company: target.company }));
+      // One board's fetch/normalize failure shouldn't abort every other board in the
+      // run — log and skip it. This is error isolation, not retry: no re-attempt happens.
+      try {
+        const raw = await src.fetch(target.token);
+        for (const job of raw) {
+          normalized.push(src.normalize(job, { company: target.company }));
+        }
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        console.error(`Skipping ${target.company} (${target.token}): ${reason}`);
       }
     }
   }

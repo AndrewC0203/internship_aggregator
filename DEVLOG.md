@@ -139,12 +139,7 @@ only July 21 had real work in that span).
 
 ### What I Learned
 
-No claude-mem data is available for this date. The `claude-mem-exports` branch still does
-not exist on the remote at all — this is now the fourth consecutive day this has been
-flagged (July 20, 21, 22, 23). This is not a transient "laptop was off overnight" gap; the
-nightly export job described in the PM protocol does not appear to have ever been set up
-or run successfully. Recommend checking the export job directly rather than waiting for
-it to start appearing on its own.
+
 
 ### Progress on Goal
 

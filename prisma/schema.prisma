@@ -97,3 +97,28 @@ model Listing {
   @@unique([source, sourceExternalId])
   @@map("listings")
 }
+
+// A discovered ATS board to crawl (Decision 11). Populated by the Common Crawl discovery
+// job (slug-only: discovery writes just `source` + `token`), then read by the daily
+// refresh. Deliberately does NOT store company — discovery is slug-only; the refresh path
+// derives company from the job payload (see DECISIONS.md Decision 11 open follow-up).
+model CrawlTarget {
+  id     Int    @id @default(autoincrement())
+  source Source
+  token  String // the board slug (e.g. "gitlab"); the only field discovery derives from CC
+
+  // Soft-deactivation (Decision 11): a target not seen in discovery for ~2-3 months is
+  // flipped to false rather than deleted. The pruning threshold/logic itself is
+  // FIRST-DRAFT-MINE (freshness-adjacent) — not implemented here; this column just stores
+  // the timestamp that logic reads.
+  isActive              Boolean  @default(true) @map("is_active")
+  lastSeenInDiscoveryAt DateTime @default(now()) @map("last_seen_in_discovery_at") @db.Timestamptz(6)
+
+  // Crawl health, written by the daily REFRESH (not discovery); nullable until first refresh.
+  lastCrawledAt DateTime? @map("last_crawled_at") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+
+  // Natural key: discovery re-runs upsert on (source, token) instead of duplicating.
+  @@unique([source, token])
+  @@map("crawl_targets")
+}

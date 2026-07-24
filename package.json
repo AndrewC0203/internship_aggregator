@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "discover": "tsx src/discovery/run.ts",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "repository": {
     "type": "git",

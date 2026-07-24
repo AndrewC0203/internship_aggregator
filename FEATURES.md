@@ -1,5 +1,12 @@
 # Priority 0
 
+- Greenhouse board discovery via Common Crawl (Decision 11) — a standalone discovery job
+  (`npm run discover`) mines Common Crawl's URL index for `boards.greenhouse.io` /
+  `job-boards.greenhouse.io` tokens, validates each against the live API (200 + non-empty
+  jobs = keep), and upserts survivors into the `crawl_targets` table for the daily refresh
+  to read. Per-source module (`src/discovery/`, Greenhouse real, Lever/Ashby stubbed);
+  `--limit` caps the validation sweep until ATS rate limiting (GATED) is decided. Runs
+  ~monthly (aligned to Common Crawl releases). See DECISIONS.md Decision 11.
 - Opportunity-type classification & browse — classify each stored listing into an
   `opportunity_type` (internship, co-op, fellowship, new-grad, research, part-time) and let
   users browse/filter the hub by type. Core to the CS-opportunities-hub scope (Decision 10).
@@ -20,6 +27,13 @@
   `citizenship_status` enum column is part of the v1 schema; the filter itself is P1.
 
 # Priority 2
+
+- Simplify GitHub repo as a supplementary discovery source — parse Greenhouse (and later
+  Lever/Ashby) board tokens out of a community-maintained internship list (e.g.
+  SimplifyJobs Summer/New-Grad repos) to catch companies the Common Crawl sweep misses.
+  Deferred to v2: Common Crawl discovery (Decision 11) is the primary mechanism; this is
+  additive coverage, not a dependency. Accepts that it partly overlaps CC's output (dedupe
+  tokens before validating) and inherits the repo's format/continuity.
 
 # Decisions to remember
 
@@ -49,3 +63,4 @@
 - "CS-adjacent" is a fuzzy boundary (quant, PM, design) — the classifier makes judgment
   calls there; expect to tune it. Both CS-relevance and opportunity_type are classified by
   the same local-model pipeline (grad year / deadline / citizenship) — one path, not many.
+- Must add / manually recrawl monthly.

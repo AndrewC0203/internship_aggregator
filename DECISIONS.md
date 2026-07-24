@@ -141,6 +141,9 @@ Content:
 - `grad_year_min` / `grad_year_max` — integer, nullable (AI-extracted)
 - `citizenship_status` — enum (us_citizen_required | no_sponsorship | sponsorship_available
   | unknown); AI-extracted (see FEATURES.md decisions-to-remember). Filter is P1.
+- `opportunity_type` — enum (internship | co_op | fellowship | new_grad | research |
+  part_time); AI-classified, nullable (added by Decision 10). Coexists with
+  `employment_type` (raw ATS value); overlap on intern/part_time is intentional.
 
 Dates / lifecycle:
 - `published_at` — timestamptz (source publish date; Lever createdAt epoch-ms converted)
@@ -371,5 +374,146 @@ retry/backoff (FIRST-DRAFT-MINE) inside fetch, and the classification/extraction
 (GATED).
 
 Date: 2026-07-18
+
+---
+
+## Decision 10: Ingestion scope & write-time filtering (CS opportunities hub)
+
+Problem: The project was framed as an "internship" aggregator, but the real goal is a CS
+opportunities hub spanning several opportunity types. ATS boards return ALL of a company's
+jobs with no server-side filtering, so we must define (a) what's in scope and (b) where
+filtering happens (write-time vs read-time).
+
+Options considered:
+
+1. Narrow — store only CS internships via a write-time hard filter. Smallest DB, cheapest
+   extraction; irreversibly drops the fellowships/co-ops/new-grad roles the hub needs.
+2. Coarse filter + tag — crawl broadly; at write time keep only CS-adjacent early-career
+   opportunities across the in-scope types, store `opportunity_type` as a category, and
+   filter type at read. Reversible for type; larger fetch volume + classification cost.
+3. Store everything, categorize at read — max flexibility; infeasible at aggregator scale
+   (a board returns hundreds of unrelated senior/FT/non-CS roles).
+
+Decision: Option 2.
+- In-scope opportunity types: internship, co-op, fellowship, new-grad, research, part-time.
+- Field scope: CS-adjacent (SWE, data/ML, security, hardware, quant, PM, etc.).
+- Crawl broadly. Write-time filter keeps a row only if it is BOTH CS-adjacent AND one of
+  the in-scope opportunity types; everything else is dropped before write.
+- `opportunity_type` is stored as a category (classified). CS-relevance is a hard
+  write-time filter, NOT stored as a column.
+- This refines Decision 9's "internship filter" stage into a "CS-opportunity filter +
+  opportunity_type classification" stage (still GATED; algorithm undecided).
+
+Reason: The original project goal was a CS opportunities hub (internships, fellowships,
+etc.) for CS students, not internships alone.
+
+Tradeoffs accepted: Non-CS and non-opportunity roles are dropped irreversibly at write —
+recovering them means re-crawling and re-classifying (fine; they're out of scope). Broad
+crawl raises fetch volume and classification cost vs. a curated company list. "CS-adjacent"
+is fuzzy, so the classifier makes judgment calls at the boundary (quant, PM, design). The
+ATS-provided `employment_type` and the new classified `opportunity_type` overlap on
+intern/part_time — exact enum + relationship finalized in the Decision 5 schema update.
+
+Date: 2026-07-18
+
+---
+
+## Decision 11: Crawl-target discovery & storage (how boards are found and where the list lives)
+
+Problem: The orchestrator crawls a list of `{token, company}` targets, but that list is
+empty (`targets: []`). Two coupled questions: (a) how do we DISCOVER which Greenhouse boards
+to crawl — there is no official directory of customers, board tokens aren't guessable from
+company names, and hitting the "thousands of active listings" metric needs several hundred
+boards — and (b) WHERE does the resulting target list live (source-code array vs config file
+vs DB table). See `research/greenhouse-board-discovery.md` for the discovery-source
+comparison.
+
+Options considered (discovery):
+
+A. Curated static list only (~20–100 hand-picked boards) — cheapest, fully controlled;
+   plateaus below the listings metric and never finds companies you didn't think of.
+B. Seed from curated GitHub lists (parse tokens out of e.g. SimplifyJobs repos) — near-zero
+   effort, hundreds of relevant companies fast; inherits someone else's list quality and
+   repo format/continuity, and is essentially reading another project's work.
+C. Common Crawl discovery + validated refresh set — query CC's URL index for
+   `boards.greenhouse.io/*`, extract + dedupe tokens, validate each against the live API
+   (200 + non-empty jobs = keep), feed survivors into the crawl set. Most complete and most
+   defensible; most engineering; the validation sweep is high-volume (surfaces the GATED
+   rate-limit question) and CC's snapshot is weeks-to-months stale.
+D. Dictionary brute force against the API — ruled out: ~100k requests for a few hundred
+   hits, and mass-404 sweeps are the most plausible way to get IP-blocked.
+
+Options considered (storage):
+
+1. Hardcoded array in source (`src/config/targets.ts`) — simplest, zero infra; can't absorb
+   a discovery feed of thousands of tokens, no per-target runtime state.
+2. Checked-in config file (JSON/YAML) — out of TS, git-diffable; same deploy-to-change cost.
+3. DB table (Prisma `CrawlTarget` model) — needs a migration + seed path; supports
+   per-target state (enabled/disabled, last-crawled-at, last-error) and absorbs a discovery
+   feed without code changes.
+
+Decision: Discovery = Option C (Common Crawl), storage = Option 3 (DB table). One combined
+entry. A Common Crawl discovery job produces candidate tokens, each validated against the
+live API, and validated targets are stored in a DB table that the daily refresh reads from.
+Simplify-repo scraping (Option B) is deferred to v2 as a supplementary discovery source
+(see FEATURES.md P2), not the primary mechanism.
+
+Reason: Common Crawl is the only feasible way to discover thousands of companies without
+brute forcing or copying Simplify's repo. Slug discovery is more valuable than a curated
+list because most companies posting on Greenhouse will have postings year-round even if a
+SWE internship isn't always up, so a broad discovered set keeps yielding roles over time.
+The DB table is required because a discovery feed of thousands of validated tokens can't be
+hand-maintained in a source array.
+
+Tradeoffs accepted: Dealing with more stale postings (CC's snapshot lags, so newly-created
+boards are missed until the next monthly index and dead tokens must be validated out), more
+time / complexity to implement the Common Crawl discovery job, and potential rate limits
+with the ATS during the validation sweep. Coverage is not comprehensive — missing some
+boards is acceptable, and the v2 Simplify source will cover additional companies later.
+Worth it because it's the only feasible way to discover thousands of companies without
+brute forcing or copying Simplify's repo. Note: the validation sweep pulls the GATED
+rate-limiting decision forward for that job specifically (the daily refresh of validated
+boards stays sequential/gentle); rate-limiting and retry/backoff inside fetch remain
+undecided/self-authored.
+
+Schema & structure (finalized 2026-07-23):
+
+- Table structure: SINGLE `CrawlTarget` table with a `source` enum column
+  (greenhouse | lever | ashby), not three per-ATS tables. Chosen for simplicity and to
+  match the Decision 5 `listings` single-table + source-column convention (one model, one
+  migration, shared pruning logic). A `source` column differentiates tokens, so three tables
+  were unnecessary.
+- File/module structure: PER-SOURCE discovery modules + an orchestrator (mirrors the
+  fetch/normalize adapter layout), not one monolithic file. Chosen for maintainability and
+  scale — avoids one file with three divergent if-branches; each source owns its Common
+  Crawl query pattern + slug parser. Only Greenhouse is implemented now; Lever/Ashby stubs.
+- Stale handling: DEACTIVATE, not hard-delete. A target not seen in discovery for ~2–3
+  months is flipped `is_active = false` (row kept, consistent with `listings.is_listed`),
+  not removed. The threshold + pruning policy itself is FIRST-DRAFT-MINE (freshness-adjacent)
+  — user writes that logic; the column only stores the timestamp it reads.
+- `company` is NOT stored on `CrawlTarget` — discovery is intentionally slug-only.
+  OPEN CONSEQUENCE: the refresh path currently reads company from `Target.company` ->
+  `NormalizeContext.company` (orchestrator comment: "payloads don't reliably carry it"), and
+  `normalizeGreenhouse` uses `ctx.company`. With no company on the target, normalize must
+  instead derive company from the job payload (`company_name`, which Greenhouse returns).
+  Fine for Greenhouse; unverified for Lever/Ashby — resolve per-source when wiring refresh.
+- Indexing: NONE beyond the natural key for now — added later only if the pruning/refresh
+  queries need them at scale.
+
+Candidate columns:
+- `id` — surrogate PK
+- `source` — enum greenhouse | lever | ashby
+- `token` — text, the board slug (the only field the discovery job writes)
+- `is_active` — boolean, soft-deactivation flag
+- `last_seen_in_discovery_at` — timestamptz, updated each discovery run the token appears +
+  validates; the ~2–3-month pruning rule reads this
+- `last_crawled_at` — timestamptz, nullable; updated by the daily refresh (crawl health)
+- `last_error` — text, nullable; last refresh failure reason
+- `UNIQUE (source, token)` — natural key; discovery re-runs upsert instead of duplicating
+
+Once these columns are confirmed, the Prisma model + migration + per-source discovery file
+scaffolding are FREE (migration/adapters from an agreed schema).
+
+Date: 2026-07-23
 
 ---

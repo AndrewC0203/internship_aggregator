@@ -4,11 +4,18 @@ import type {
   WorkplaceType,
   CompInterval,
   CitizenshipStatus,
+  OpportunityType,
 } from "@prisma/client";
 
 // Raw payload from a source API. Shape is source-specific, so it stays `unknown`
 // until each source's normalize() narrows it.
 export type RawJob = unknown;
+
+// Context a normalize() needs beyond the raw payload. `company` comes from the crawl
+// config (the company/board list — a deferred decision), not reliably from the payload.
+export interface NormalizeContext {
+  company: string;
+}
 
 // Output of a source's normalize() step — the source-derived fields only.
 // AI-extracted fields (gradYear*, citizenshipStatus) are added later by extract().
@@ -32,8 +39,11 @@ export interface NormalizedListing {
   url: string;
 }
 
-// After the extract stage: normalized + AI-derived fields.
+// After the classify + extract stages: normalized + AI-derived fields.
+// opportunityType is set by the classification stage; the grad-year/citizenship
+// fields by the extraction stage. Both are GATED (undecided) — absent from normalize().
 export interface EnrichedListing extends NormalizedListing {
+  opportunityType: OpportunityType | null;
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;

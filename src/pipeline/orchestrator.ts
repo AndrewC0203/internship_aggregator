@@ -1,4 +1,8 @@
-import type { NormalizedListing, RawJob } from "./types.js";
+import type {
+  NormalizedListing,
+  NormalizeContext,
+  RawJob,
+} from "./types.js";
 import { fetchGreenhouse } from "../sources/greenhouse/fetch.js";
 import { normalizeGreenhouse } from "../sources/greenhouse/normalize.js";
 import { fetchLever } from "../sources/lever/fetch.js";
@@ -10,13 +14,18 @@ import { filterInternships } from "./stages/filter.js";
 import { extract } from "./stages/extract.js";
 import { persist } from "./stages/persist.js";
 
-// Per-source fetch + pure normalize (Decision 9). `targets` is the list of
-// company slugs / board tokens for that source — its source (config vs DB table)
-// is a separate open decision; empty placeholder for now.
+// One crawl target: the board token/slug to fetch, plus the company name to stamp on
+// its listings (payloads don't reliably carry it). The list of targets — where it comes
+// from (config vs DB table) — is a deferred decision; empty placeholders for now.
+interface Target {
+  token: string;
+  company: string;
+}
+
 const SOURCES: Array<{
-  fetch: (target: string) => Promise<RawJob[]>;
-  normalize: (raw: RawJob) => NormalizedListing;
-  targets: string[];
+  fetch: (token: string) => Promise<RawJob[]>;
+  normalize: (raw: RawJob, ctx: NormalizeContext) => NormalizedListing;
+  targets: Target[];
 }> = [
   { fetch: fetchGreenhouse, normalize: normalizeGreenhouse, targets: [] },
   { fetch: fetchLever, normalize: normalizeLever, targets: [] },
@@ -29,8 +38,17 @@ export async function runPipeline(): Promise<void> {
   const normalized: NormalizedListing[] = [];
   for (const src of SOURCES) {
     for (const target of src.targets) {
-      const raw = await src.fetch(target);
-      for (const job of raw) normalized.push(src.normalize(job));
+      // One board's fetch/normalize failure shouldn't abort every other board in the
+      // run — log and skip it. This is error isolation, not retry: no re-attempt happens.
+      try {
+        const raw = await src.fetch(target.token);
+        for (const job of raw) {
+          normalized.push(src.normalize(job, { company: target.company }));
+        }
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        console.error(`Skipping ${target.company} (${target.token}): ${reason}`);
+      }
     }
   }
 

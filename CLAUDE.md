@@ -133,12 +133,16 @@ exploration; `finalized_decisions/` is the settled result.
 
 ## Project context
 
-- Goal: internship listing aggregator — ingestion pipeline for heterogeneous ATS data
-  (Greenhouse, Lever, Ashby), normalization, dedup, freshness validation, search.
+- Goal: CS opportunities hub — an aggregator of CS-adjacent early-career opportunities
+  (internships, co-ops, fellowships, new-grad roles, research programs, part-time) for CS
+  students. Ingestion pipeline for heterogeneous ATS data (Greenhouse, Lever, Ashby),
+  normalization, dedup, freshness validation, search. Scope + write-time filtering: see
+  DECISIONS.md Decision 10.
 - Phases: (1) three adapters + unified schema + search API + minimal UI,
   (2) production hardening — retries, rate limits, scheduling, dedup, monitoring,
   (3) ONE differentiator, chosen later.
 - Timeline: ~1 month. Bias toward finishing Phase 2 well over starting Phase 3.
-- Stack: UNDECIDED. This is Decision 1 and it is GATED.
+- Stack: TypeScript + Fastify, PostgreSQL + Prisma, BullMQ + Redis (Decisions 1–3, 8).
+  Local-first single service (Decision 4).
 - Success metrics: thousands of active listings, <5% dup rate, reliable daily refresh,
   and me being able to whiteboard every component for 30 minutes.

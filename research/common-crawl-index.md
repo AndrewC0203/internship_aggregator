@@ -36,6 +36,25 @@ discovery). This is raw API research; the settled approach lives in DECISIONS.md
   (dead boards) or missing (boards created after the crawl). Staleness is handled by the
   live-API validation pass, not here.
 
+## Observed yield & reliability (measured 2026-07-24, crawl CC-MAIN-2026-25)
+
+- **~3,775 unique Greenhouse slugs** discovered across both hosts in ~12.5s (no validation).
+- **Endpoint is flaky:** paging returned intermittent `502`/`503`/`504` — one measurement
+  run took 3 attempts before completing. **Handled (2026-07-24):** the CDX layer
+  (`cdxGetText`) now retries transient failures — no HTTP status (network/timeout), `429`, or
+  any `5xx` — with exponential backoff (1s/2s/4s/8s, up to 4 retries); `4xx` like 404 is
+  fatal (no retry). If a request still fails after retries, discovery **skips and continues**
+  rather than aborting: a failed page is skipped (a few slugs lost), a failed page-count
+  skips the whole host, and only a failed `collinfo.json` (no crawl id) is fatal. Verified
+  live: a real 502 was caught, retried, and the run completed. Rationale: monthly cadence
+  makes latency cheap and backfills any skipped pages next run; completeness is already
+  best-effort. (Retry lives only in the CDX layer, intentionally NOT shared with the ATS
+  board fetcher, which may want different retry logic.)
+- **Dirty slugs are negligible:** only ~0.1% (2 of 3,774) contain percent-encoding, and one
+  of those (`%7byour_company%7d` = `{your_company}`) is a template placeholder, not a real
+  board. Decided NOT to URL-decode/trim: the fix would rescue ~1 real board (`%20forbes` =
+  `forbes`) at the cost of decode+trim+re-dedup logic. Validation drops both as 404s anyway.
+
 ## Two-host embed form
 
 Some boards embed via `boards.greenhouse.io/embed/job_board?for={token}` — the token is in

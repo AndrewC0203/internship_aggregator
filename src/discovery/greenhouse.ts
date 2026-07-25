@@ -11,6 +11,12 @@ const GREENHOUSE_HOSTS = ["boards.greenhouse.io", "job-boards.greenhouse.io"];
 // First path segments that are never a board token.
 const RESERVED_SEGMENTS = new Set(["embed"]);
 const CDX_TIMEOUT_MS = 30_000;
+// Common Crawl's CDX endpoint intermittently returns 502/503/504 under load. Since this is
+// a monthly job, latency is cheap — retry transient failures with exponential backoff
+// (1s, 2s, 4s, 8s) before giving up on a single request. Retry lives ONLY in the CDX layer
+// (Decision: keep separate from the ATS board fetcher, which may want different logic).
+const CDX_MAX_RETRIES = 4;
+const CDX_RETRY_BASE_MS = 1_000;
 
 // Thrown for Common Crawl request failures (network/timeout/non-2xx/non-JSON). Separate
 // from GreenhouseFetchError — this is about the discovery source, not the board API.
@@ -21,6 +27,44 @@ export class DiscoveryFetchError extends Error {
   ) {
     super(message);
     this.name = "DiscoveryFetchError";
+  }
+}
+
+// ── Transient-failure retry (CDX layer only) ────────────────────────────────────────────
+
+// A CDX failure is worth retrying if it's transient: a network/timeout error (no HTTP
+// status) or a server-side status (429 rate-limit, or any 5xx). A 4xx like 404 is a real
+// "not there" answer — retrying won't change it, so it's fatal. Non-DiscoveryFetchError
+// (an unexpected bug) is not retried either.
+export function isRetryableCdxError(err: unknown): boolean {
+  if (!(err instanceof DiscoveryFetchError)) return false;
+  const { status } = err;
+  return status === undefined || status === 429 || status >= 500;
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Run `fn`, retrying transient failures with exponential backoff. Injectable delay/sleep so
+// tests run instantly. Throws the last error once retries are exhausted or on a fatal error.
+export async function withCdxRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  opts: { retries?: number; baseMs?: number; sleepFn?: (ms: number) => Promise<void> } = {},
+): Promise<T> {
+  const retries = opts.retries ?? CDX_MAX_RETRIES;
+  const baseMs = opts.baseMs ?? CDX_RETRY_BASE_MS;
+  const sleepFn = opts.sleepFn ?? sleep;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isRetryableCdxError(err) || attempt >= retries) throw err;
+      const delay = baseMs * 2 ** attempt;
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`  CDX ${label}: ${reason} — retry ${attempt + 1}/${retries} in ${delay}ms`);
+      await sleepFn(delay);
+    }
   }
 }
 
@@ -64,9 +108,14 @@ export function extractGreenhouseTokens(urls: Iterable<string>): string[] {
 
 // ── Common Crawl CDX querying ─────────────────────────────────────────────────────────────
 
-// Fetch a URL from the CDX service with a timeout that also covers reading the body (the
-// body read is inside the guard, unlike the board fetcher — CDX pages can be large).
-async function cdxGetText(url: string): Promise<string> {
+// Fetch a URL from the CDX service, retrying transient failures. Each attempt gets a fresh
+// timeout that also covers reading the body (body read is inside the guard — CDX pages can
+// be large).
+function cdxGetText(url: string): Promise<string> {
+  return withCdxRetry(() => cdxGetTextOnce(url), `GET ${url}`);
+}
+
+async function cdxGetTextOnce(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), CDX_TIMEOUT_MS);
   try {
@@ -127,9 +176,28 @@ async function cdxNumPages(crawlId: string, host: string): Promise<number> {
 // polite to Common Crawl and fast for capped runs. Pages are fetched SEQUENTIALLY on
 // purpose (free public service; never parallelize against it).
 async function* cdxUrls(crawlId: string, host: string): AsyncGenerator<string> {
-  const pages = await cdxNumPages(crawlId, host);
+  let pages: number;
+  try {
+    pages = await cdxNumPages(crawlId, host);
+  } catch (err) {
+    // Page count failed even after retries — without it we can't page this host, so skip
+    // the whole host and continue with the others (skip-and-continue over aborting the run).
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`  CDX: skipping host ${host} — page count failed after retries: ${reason}`);
+    return;
+  }
+
   for (let page = 0; page < pages; page++) {
-    const text = await cdxGetText(cdxHostQuery(crawlId, host, `&fields=url&page=${page}`));
+    let text: string;
+    try {
+      text = await cdxGetText(cdxHostQuery(crawlId, host, `&fields=url&page=${page}`));
+    } catch (err) {
+      // One page failed even after retries — skip it and keep the rest. A few missing slugs
+      // beats discarding the whole sweep; the monthly cadence backfills them next run.
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`  CDX: skipping ${host} page ${page}/${pages} after retries: ${reason}`);
+      continue;
+    }
     for (const line of text.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;

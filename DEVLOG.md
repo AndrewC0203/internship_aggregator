@@ -216,3 +216,41 @@ Not assessable — no goal was recorded/persisted for this date (same recurring 
 July 21–23). Separately, Git shows the day was clearly productive: the discovery subsystem
 shipped end-to-end with tests and retry hardening, unblocking the crawl-target gap left
 after Decision 11 was documented.
+
+## July 25, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in the July 21–24 entries: the morning brief's "Goal for Today" isn't persisted
+anywhere this process can read back the next day.
+
+### What I Did
+
+No engineering commits landed in the Git repository between 2026-07-25T00:00:00-04:00 and
+2026-07-25T23:59:59-04:00. The only commit timestamped in that window (`a445ca8`) is this
+PM automation's own push of the July 24 DEVLOG entry — not engineering work on the project.
+Checked `git ls-remote --heads origin` for unmerged work on other branches
+(`claude/research-ats-apis`, `data-ingestion`): both still point to commits already merged
+into `main` (July 18 and July 24 respectively), so there is nothing outstanding elsewhere.
+No meaningful engineering work occurred on this date — this is the fourth zero-commit day
+out of the last six calendar days (July 20, 22, 23, and now 25; only July 21 and July 24
+had real work in that span).
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all (confirmed via `git fetch origin claude-mem-exports`, which
+fails with "couldn't find remote ref", and `git ls-remote --heads origin`, which lists only
+`claude/research-ats-apis`, `data-ingestion`, and `main`). This is now the sixth
+consecutive day this gap has been flagged (July 20–25). The nightly export job described in
+the PM protocol does not appear to have ever been set up or run successfully — this is no
+longer worth re-flagging passively; it needs to be checked/fixed directly on the laptop
+side, since it has never once produced data across the full history of this DEVLOG.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–24). Separately, no Git or claude-mem evidence of any engineering work exists for
+this date either — this is the fourth zero-engineering-commit day in the last six calendar
+days.

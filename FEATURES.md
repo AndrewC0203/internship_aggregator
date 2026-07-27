@@ -12,6 +12,15 @@
   users browse/filter the hub by type. Core to the CS-opportunities-hub scope (Decision 10).
 - CS-relevance write-time filter — only CS-adjacent opportunities are ingested; non-CS and
   non-opportunity roles are dropped before DB write (Decision 10).
+- Classification & extraction pipeline (Decision 12) — the filter/extract stages, finalized.
+  A partition-by-seen step skips any listing already in `listings` or `seen_listing`; a cheap
+  regex accept-router fast-tracks unambiguous CS internships (CS-token AND intern/co-op-token);
+  everything else goes to a local Ollama model (Qwen2.5-14B-Instruct, 7B fallback, JSON-mode
+  enforced) in two passes — classify (CS-relevance + opportunity_type), then extract (grad
+  year / citizenship / deadline) on survivors only. Keeps are written to `listings`; rejects
+  have their key recorded in a narrow, key-only `seen_listing` table so they aren't
+  re-classified next run. Finalized spec: `finalized_decisions/classification-extraction.md`;
+  model reasoning: `research/local-model-classification.md`.
 - Application deadline capture — normalize a single `application_deadline` per listing,
   populated from Greenhouse's structured field where present and from AI extraction over
   `description_plain` otherwise (Lever, Ashby, and Greenhouse posts without the field).
@@ -74,3 +83,20 @@
   calls there; expect to tune it. Both CS-relevance and opportunity_type are classified by
   the same local-model pipeline (grad year / deadline / citizenship) — one path, not many.
 - Must add / manually recrawl monthly.
+- Reject-memory is KEY-ONLY (Decision 12): the `seen_listing` table stores only (source,
+  external_id) for dropped listings — no description hash. Consequence: a reject is NEVER
+  re-evaluated, even if the posting is later edited into scope. Accepted for simplicity.
+- The regex accept-router must require a CS token AND an intern/co-op token together (e.g.
+  "Software … Intern"). Matching "intern" alone would admit non-CS internships ("Marketing
+  Intern") past the CS-relevance filter and violate Decision 10. High precision, deliberately
+  false-negative-heavy — anything it doesn't accept (co-ops, "Summer 2026 Analyst Program",
+  ambiguous titles) falls through to the AI.
+- Two passes, not one combined call (Decision 12): extraction runs only on filter survivors,
+  so separating the passes barely costs compute; the big initial classify run dominates cost.
+- "Only the initial run is expensive" holds ONLY because rejects are stored — the reject
+  majority (~90% of each fetch) is skipped by the partition step on every run after the first;
+  steady-state, only genuinely-new postings reach the model.
+- Local model chosen: Qwen2.5-14B-Instruct (Q4_K_M) via Ollama on the 24GB M4 Pro, 7B as the
+  throughput fallback if the initial run is too slow. Enforce JSON output regardless of model.
+  The extract pass must return null when unsure (existing deadline/citizenship rule) — carries
+  over unchanged.

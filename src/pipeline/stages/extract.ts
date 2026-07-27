@@ -1,11 +1,27 @@
-import type { NormalizedListing, EnrichedListing } from "../types.js";
+import type { ClassifiedListing, EnrichedListing } from "../types.js";
+import { extract as extractFields } from "../../model/classifier.js";
 
-// ─── GATED (classification/extraction) ─── local AI model; approach not yet decided.
-//
-// Intended (Decision 9): pull gradYearMin/Max and citizenshipStatus out of each
-// listing's description_plain (the BODY — these fields aren't in the title).
+// Extract stage (Pass 2, Decision 12): pull grad year / citizenship / deadline from
+// description_plain for KEEPS only (extraction never runs on rejects, which is why two
+// passes cost almost nothing extra). Greenhouse's structured application_deadline — if the
+// normalizer set it — wins over an extracted one (Decision 7); otherwise the extracted value
+// fills the gap.
 export async function extract(
-  listings: NormalizedListing[],
+  listings: ClassifiedListing[],
 ): Promise<EnrichedListing[]> {
-  throw new Error("extract not implemented (GATED — decide extraction approach)");
+  const enriched: EnrichedListing[] = [];
+
+  // Sequential for the same reason as the classify pass: one local model, one request at a time.
+  for (const listing of listings) {
+    const fields = await extractFields(listing);
+    enriched.push({
+      ...listing,
+      gradYearMin: fields.gradYearMin,
+      gradYearMax: fields.gradYearMax,
+      citizenshipStatus: fields.citizenshipStatus,
+      applicationDeadline: listing.applicationDeadline ?? fields.applicationDeadline,
+    });
+  }
+
+  return enriched;
 }

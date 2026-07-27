@@ -40,11 +40,24 @@ export interface NormalizedListing {
   url: string;
 }
 
-// After the classify + extract stages: normalized + AI-derived fields.
-// opportunityType is set by the classification stage; the grad-year/citizenship
-// fields by the extraction stage. Both are GATED (undecided) — absent from normalize().
-export interface EnrichedListing extends NormalizedListing {
-  opportunityType: OpportunityType | null;
+// The natural key of a listing — how a reject flows through the pipeline (rejects never
+// carry a full row, only their key, so non-CS content never reaches the product table;
+// Decision 12 / Decision 10 amendment).
+export interface ListingKey {
+  source: Source;
+  sourceExternalId: string;
+}
+
+// After the classify pass (Decision 12): normalized + the classified opportunity type.
+// A keep always has a non-null type — the regex accept-router or the model assigns one;
+// rejects don't reach this stage.
+export interface ClassifiedListing extends NormalizedListing {
+  opportunityType: OpportunityType;
+}
+
+// After the extract pass: classified + the AI-extracted body fields (grad year, citizenship;
+// applicationDeadline already lives on NormalizedListing and is filled/kept there).
+export interface EnrichedListing extends ClassifiedListing {
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;

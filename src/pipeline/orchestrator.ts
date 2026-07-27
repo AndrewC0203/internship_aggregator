@@ -12,6 +12,7 @@ import { normalizeLever } from "../sources/lever/normalize.js";
 import { fetchAshby } from "../sources/ashby/fetch.js";
 import { normalizeAshby } from "../sources/ashby/normalize.js";
 import { dedup } from "./stages/dedup.js";
+import { partitionBySeen } from "./stages/partition.js";
 import { filterInternships } from "./stages/filter.js";
 import { extract } from "./stages/extract.js";
 import { persist } from "./stages/persist.js";
@@ -64,8 +65,11 @@ export async function runPipeline(): Promise<void> {
     }
   }
 
+  // Shared tail (Decision 9 + Decision 12): dedup (your first-draft) → partition-by-seen →
+  // filter (regex accept-router + AI classify) → extract (AI, keeps only) → persist.
   const deduped = await dedup(normalized);
-  const internships = await filterInternships(deduped);
-  const enriched = await extract(internships);
-  await persist(enriched);
+  const { unseen, seenKeeps, seenRejects } = await partitionBySeen(deduped);
+  const { keeps, newRejects } = await filterInternships(unseen);
+  const enriched = await extract(keeps);
+  await persist({ keeps: enriched, newRejects, seenKeeps, seenRejects });
 }

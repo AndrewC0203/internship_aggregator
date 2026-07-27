@@ -414,6 +414,13 @@ is fuzzy, so the classifier makes judgment calls at the boundary (quant, PM, des
 ATS-provided `employment_type` and the new classified `opportunity_type` overlap on
 intern/part_time — exact enum + relationship finalized in the Decision 5 schema update.
 
+Amendment (2026-07-27, see Decision 12): "dropped irreversibly at write" is refined — the
+dropped listing's full content is still not stored, but its natural KEY (source,
+external_id) is now persisted in a narrow `seen_listing` table so the daily refresh can skip
+re-classifying it. "CS-relevance is NOT stored as a column" continues to hold: there is no
+relevance column on `listings` and no non-CS content is stored; only the reject key is kept,
+as skip-memory.
+
 Date: 2026-07-18
 
 ---
@@ -521,5 +528,94 @@ Once these columns are confirmed, the Prisma model + migration + per-source disc
 scaffolding are FREE (migration/adapters from an agreed schema).
 
 Date: 2026-07-23
+
+---
+
+## Decision 12: Classification & extraction approach (CS-relevance filter, opportunity_type, grad year / citizenship / deadline)
+
+Problem: Decision 10 refined Decision 9's "internship filter" into a "CS-opportunity filter +
+opportunity_type classification" stage but left the algorithm undecided; the extract stage
+(grad year, citizenship, deadline from `description_plain`) reuses the same model pipeline
+(FEATURES.md: "one path, not many"). ATS boards return ALL of a company's jobs, so the
+majority of every fetch is out-of-scope. Need to settle four coupled sub-questions: (a) which
+model runs the AI step and where it runs; (b) the shape of the cheap regex pre-pass; (c) one
+combined AI call vs separate classify/extract passes; (d) how to avoid re-processing the same
+listings — especially the majority-share rejects, which Decision 10 drops before write and so
+would otherwise be re-classified on every daily refresh (the dominant cost driver).
+
+Options considered:
+
+(a) Model runtime —
+  A1. Local instruct LLM via Ollama (one model does classify + extract + JSON). Free per call,
+      no data egress, real "local model" learning; failure mode is throughput on consumer
+      hardware.
+  A2. Local zero-shot classifier (MNLI/cross-encoder) — fast for the type label but doesn't do
+      extraction, so it fights "one path".
+  A3. Cloud API (Claude Haiku) — fast, reliable JSON, no infra; per-run cost + external
+      dependency. Cost analysis (this session): at ~163→several-hundred boards, ~90% of each
+      fetch is rejects; if rejects are NOT remembered they re-run daily → ~5.9k+ calls/day ≈
+      ~$8.8/day Haiku (~$4.4 batch), over the user's "<$1/day" bar. Only lands under $1/day
+      (~$0.56) IF rejects are remembered (sub-question d), which cuts steady-state volume to
+      genuinely-new postings.
+  A4. Fine-tuned small encoder — best latency/accuracy, needs labeled data + a training loop;
+      out of scope for a ~1-month build.
+
+(b) Regex pre-pass —
+  B1. Hard gate (regex drops before AI) — cheapest, but false drops on CS-relevance are
+      irreversible (dropped rows are never written); "Summer 2026 Analyst Program" has no
+      "intern" token. Rejected by user.
+  B2. Cheap ACCEPT-router — regex fast-tracks only unambiguous CS internships, everything else
+      falls through to the AI. Must be high-precision (false-negative-heavy OK). KEY
+      CONSTRAINT: the accept condition must require a CS token AND an intern/co-op token
+      together (e.g. "Software … Intern"); matching "intern" alone would admit "Marketing
+      Intern" past the CS filter and violate Decision 10.
+  B3. Seniority REJECT-router (drop "Senior/Staff/Principal/VP/Director") — safe, bigger
+      volume-cut; considered, NOT adopted.
+  B4. No regex — AI sees everything; simplest, max AI volume.
+
+(c) Call structure — C1 two passes (classify, then extract on survivors) vs C2 one combined
+    classify+extract call. Extraction only runs on filter survivors either way, so two passes
+    only doubles work on the small kept set, not the big reject set.
+
+(d) Reject-memory (skip already-processed listings) —
+  D-none. Don't remember rejects — simplest state, but re-classifies the reject majority every
+    run (see cost note above).
+  D-A. Separate narrow table in the same Postgres (`seen_listing`, key-only) — no bloat on
+    `listings`, one DB/migration/connection; consistent with Decision 2 (one Postgres) and
+    Decision 4 (single service).
+  D-B. Store rejects in `listings` with a relevance flag — no new table, but bloats the product
+    table with null-heavy junk and contradicts Decision 10 ("non-CS rows are dropped, not
+    stored").
+  D-C. Separate datastore (second Postgres, or a Redis SET — Redis already present via
+    Decision 3) — full isolation, but splits "what we've seen" across two sources of truth and
+    adds operational surface.
+
+Decision (factual record of the user's picks — 2026-07-27):
+- Runtime: A1 local Ollama. Model chosen by Claude at the user's explicit request:
+  **Qwen2.5-14B-Instruct (Q4_K_M)** as primary, **Qwen2.5-7B-Instruct** as the throughput
+  fallback for the big initial run; JSON output enforced via Ollama structured output. Runs on
+  the user's 24GB M4 Pro in the background initially, on a server later (Decision 4 path).
+  Rationale + sizing/throughput math in `research/local-model-classification.md`.
+- Regex: B2 accept-router with the CS-token-AND-intern/co-op-token constraint. B3 seniority
+  reject-router NOT adopted.
+- Call structure: C1 two passes (classify → extract on survivors).
+- Reject-memory: D-A — a narrow, KEY-ONLY `seen_listing` table in the existing Postgres.
+  Key-only means a reject is never re-evaluated even if its posting text later changes (no
+  description hash).
+- New pipeline stage: a partition-by-seen step before the filter (skips any listing already in
+  `listings` OR `seen_listing`), so only the initial run is expensive.
+- This AMENDS Decision 10: reject *keys* (source, external_id) are now persisted in
+  `seen_listing` for skip-memory. Decision 10's "CS-relevance is NOT stored as a column [on
+  `listings`]" still holds — no relevance column on the product table, no non-CS content stored.
+
+Reason: _(your words — e.g. why local-only was worth the slower initial run, why key-only
+reject memory over a description hash, why a separate table over a flag or a second store)_
+
+Tradeoffs accepted: _(your words — e.g. multi-hour initial classify run on the Mac; rejects
+never re-checked if a posting is edited into scope; a second table + a Decision 10 amendment;
+accept-router misses non-obvious keeps (co-ops, "Analyst Program") and leans on the AI for
+them)_
+
+Date: 2026-07-27
 
 ---

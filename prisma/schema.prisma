@@ -122,3 +122,22 @@ model CrawlTarget {
   @@unique([source, token])
   @@map("crawl_targets")
 }
+
+// Skip-memory for REJECTED listings (Decision 12; amends Decision 10). Holds only the
+// natural key of listings the classifier dropped, so the daily refresh's partition step can
+// skip re-classifying them instead of paying the AI cost on every run. Keeps are NOT stored
+// here — their presence in `listings` is their skip-memory.
+//
+// KEY-ONLY by decision: no description hash, so a reject is never re-evaluated even if its
+// posting text is later edited into scope (accepted tradeoff for simplicity). Composite PK
+// (source, source_external_id) is the whole row — no surrogate id, deliberately narrow.
+// last_seen_at is bookkeeping for a future prune of stale reject keys (that pruning policy is
+// FIRST-DRAFT-MINE / freshness-adjacent — not implemented here).
+model SeenListing {
+  source           Source
+  sourceExternalId String   @map("source_external_id")
+  lastSeenAt       DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+
+  @@id([source, sourceExternalId])
+  @@map("seen_listings")
+}

@@ -497,6 +497,12 @@ Schema & structure (finalized 2026-07-23):
   `normalizeGreenhouse` uses `ctx.company`. With no company on the target, normalize must
   instead derive company from the job payload (`company_name`, which Greenhouse returns).
   Fine for Greenhouse; unverified for Lever/Ashby — resolve per-source when wiring refresh.
+  RESOLVED (2026-07-27), Greenhouse only: `company_name` confirmed present in the real
+  payload (GitLab capture, ats-field-reference.md). If it's ever missing/blank at runtime,
+  `normalizeGreenhouse` drops that single job (returns null) rather than falling back to a
+  token-derived name or throwing — chosen to avoid persisting a wrong/lossy company over
+  losing one listing. `NormalizeContext.company` became optional as a result; Lever/Ashby
+  still need their own resolution when their refresh path is wired.
 - Indexing: NONE beyond the natural key for now — added later only if the pruning/refresh
   queries need them at scale.
 

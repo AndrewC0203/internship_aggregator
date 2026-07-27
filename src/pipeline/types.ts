@@ -11,10 +11,11 @@ import type {
 // until each source's normalize() narrows it.
 export type RawJob = unknown;
 
-// Context a normalize() needs beyond the raw payload. `company` comes from the crawl
-// config (the company/board list — a deferred decision), not reliably from the payload.
+// Context a normalize() needs beyond the raw payload. `company` is optional: crawl_targets
+// (Decision 11) is slug-only, so most sources must derive company from the payload itself
+// instead of relying on this context (see each source's normalize() for how).
 export interface NormalizeContext {
-  company: string;
+  company?: string;
 }
 
 // Output of a source's normalize() step — the source-derived fields only.

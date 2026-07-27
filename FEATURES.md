@@ -17,6 +17,16 @@
   `description_plain` otherwise (Lever, Ashby, and Greenhouse posts without the field).
   Core schema field; also feeds the freshness/quality score (passed deadline = likely
   dead listing). See DECISIONS.md Decision 7.
+- Refresh pipeline wired to `crawl_targets` — orchestrator reads active `CrawlTarget` rows
+  per source (populated by Decision 11 discovery) instead of a hardcoded list, and writes
+  crawl health back (`last_crawled_at` on success, `last_error` on failure). Connects the
+  discovery subsystem to the ingestion pipeline for the first time.
+- Greenhouse company resolved from payload — `normalizeGreenhouse` reads `company_name`
+  off the job payload instead of crawl-target config (which is slug-only per Decision 11).
+  Closes that decision's open consequence; see DECISIONS.md Decision 11 resolution note.
+- Listing upsert (persist stage) — upserts each listing on `(source, source_external_id)`:
+  `first_seen_at` stamps once via schema default, `last_seen_at`/`is_listed` refresh on
+  every run.
 
 # Priority 1
 

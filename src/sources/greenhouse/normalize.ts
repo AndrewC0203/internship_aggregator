@@ -13,26 +13,37 @@ interface GreenhouseJob {
   title: string;
   content: string; // HTML, entity-ENCODED by Greenhouse (e.g. "&lt;p&gt;")
   absolute_url: string;
+  company_name?: string | null;
   location?: { name?: string | null } | null;
   departments?: Array<{ name?: string | null }> | null;
   first_published?: string | null;
   updated_at?: string | null;
 }
 
-// Pure function: Greenhouse raw job -> NormalizedListing. No I/O — unit-testable against
-// a fixture. Maps only the DIRECTLY-AVAILABLE fields; employment_type / workplace_type /
-// comp / grad-year / citizenship / opportunity_type are inferred/classified downstream
-// (GATED stages), so they are NOT set here.
+// Pure function: Greenhouse raw job -> NormalizedListing, or null to drop the job. No I/O —
+// unit-testable against a fixture. Maps only the DIRECTLY-AVAILABLE fields; employment_type /
+// workplace_type / comp / grad-year / citizenship / opportunity_type are inferred/classified
+// downstream (GATED stages), so they are NOT set here.
 export function normalizeGreenhouse(
   raw: RawJob,
   ctx: NormalizeContext,
-): NormalizedListing {
+): NormalizedListing | null {
   const job = raw as GreenhouseJob;
+
+  // crawl_targets (Decision 11) is slug-only, so ctx.company is never populated for a
+  // discovery-sourced board — company_name from the payload is the only source of truth.
+  // ats-field-reference.md documents it as always-present, but nothing in the type system
+  // guarantees that at runtime, so a missing/blank value drops just this job (decided:
+  // skip, not fallback-to-token) rather than stamping a wrong company onto a listing.
+  const company = job.company_name?.trim();
+  if (!company) {
+    return null;
+  }
 
   return {
     source: "greenhouse",
     sourceExternalId: String(job.id),
-    company: ctx.company,
+    company,
     title: job.title,
 
     // Greenhouse `content` is entity-encoded HTML. Decode once to get real HTML for

@@ -139,9 +139,157 @@ only July 21 had real work in that span).
 
 ### What I Learned
 
-
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all — this is now the fourth consecutive day this has been
+flagged (July 20, 21, 22, 23). This is not a transient "laptop was off overnight" gap; the
+nightly export job described in the PM protocol does not appear to have ever been set up
+or run successfully. Recommend checking the export job directly rather than waiting for
+it to start appearing on its own.
 
 ### Progress on Goal
 
 Not Completed / Not assessable — no goal was recorded for this date, and separately, no
 Git or claude-mem evidence of any work exists for it either.
+
+## July 24, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in the July 21–23 entries: the morning brief's "Goal for Today" isn't persisted
+anywhere this process can read back the next day.
+
+### What I Did
+
+A substantial, well-tested feature day, all on the `data-ingestion` branch and merged to
+`main` via PR #2. Implemented the Common Crawl Greenhouse board-discovery subsystem end to
+end (Decision 11): a `CrawlTarget` Prisma model + migration; per-source discovery modules
+(`src/discovery/`) with Greenhouse fully implemented (CDX index query via an async
+generator with early-stop, a pure slug parser, validation that reuses `fetchGreenhouse`,
+and an orchestrator that upserts survivors) and Lever/Ashby left as fail-loud stubs; a
+`npm run discover --crawl --limit` CLI; and research notes on the Common Crawl CDX API
+contract and Greenhouse board discovery. Verified live (`discover --limit 5` kept 4/dropped
+1, idempotent re-run produced no duplicate rows) with 10/10 tests and a clean `tsc`.
+
+Two follow-up commits hardened this same day. First, a robust `validateToken` test suite
+(13 cases covering every failure shape — real `GreenhouseFetchError` 404, plain status
+object, 500/403/timeout/network, non-Error/null throws — plus two contract tests guarding
+the no-retry tier boundary); no production code changed. Second, retry/backoff for the CDX
+layer: Common Crawl's CDX endpoint intermittently 502/503/504s under load, which previously
+aborted the whole discovery sweep. `withCdxRetry` now retries transient failures
+(no-status/429/5xx) with exponential backoff (1s/2s/4s/8s, 4 retries) and treats 4xx as
+fatal; after retries are exhausted, discovery skips-and-continues (a failed page is
+skipped, a failed page-count skips that host, only a failed collinfo is fatal) instead of
+aborting the run. 9 new tests; a real 502 was caught and retried in a live run. Full suite
+now 32/32.
+
+Separately, an unrelated commit (`ce85346`, "test new gh user in cursor bug") modified
+`DEVLOG.md` directly and deleted the "What I Learned" narrative from the July 23 entry
+above — see the flag under What I Learned below; that deletion has been reverted as part of
+today's update since the original content was still recoverable from Git history.
+
+Net: the discovery subsystem — the thing that was blocking the pipeline from having any
+targets to crawl — is now implemented, tested, and hardened against the exact failure mode
+(CDX 5xx) it hit on a live run the same day.
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all (confirmed directly via `git ls-remote --heads origin`: only
+`claude/research-ats-apis`, `data-ingestion`, and `main` exist — no `claude-mem-exports`
+ref). This is now the fifth consecutive day this gap has been flagged (July 20–24). The
+nightly export job described in the PM protocol does not appear to have ever been set up or
+run successfully.
+
+Flagging separately, not as a claude-mem finding: a same-day commit (`ce85346`, message
+"test new gh user in cursor bug") deleted the paragraph above documenting this exact gap
+from the July 23 entry, replacing it with two blank lines. It touched only `DEVLOG.md`, had
+no relation to any engineering work from that day, and wasn't produced by this PM process.
+The deleted text has been restored above from Git history rather than left missing. Given
+the content deleted was specifically the flag about the missing export job, this is worth
+your attention directly — confirm whether this was an intentional/accidental local edit
+(e.g. an errant Cursor action, per the commit message) rather than something to wave off.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–23). Separately, Git shows the day was clearly productive: the discovery subsystem
+shipped end-to-end with tests and retry hardening, unblocking the crawl-target gap left
+after Decision 11 was documented.
+
+## July 25, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in the July 21–24 entries: the morning brief's "Goal for Today" isn't persisted
+anywhere this process can read back the next day.
+
+### What I Did
+
+No engineering commits landed in the Git repository between 2026-07-25T00:00:00-04:00 and
+2026-07-25T23:59:59-04:00. The only commit timestamped in that window (`a445ca8`) is this
+PM automation's own push of the July 24 DEVLOG entry — not engineering work on the project.
+Checked `git ls-remote --heads origin` for unmerged work on other branches
+(`claude/research-ats-apis`, `data-ingestion`): both still point to commits already merged
+into `main` (July 18 and July 24 respectively), so there is nothing outstanding elsewhere.
+No meaningful engineering work occurred on this date — this is the fourth zero-commit day
+out of the last six calendar days (July 20, 22, 23, and now 25; only July 21 and July 24
+had real work in that span).
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all (confirmed via `git fetch origin claude-mem-exports`, which
+fails with "couldn't find remote ref", and `git ls-remote --heads origin`, which lists only
+`claude/research-ats-apis`, `data-ingestion`, and `main`). This is now the sixth
+consecutive day this gap has been flagged (July 20–25). The nightly export job described in
+the PM protocol does not appear to have ever been set up or run successfully — this is no
+longer worth re-flagging passively; it needs to be checked/fixed directly on the laptop
+side, since it has never once produced data across the full history of this DEVLOG.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–24). Separately, no Git or claude-mem evidence of any engineering work exists for
+this date either — this is the fourth zero-engineering-commit day in the last six calendar
+days.
+
+## July 26, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in every entry since July 21: the morning brief's "Goal for Today" isn't persisted
+anywhere this process can read back the next day.
+
+### What I Did
+
+No engineering commits landed in the Git repository between 2026-07-26T00:00:00-04:00 and
+2026-07-26T23:59:59-04:00. The only commit timestamped in that window (`f80cb77`) is this PM
+automation's own push of the July 25 DEVLOG entry — not engineering work on the project.
+Checked `git ls-remote --heads origin` for unmerged work on other branches
+(`claude/research-ats-apis`, `data-ingestion`): both still point to commits already merged
+into `main` (July 18 and July 24 respectively), so there is nothing outstanding elsewhere.
+No meaningful engineering work occurred on this date — this is the fifth zero-commit day out
+of the last seven calendar days (July 20, 22, 23, 25, and now 26; only July 21 and July 24
+had real work in that span).
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all (confirmed via `git fetch origin claude-mem-exports`, which
+fails with "couldn't find remote ref", and `git ls-remote --heads origin`, which lists only
+`claude/research-ats-apis`, `data-ingestion`, and `main`). This is now the seventh
+consecutive day this gap has been flagged (July 20–26) — a full week with zero successful
+exports. The nightly export job described in the PM protocol has never produced data once
+across the entire history of this DEVLOG; this should be treated as broken/never-configured
+rather than intermittent, and is worth fixing directly rather than continuing to flag daily.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–25). Separately, no Git or claude-mem evidence of any engineering work exists for
+this date either — this is the fifth zero-engineering-commit day in the last seven calendar
+days, and the project now has 14 days left until the August 10 deadline with the API,
+scheduler, frontend, and deployment layers not yet started (see today's brief).

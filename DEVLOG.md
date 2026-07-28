@@ -293,3 +293,67 @@ July 21–25). Separately, no Git or claude-mem evidence of any engineering work
 this date either — this is the fifth zero-engineering-commit day in the last seven calendar
 days, and the project now has 14 days left until the August 10 deadline with the API,
 scheduler, frontend, and deployment layers not yet started (see today's brief).
+
+## July 27, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in every entry since July 21.
+
+### What I Did
+
+The most substantial engineering day since July 24, across two commits (plus a merge) on
+`main`. First, the refresh pipeline was wired to live data: the orchestrator now reads
+active `CrawlTarget` rows per source (populated by the July 24 discovery subsystem) instead
+of an empty hardcoded list, and writes crawl health back (`lastCrawledAt` on success,
+`lastError` on failure) — this is the first point the discovery and ingestion subsystems
+are actually connected. Alongside it, `normalizeGreenhouse` was fixed to resolve `company`
+from the job payload's `company_name` field instead of crawl-target config (which is
+slug-only per Decision 11); a missing/blank company now drops just that one job (returns
+null) rather than throwing or guessing — `normalize()`'s signature changed to
+`NormalizedListing | null` to support this.
+
+Second, and larger: Decision 12 (classification & extraction) was settled and implemented
+end-to-end. This closes the two remaining GATED stages from Decision 9. Built: a minimal
+Ollama client (`src/model/ollama.ts`) enforcing JSON-schema-constrained output against a
+local model (Qwen2.5-14B-Instruct primary, 7B throughput fallback); a classifier module
+(`src/model/classifier.ts`) running the two AI passes (classify CS-relevance +
+opportunity_type, then extract grad year / citizenship / deadline on survivors only,
+abstaining to null when unsure); a regex accept-router (`src/pipeline/stages/accept-router.ts`)
+that fast-tracks only titles matching a CS token AND an intern/co-op token together,
+deliberately false-negative-heavy so ambiguous titles fall through to the model; a new
+partition-by-seen pipeline stage (`src/pipeline/stages/partition.ts`) that skips listings
+already known as a keep (in `listings`) or a reject (in the new `seen_listings` table) so
+only genuinely-new postings hit the AI on steady-state runs; `filter.ts` and `extract.ts`
+implemented for real (no longer throwing stubs); and `persist.ts` rewritten to handle four
+write paths (new keeps, new rejects, and freshness bumps for both already-seen keeps and
+already-seen rejects). A new `SeenListing` Prisma model + migration backs the reject
+skip-memory. Two supporting docs were added: `finalized_decisions/classification-extraction.md`
+(the build spec) and `research/local-model-classification.md` (the model-choice reasoning
+and throughput sizing behind Decision 12).
+
+One thing worth flagging directly: `dedup.ts` is still an intentionally-unimplemented stub
+(Decision 9 marks it FIRST-DRAFT-MINE — reserved for you to write), and the orchestrator
+calls it before the new partition/filter/extract/persist chain. That means the full refresh
+pipeline, as wired right now, will throw at the `dedup()` call if run end-to-end — not a
+regression from today's work, but everything downstream of dedup is now implemented and
+ready the moment dedup exists.
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does
+not exist on the remote at all (confirmed via `git fetch origin claude-mem-exports`, which
+fails with "couldn't find remote ref", and `git ls-remote --heads origin`, which lists only
+`claude/research-ats-apis`, `data-ingestion`, and `main`). This is now the eighth
+consecutive day this gap has been flagged (July 20–27) — the export job has never once
+produced data across the full history of this DEVLOG.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–26). Separately, real engineering progress did occur today (see What I Did above) —
+this is the first day since July 24 with committed work, and it closes out both of the
+Decision-9 GATED stages (filter/classify, extract) plus wires the refresh pipeline to real
+crawl targets. Lever and Ashby fetch/normalize remain unimplemented stubs, and `dedup.ts`
+remains the one piece blocking an actual end-to-end pipeline run.

@@ -396,3 +396,46 @@ date either — this is the sixth zero-engineering-commit day in the last nine c
 and the project now has 12 days left until the August 10 deadline with the Lever/Ashby
 adapters, dedup, the search API, the scheduler, freshness/quality scoring, the frontend, and
 deployment all not yet started or blocked (see today's brief).
+
+## July 29, 2026
+
+### Goal for Today
+
+No goal for this date is recorded anywhere accessible to this process — same recurring gap
+noted in every entry since July 21: the morning brief's "Goal for Today" isn't persisted
+anywhere this process can read back the next day.
+
+### What I Did
+
+No engineering commits landed in the Git repository between 2026-07-29T00:00:00-04:00 and
+2026-07-29T23:59:59-04:00. The only commit timestamped in that window (`b1bd82a`) is this PM
+automation's own push of the July 28 DEVLOG entry — not engineering work on the project.
+Checked `git ls-remote --heads origin` for unmerged work on other branches
+(`claude/research-ats-apis`, `data-ingestion`): both remain fully merged into `main`, with no
+commits since July 18 and July 24 respectively, so there is nothing outstanding elsewhere. No
+meaningful engineering work occurred on this date — this is the second consecutive
+zero-commit day (July 28, and now July 29) and the seventh zero-commit day out of the last ten
+calendar days (July 20, 22, 23, 25, 26, 28, and now 29; only July 21, 24, and 27 had real work
+in that span). `dedup.ts` remains an unimplemented stub (still throws "dedup not
+implemented"), unchanged since July 27 — it has now blocked an end-to-end pipeline run for
+three consecutive days.
+
+### What I Learned
+
+No claude-mem data is available for this date. The `claude-mem-exports` branch still does not
+exist on the remote at all (confirmed via `git fetch origin claude-mem-exports`, which fails
+with "couldn't find remote ref", and `git ls-remote --heads origin`, which lists only
+`claude/research-ats-apis`, `data-ingestion`, and `main`). This is now the tenth consecutive
+day this gap has been flagged (July 20–29) — a full ten days with zero successful exports.
+This is not a transient or intermittent problem; the nightly export job described in the PM
+protocol has never once produced data across the entire history of this DEVLOG and needs to
+be fixed directly on the laptop side rather than continuing to be flagged daily.
+
+### Progress on Goal
+
+Not assessable — no goal was recorded/persisted for this date (same recurring gap as
+July 21–28). Separately, no Git or claude-mem evidence of any engineering work exists for this
+date either — this is the second straight zero-engineering-commit day, and the project now has
+11 days left until the August 10 deadline with dedup still the single piece blocking an
+end-to-end pipeline run, and the Lever/Ashby adapters, search API, scheduler, freshness/quality
+scoring, frontend, and deployment all still not yet started (see today's brief).

@@ -619,3 +619,149 @@ them)_
 Date: 2026-07-27
 
 ---
+
+## Decision 13: Local-model throughput — regex reject-router + 7B model
+
+Problem:
+The first full classify run was unusably slow and made the machine unusable. Measured
+(2026-08-04, M4 Pro / 24GB, `research/local-model-performance.md`):
+- `qwen2.5:14b-instruct` = 9.5 GB resident, 100% GPU. System free memory fell to ~21% with
+  244k pageouts — the machine was swapping. Ollama keeps the model resident ~4 min after each
+  call, so during a run it is effectively always in RAM.
+- A classify call takes **7.41 s**, of which **87% is prefill** (6.42 s) and only 11% is
+  decode (0.82 s). We send ~1,450 tokens and get back ~21. Decode speed — the number usually
+  quoted for local models — is not the bottleneck; input volume is.
+- On 2,008 real Greenhouse postings: median description 6,997 chars, and **68% exceed the
+  `MAX_DESC_CHARS = 6000` ceiling**, so nearly every call is a maximum-size prompt.
+- The Decision 12 accept-router fast-tracked **1 of 2,008 titles (0.05%)** — only 3 titles
+  contained "intern"/"co-op" at all — so ~100% of listings reached the model.
+- Implied: ~4.1 hours for the classify pass alone, before `extract()` runs a second call per
+  keep. Consistent with the observed run that reached ~210 of 1,599 after several hours.
+  (Caveat: sampled in early August, when summer-2027 internship postings are not yet up, so
+  the 0.05% router rate may be partly seasonal.)
+
+Options considered:
+- A. Smaller model (7B / 3B). ~2x faster (prefill scales with parameter count); resident
+  memory 9.5 GB -> ~5 GB. Costs accuracy on exactly the ambiguous population the routers
+  defer to the model. One config line, reversible.
+- B. Send less text (lower `MAX_DESC_CHARS`). Prefill is linear in input length, so
+  6000 -> 2000 is ~3x on any model. Costs `extract` quality most — grad-year / visa /
+  deadline signals often sit late in a posting.
+- C. Cheap regex pre-filter that REJECTS before the model. Largest upside (most postings on a
+  company board are experienced or non-CS roles) and the sharpest failure mode.
+- D. Merge classify + extract into one call. ~2x on keeps; costs prompt clarity and makes
+  extract's abstain-when-unsure discipline harder to enforce.
+B and C are independent of A and compose with it.
+
+Decision (2026-08-04): **C + A**, with a specific safety constraint on C.
+- New `src/pipeline/stages/reject-router.ts`: `rejectRoute(title)` drops unambiguously
+  out-of-scope titles (non-CS function, or seniority marker) before any model call.
+- **An early-career veto runs first**: if the title contains intern / co-op / new grad /
+  university / campus / apprentice / entry-level / fellow / graduate / PhD / student /
+  trainee / rotational / a season word, the router NEVER rejects and defers to the model.
+- **Regex rejects are NOT written to `seen_listings`.** They are dropped in-place every run.
+- `OLLAMA_MODEL` default changes `qwen2.5:14b-instruct` -> `qwen2.5:7b-instruct`.
+
+This AMENDS Decision 12, which recorded "B3 seniority reject-router NOT adopted" and named
+the 7B as a fallback rather than the default. Both are now reversed, on measured evidence.
+
+Measured effect of the reject-router on the same 2,008 real titles: **1,653 dropped (82.2%)**,
+356 reach the model, and **0 early-career titles wrongly dropped**. A naive version without
+the veto dropped 13 early-career titles, including "Associate Product Manager, New Grad
+(2027 Start)" — a listing CLASSIFY_SYSTEM says to keep — killed on the token "manager".
+
+Reason: _(your words — why a regex is allowed to make final reject calls that previously only
+the model made; why the not-recording rule is the thing that makes that acceptable; why 7B's
+accuracy loss is worth ~2x on the population that survives the routers)_
+
+Tradeoffs accepted: _(your words — e.g. false rejects are invisible (no log line, no row) even
+though they are now recoverable; the routers are tuned on an August sample with almost no
+internship postings; `seen_listings` is no longer a complete record of every rejection; 7B is
+weaker on exactly the ambiguous titles that reach it)_
+
+Claude's objection on the record: none to C+A as scoped. The one flagged risk that remains
+open is that both routers were tuned on a corpus containing 3 internship titles out of 2,008.
+Re-validate `reject-router.ts` against an internship-heavy board in September before trusting
+the 82% drop rate as steady-state.
+
+Date: 2026-08-04
+
+---
+
+## Decision 14: Years-of-experience filtering (stop the early-career false keeps)
+
+Problem:
+The first real runs produced 3 keeps; 2 were wrong, all failing the same way — the local model
+anchors on the TITLE and under-weights the stated experience requirement in the body.
+
+| listing | stated requirement | 7B verdict | correct? |
+|---|---|---|---|
+| Junior Engineer @ 2K | "0–3 years (excellent fresh graduates are welcome)" | `new_grad` | yes |
+| Researcher @ 2K | "2+ years of UX or other social science research" | `research` | NO |
+| Data Analyst @ 1stdibs | "2+ years in data or product analytics" | `new_grad` | NO |
+
+`CLASSIFY_SYSTEM` said "prefer null when unsure" but never stated that a years-minimum
+disqualifies a role, so the title prior won. Separately, the MVP goal is to stop local-model
+runs taking hours.
+
+Measured on 90 real postings that survive the title reject-router (6 boards,
+research/yoe-filter-analysis.md):
+- 33 state no experience minimum at all
+- 2 state a minimum of 0
+- 7 state a minimum of 1
+- 48 state a minimum of 2+
+- 94% of "N years" matches sit next to an experience word, and ALL of the 6% that do not were
+  still genuine experience requirements — so no proximity gate is needed.
+
+Options considered:
+- A. Body-level YOE regex, dropping before the model.
+- B. Fold it into `extract()`, which already reads the body for grad year. Costs no extra call
+  but buys correctness only, not speed — extract runs AFTER classify, so the model call is
+  already paid for — and it moves a stage boundary (`extract()` would have to return late
+  rejects for `persist()`).
+- C. Add `min_years_experience` to the CLASSIFY schema; model extracts the fact, code applies
+  the threshold. Same call, ~5 extra output tokens.
+- D. Prompt-only fix naming the failure explicitly in `CLASSIFY_SYSTEM`.
+
+Decision (2026-08-09): **A + D**, cutoff 0, drop the listing.
+- New `src/pipeline/stages/experience.ts`: `minYearsExperience(text)` returns the SMALLEST
+  stated minimum, or null. It is a FACT extractor; the threshold lives in `filter.ts`.
+- Reads the FIRST number of a range: "0-3 years" -> 0 (keep), "2+ years" -> 2 (drop). This is
+  load-bearing — a regex matching any number would drop the one posting of three we got right.
+- Takes the MIN across matches (keep-biased): "0-3 required, 5+ preferred" -> 0.
+- `MAX_YEARS_EXPERIENCE = 0` in `filter.ts`: any stated minimum >= 1 is dropped. `null` (states
+  nothing) is NOT a drop.
+- New tier 3 in the filter, between the title reject-router and the model. Drops are NOT
+  recorded in seen_listings, same rule and same reversibility argument as Decision 13.
+- Tier 1 (accept-router) still runs FIRST: an explicit "Software Engineering Intern" is kept
+  regardless of body text, so an incidental "1 year program" cannot drop a real internship.
+- D: `CLASSIFY_SYSTEM` now states that a stated minimum of 1+ years means NOT early-career
+  regardless of title, that a range starting at zero does not disqualify, and that
+  "Junior"/"Associate"/"Analyst"/"Researcher" are not themselves evidence.
+
+Measured effect: model calls fall from 90 to 35 on the sample (39%), roughly a further 2.6x on
+top of Decision 13. Verified on the three real postings: Junior Engineer reaches the model and
+is kept; the other two are dropped by the regex before any model call.
+
+Honest note on D: it fixed ONE of the two model-level errors (Data Analyst now returns null),
+but NOT the other (Researcher is still classified `research` by 7B). A is what actually
+guarantees both. D is a cheap second layer, not the fix.
+
+Reason: _(your words — why dropping beats storing for the MVP, why cutoff 0 is acceptable when
+it also drops "1+ years" roles a new grad could plausibly get, and why a regex is allowed to
+overrule the model on this signal)_
+
+Tradeoffs accepted: _(your words — e.g. 55 of 90 postings dropped without a model ever seeing
+them; roles stating "1+ years" are lost even though many are new-grad-accessible; word-form
+("one year") and month-form ("18+ months") minimums are not caught; tenure language ("401k
+after 1 year") could read as a minimum if it is the only match in a posting)_
+
+Claude's objection on the record: none to A+D as scoped — the not-recording rule keeps every
+drop reversible, and the measurement supports the regex. The open risk is unchanged from
+Decision 13: this was measured on an August corpus with almost no internship postings in it,
+which is exactly the population where "must have completed 2 years of undergraduate
+coursework" would cause a false reject. Re-validate in September.
+
+Date: 2026-08-09
+
+---

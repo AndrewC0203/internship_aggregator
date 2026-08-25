@@ -40,16 +40,28 @@ export function normalizeGreenhouse(
     return null;
   }
 
+  // Decode ONCE, then derive both fields from the decoded HTML.
+  //
+  // This ordering is load-bearing. Greenhouse ships `content` entity-ENCODED, so the raw
+  // string contains "&lt;p&gt;", not "<p>". htmlToPlain() strips tags FIRST and decodes
+  // entities LAST, so feeding it the raw encoded string matched no tags at all — it decoded
+  // them into markup instead of removing them, and descriptionPlain came out full of literal
+  // <div>/<a href> tags. Decoding here turns the entities into real tags first, so
+  // htmlToPlain() has something to actually strip.
+  const html = decodeHtmlEntities(job.content ?? "");
+
   return {
     source: "greenhouse",
     sourceExternalId: String(job.id),
     company,
     title: job.title,
 
-    // Greenhouse `content` is entity-encoded HTML. Decode once to get real HTML for
-    // display; derive plain text (block tags -> whitespace) for classify/search (Decision 6).
-    descriptionHtml: decodeHtmlEntities(job.content ?? ""),
-    descriptionPlain: htmlToPlain(job.content ?? ""),
+    // Decision 6: real HTML for display, plain text (block tags -> whitespace) for
+    // classify/search. Both derive from `html` above — see the decode-once note.
+    // htmlToPlain() decodes again internally, which is correct: it handles the inner entity
+    // layer (Greenhouse double-encodes, so "&amp;amp;" -> "&amp;" here -> "&" in plain).
+    descriptionHtml: html,
+    descriptionPlain: htmlToPlain(html),
 
     location: job.location?.name ?? null,
     // Greenhouse departments can be multiple/hierarchical; flattened to the first per

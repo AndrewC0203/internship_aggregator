@@ -3,12 +3,25 @@
 // back. The model runs locally (Qwen2.5) — no listing data leaves the machine.
 //
 // Config via env, with defaults matching the decision:
-//   OLLAMA_URL   — server base URL (default http://localhost:11434)
-//   OLLAMA_MODEL — model tag; default is the 14B primary. Set to "qwen2.5:7b-instruct" if
-//                  the initial sweep is too slow (the throughput fallback from Decision 12).
+//   OLLAMA_URL        — server base URL (default http://localhost:11434)
+//   OLLAMA_MODEL      — model tag; default is the 7B. This was the 14B originally, with 7B
+//                       named as "the throughput fallback"; benchmarking made that swap.
+//                       Measured on this machine (M4 Pro, 24 GB): a classify call is ~7.4s
+//                       on the 14B and 87% of that is PREFILL, not generation — we send
+//                       ~1,450 tokens and get back ~21. Prefill scales with parameter count,
+//                       so the 7B roughly halves it, and drops resident memory 9.5 GB → ~5 GB
+//                       (the 14B alone pushed this machine into swap).
+//                       Set OLLAMA_MODEL=qwen2.5:14b-instruct to go back.
+//                       See research/local-model-performance.md.
+//   OLLAMA_TIMEOUT_MS — per-request timeout (default 120s). Local inference is legitimately
+//                       slow, so this is generous — it exists to kill a truly HUNG request
+//                       (a pathological input that never returns), not a slow-but-progressing
+//                       one. Without it, one hung call stalls the whole sequential run
+//                       forever, since the filter/extract loops block on each request.
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
-export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5:14b-instruct";
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5:7b-instruct";
+const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS ?? 120_000);
 
 interface ChatJsonOptions {
   system: string;
@@ -20,22 +33,40 @@ interface ChatJsonOptions {
 }
 
 export async function chatJson<T>({ system, user, schema }: ChatJsonOptions): Promise<T> {
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      format: schema, // structured-output grammar; response is constrained to this schema
-      // temperature 0: classification/extraction want determinism, not creativity. (This is
-      // Ollama, not the Claude API — local models still take sampling params.)
-      options: { temperature: 0 },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
+  // Mirror the fetch-timeout pattern from greenhouse/fetch.ts: the LOCAL model call is far
+  // more likely to stall than the remote HTTP GET, so it deserves the same guard.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        stream: false,
+        format: schema, // structured-output grammar; response is constrained to this schema
+        // temperature 0: classification/extraction want determinism, not creativity. (This is
+        // Ollama, not the Claude API — local models still take sampling params.)
+        options: { temperature: 0 },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `Ollama request timed out after ${TIMEOUT_MS}ms (model "${OLLAMA_MODEL}")`,
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     throw new Error(`Ollama ${res.status}: ${await res.text()}`);

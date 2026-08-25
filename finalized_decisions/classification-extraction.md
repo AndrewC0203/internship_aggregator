@@ -20,11 +20,15 @@ normalize
 ```
 
 ### partition-by-seen (new stage)
-For the batch of normalized listings, drop any whose `(source, external_id)` is already known:
-- present in `listings` (a prior keep), OR
-- present in `seen_listing` (a prior reject).
-Only the remainder continues. This is what makes "only the initial run is expensive" true.
-Implemented as a set-membership check against both tables by natural key.
+Three-way split of the batch by `(source, external_id)` membership:
+- **unseen** (in neither table) → continue to the AI pipeline.
+- **seenKeeps** (present in `listings`) → skip the AI, but carry the full `NormalizedListing`
+  so persist can refresh SOURCE fields + `lastSeenAt` (see persist).
+- **seenRejects** (present in `seen_listings`) → skip the AI; key-only, just bump `lastSeenAt`.
+
+Only `unseen` reaches the model — that's what makes "only the initial run is expensive" true.
+Skipping AI on seen listings does NOT mean skipping the sighting: their `lastSeenAt` still
+refreshes so the freshness signal stays current. Set-membership check against both tables.
 
 ### filter — Pass 1 (regex accept-router, then AI classify)
 1. **Regex accept-router (cheap, high-precision).** Accept a listing outright only if its
@@ -46,8 +50,30 @@ Greenhouse, the structured `application_deadline` (where present) takes preceden
 extracted one (Decision 7).
 
 ### persist
-- Keeps → upsert into `listings` on `(source, source_external_id)` (existing persist behavior).
-- Rejects → upsert their key into `seen_listing`.
+Four idempotent writes, all keyed on `(source, source_external_id)`:
+- **new keeps** → upsert the full classified+extracted row into `listings`.
+- **new rejects** → `createMany(skipDuplicates)` the key into `seen_listings`.
+- **seen keeps** → per-row `update` of SOURCE fields + `lastSeenAt`, **leaving the AI columns
+  untouched** (`opportunityType` / `gradYear*` / `citizenship`). Spreading a `NormalizedListing`
+  naturally omits the AI fields, so an edited deadline/title/location propagates while the
+  prior classification stands. Reject-memory skips AI *inference*, not content sync — freezing
+  content here was a bug (fixed 2026-07-27).
+- **seen rejects** → `updateMany` bump of `lastSeenAt`.
+
+### resilience & validation (added 2026-07-27)
+- **Per-listing failure isolation** in filter/extract (mirrors the orchestrator's per-board
+  try/catch). A model failure skips just that listing and the run still persists. In *filter*,
+  a failed listing is NOT recorded as a reject (that's permanent/key-only) — it's left unseen
+  so the next run retries it. In *extract*, a failed listing is still persisted as a keep with
+  null extracted fields (classification already succeeded).
+- **Ollama request timeout** (`OLLAMA_TIMEOUT_MS`, default 120s) so a hung local-model call
+  can't stall the whole sequential run.
+- **Validate model output at the data-model seam**: grad years clamped to `currentYear-1 …
+  +6` (null outside); `application_deadline` accepted only as strict `YYYY-MM-DD` (else null),
+  built at explicit UTC midnight. Schema guarantees shape, not semantics.
+- **Incremental persist** (flush per chunk for crash-resumability) is a deferred v1 add — see
+  FEATURES.md P1. Not built here because it restructures the tail (per-chunk vs run-once) and
+  interacts with dedup's batch needs, which are still FIRST-DRAFT-MINE.
 
 ## Model
 

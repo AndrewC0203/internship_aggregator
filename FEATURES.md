@@ -44,6 +44,23 @@
 - Citizenship / work-authorization filter — filter listings by work-auth requirement
   (sponsorship available / no sponsorship / US citizen required / unknown). The
   `citizenship_status` enum column is part of the v1 schema; the filter itself is P1.
+- Incremental persist for the AI tail (v1 durability add) — flush classify/extract results to
+  the DB in chunks (e.g. per board) instead of one persist at the end of the run, so a
+  process death mid-run (crash / kill / sleep / OOM) doesn't discard all in-memory work. The
+  partition step already makes this crash-RESUMABLE for free: on the next run, already-written
+  listings show up as seenKeeps/seenRejects and are skipped, so only the lost chunk re-runs.
+  Placed P1 (a durability upgrade, not a correctness bug — the per-listing try/catch already
+  closes the reported data-loss case) and DEFERRED until dedup v1 exists, because it
+  restructures the shared tail from "run once over the whole batch" to "per-chunk," which
+  changes what dedup sees. Question the P1 placement if you'd rather it be P0.
+- Keep years-of-experience as data (v1) — store the parsed minimum as a
+  `years_experience_min` column instead of only using it to drop listings, and make the cutoff
+  configurable rather than the hardcoded `MAX_YEARS_EXPERIENCE = 0` in `filter.ts`. That turns
+  a write-time drop into a read-time filter (same reversibility argument as `opportunity_type`
+  in Decision 10), and lets users choose "0 years only" vs "up to 2 years". Deferred from the
+  MVP deliberately (Decision 14): the MVP goal was to shorten local-model runs, and dropping
+  is what buys the speed. Requires a migration, so it is a data-model change to decide, not a
+  refactor.
 
 # Priority 2
 
@@ -100,3 +117,137 @@
   throughput fallback if the initial run is too slow. Enforce JSON output regardless of model.
   The extract pass must return null when unsure (existing deadline/citizenship rule) — carries
   over unchanged.
+- AI-tail failure isolation (2026-07-27): classify/extract wrap each listing in try/catch
+  (mirrors the per-board loop). A classify failure is NOT recorded as a reject — seen_listings
+  is key-only and never re-checked, so a transient error would PERMANENTLY drop the listing;
+  instead it's left unseen and retried next run. An extract failure keeps the listing (already
+  classified) with null extracted fields.
+- Seen keeps refresh SOURCE fields, not AI fields (2026-07-27 bug fix): the reject-memory /
+  partition optimization skips AI *inference* on already-seen listings, but must still sync
+  edited source content (deadline/title/location/description). Only the AI columns
+  (opportunity_type / grad year / citizenship) are left frozen on a refresh.
+- Trust model shape, not semantics (2026-07-27): a JSON-schema-constrained model guarantees an
+  integer/string, never a plausible value. Extracted grad years are clamped to currentYear-1…+6
+  (null outside); deadlines accepted only as strict YYYY-MM-DD (null otherwise). Ollama calls
+  have a 120s timeout (OLLAMA_TIMEOUT_MS) so a hung request can't stall the sequential run.
+- Dedup is a TEMPORARY single-source pass-through (2026-07-27) — with only Greenhouse wired
+  there are no cross-source dups to find. The real Decision 9 linking algorithm is still
+  FIRST-DRAFT-MINE and must be written when Lever/Ashby are wired.
+## Local-model throughput (Decision 13, 2026-08-04)
+
+- Regex REJECT-router (`reject-router.ts`) drops unambiguously out-of-scope titles before any
+  model call. Measured on 2,008 real Greenhouse titles: 1,653 dropped (82.2%), 356 reach the
+  model, 0 early-career titles wrongly dropped. This reverses Decision 12, which had recorded
+  "B3 seniority reject-router NOT adopted".
+- The EARLY-CAREER VETO is the load-bearing part: if a title contains intern / co-op / new
+  grad / university / campus / apprentice / entry-level / fellow / graduate / PhD / student /
+  trainee / rotational / a season word, the router NEVER rejects and defers to the model. A
+  false veto costs one model call; a false reject costs the listing. Without the veto, a
+  plausible first-draft regex killed "Associate Product Manager, New Grad (2027 Start)" on the
+  token "manager" — a role CLASSIFY_SYSTEM says to keep.
+- "fellow" is a VETO token, not a seniority token, even though "Distinguished Fellow" is
+  senior — fellowship is one of our opportunity types, so the ambiguity must go to the model.
+- Level suffixes (II / III / IV) are deliberately NOT seniority tokens: they read as senior to
+  a human but mis-match too easily ("Tier II Support"), and a wrong reject outweighs the gain.
+- **Regex rejects are NOT written to `seen_listings`** — they are dropped in-place every run.
+  Rationale: `seen_listings` exists to memoize the EXPENSIVE model call; a free deterministic
+  regex saves nothing by being memoized, while recording it would make the drop permanent
+  (partitionBySeen never re-checks) and unauditable (key-only, no title stored). Not recording
+  means a fix to `reject-router.ts` retroactively recovers listings on the next run.
+  **Consequence: never route a `rejectRoute()` drop into `newRejects`.**
+- AMENDS the earlier "only the initial run is expensive" note: that still holds for MODEL
+  rejects (memoized in `seen_listings`), but regex-dropped listings stay permanently "unseen"
+  and are re-fetched, re-normalized and re-regexed every run. That is intentional and cheap —
+  the regex is free — but it means `unseen` stays large forever and `seen_listings` is no
+  longer a complete record of every rejection.
+- Default model is now `qwen2.5:7b-instruct` (was 14B; 14B is still available via
+  `OLLAMA_MODEL`). Measured on the 24GB M4 Pro: classify call 7.41s -> 3.61s (2.05x), resident
+  memory 9.5 GB -> 4.7 GB, system free memory 21% -> 63% (the 14B pushed the machine into swap).
+- The workload is PREFILL-bound, not decode-bound: ~1,450 tokens in, ~21 out, and 86-87% of
+  wall time is prompt processing on both models. Decode tok/s — the number usually quoted for
+  local models — is ~11% of runtime and is NOT the lever. Input size and call volume are.
+- 68% of real postings exceed `MAX_DESC_CHARS = 6000`, so nearly every model call is a
+  maximum-size prompt. Lowering that ceiling remains an untaken ~linear lever (Decision 13
+  option B) if more speed is needed.
+- OPEN RISK: both routers were tuned on an early-August sample containing only 3 internship
+  titles out of 2,008. Re-validate against an internship-heavy board in September before
+  trusting the 82% drop rate as steady-state.
+- The "never route a `rejectRoute()` drop into `newRejects`" rule is now TEST-ENFORCED
+  (`filter.test.ts`). Verified by mutation: pushing regex drops into `newRejects` fails 3
+  tests. Those tests deliberately use only router-resolvable fixtures, so they need no live
+  Ollama and no database — if a change ever lets a fixture reach the model, the suite hangs
+  or errors loudly, which is itself the signal.
+
+## First end-to-end run (2026-08-08)
+
+- BUG FIXED — entity-decode ORDERING in `normalizeGreenhouse`: Greenhouse ships `content`
+  entity-ENCODED (`&lt;p&gt;`), but `htmlToPlain()` strips tags FIRST and decodes entities
+  LAST. Passing the raw string matched no tags, so they were decoded INTO the output —
+  `description_plain` was stored as literal markup. Fix: decode ONCE in normalize, derive both
+  fields from the decoded HTML. Edge case to remember: **anything entity-encoded must be
+  decoded before tag-stripping, never after.** Pinned by `greenhouse/normalize.test.ts`.
+- Impact was bigger than "cosmetic": text was 22% longer than it should be, and because the
+  model call is prefill-bound with 68% of postings hitting `MAX_DESC_CHARS`, the markup
+  padding was truncating real job requirements off the end of the prompt.
+- OPEN — 7B accuracy: the run's single keep ("Data Analyst" @ 1stdibs, typed `new_grad`) is a
+  FALSE KEEP; the posting requires "2+ years". 14B rejects the same text correctly. The HTML
+  bug was ruled out as the cause (7B says `new_grad` on both versions). n=1, so this raises
+  the priority of the 14B-vs-7B agreement test, it does not settle the model choice.
+- Asymmetry worth remembering: a false KEEP is visible and reversible (delete the row); a
+  false REJECT is invisible and permanent (key-only `seen_listings`, never re-checked). 7B
+  erring toward keeps is the safer direction.
+- CAVEAT on current DB state: the 38 `seen_listings` rejects were all decided on
+  markup-polluted text (and 32 of them by the old 14B pipeline). They are permanent and will
+  never be re-evaluated unless deleted.
+
+## Experience filtering (Decision 14, 2026-08-09)
+
+- Tier 3 in the filter: `minYearsExperience(description_plain)` drops any posting stating an
+  experience minimum above `MAX_YEARS_EXPERIENCE` (MVP value: 0) BEFORE any model call.
+  Measured: model calls fall from 90 to 35 on a 6-board sample (~2.6x on top of Decision 13).
+- PARSE THE FIRST NUMBER OF A RANGE. "0-3 years" -> minimum 0 (keep); "2+ years" -> 2 (drop).
+  A regex matching any number would return 3 for "0-3 years" and drop the one posting of the
+  first three real keeps that was actually correct ("Junior Engineer", fresh grads welcome).
+- Take the MIN across all matches, not the first or the max — keep-biased on purpose, since a
+  false reject is invisible and a false keep is visible. "0-3 required, 5+ preferred" -> 0.
+- `null` (posting states no minimum) is NOT a drop. null and 0 must stay distinct.
+- Experience drops are NOT recorded in `seen_listings`, same rule as the title reject-router.
+  Raising the cutoff later retroactively re-evaluates everything previously dropped.
+- ORDERING: the accept-router runs BEFORE the experience filter. An explicit "Software
+  Engineering Intern" is kept whatever its body says — at cutoff 0 an incidental "1 year
+  program" would otherwise drop a genuine internship.
+- The parser is a FACT extractor, the threshold is POLICY in `filter.ts`. Keeping them apart
+  is what makes the v1 "store YOE + configurable cutoff" feature a small change.
+- Known gaps, accepted: word-form ("one year"), month-form ("18+ months"), and reversed
+  phrasing ("years of experience: 2+") are not matched; all fail toward KEEPING. Tenure
+  language ("401k vesting after 1 year") would read as a 1-year minimum if it were the only
+  match in a posting — not seen in 62 real matches, but possible.
+- Prompt hardening (option D) shipped alongside: `CLASSIFY_SYSTEM` now says a stated minimum of
+  1+ years means NOT early-career regardless of title, that a range starting at 0 does not
+  disqualify, and that "Junior"/"Associate"/"Analyst"/"Researcher" are not themselves evidence.
+  MEASURED PARTIAL: it fixed Data Analyst (now null) but NOT Researcher (7B still says
+  `research`). Treat the prompt as a second layer, not the fix — the regex is what guarantees.
+- `FilterResult.regexDropped` was split into `titleDropped` + `yoeDropped` so the run log shows
+  which lever is doing the work.
+
+## First clean run audit (2026-08-10) — see research/first-clean-run-audit.md
+
+- DEDUP IS NOT CROSS-SOURCE ONLY. The `dedup.ts` pass-through says "with only Greenhouse wired
+  there are no cross-source duplicates to find" — true, but it implies nothing needs deduping,
+  and 16 of 38 listings in the first clean run were WITHIN-source duplicates. Decision 9's
+  linking algorithm must handle intra-source dupes, not just cross-source. Current dup rate is
+  42% against the <5% success metric.
+- Two distinct duplicate classes, needing different answers: TRUE duplicates (same company +
+  title + location, different req ID — 6x Meridial in the US) versus GEOGRAPHIC variants (same
+  company + title, different country — Affirm Remote Poland vs Remote Spain, Meridial across 6
+  countries). A `(company, title)` key collapses both; `(company, title, location)` collapses
+  only the true duplicates. Still FIRST-DRAFT-MINE, undecided.
+- OPEN SCOPE QUESTION (Decision 10): freelance AI-trainer / data-annotation gig work. One
+  company (Meridial) was 45% of the run, all of it crowdwork classified `part_time`. It passes
+  the filters legitimately — titles say "No Experience Required" so the YOE filter has nothing
+  to catch, and the model reads "AI" as CS-adjacent. If in scope, this company dominates the
+  hub and `part_time` becomes almost entirely gig work.
+- VERIFIED at scale on this run: 0/38 HTML leaks into `description_plain` (normalize fix holds),
+  0/38 experience-filter leaks, and extract correctly returned null for all 6 postings whose
+  "deadline" text actually reads "there is no fixed deadline to apply" (rolling → null, per
+  Decision 7) — a reminder that a keyword hit is not a stated deadline.

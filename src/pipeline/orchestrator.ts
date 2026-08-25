@@ -27,9 +27,10 @@ const SOURCES: Array<{
   { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby },
 ];
 
-// Pipeline shape (Decision 9): per-source fetch -> normalize, then shared stages
-// dedup -> filter -> extract -> persist, in order.
-export async function runPipeline(): Promise<void> {
+// Pipeline shape (Decision 9 + Decision 12): per-source fetch -> normalize, then shared
+// stages dedup -> partition -> filter -> extract -> persist. `limit` caps boards per source
+// (for a small first run); omit for a full refresh.
+export async function runPipeline(opts: { limit?: number } = {}): Promise<void> {
   const normalized: NormalizedListing[] = [];
 
   for (const src of SOURCES) {
@@ -37,6 +38,7 @@ export async function runPipeline(): Promise<void> {
     // discovery still considers active. isActive=false is soft-deactivation, not deletion.
     const targets = await prisma.crawlTarget.findMany({
       where: { source: src.source, isActive: true },
+      take: opts.limit, // undefined = no cap
     });
 
     for (const target of targets) {
@@ -65,11 +67,27 @@ export async function runPipeline(): Promise<void> {
     }
   }
 
+  console.log(`Fetched + normalized ${normalized.length} raw listings.`);
+
   // Shared tail (Decision 9 + Decision 12): dedup (your first-draft) → partition-by-seen →
-  // filter (regex accept-router + AI classify) → extract (AI, keeps only) → persist.
+  // filter (regex accept-router + regex reject-router + AI classify) → extract (AI, keeps
+  // only) → persist.
   const deduped = await dedup(normalized);
   const { unseen, seenKeeps, seenRejects } = await partitionBySeen(deduped);
-  const { keeps, newRejects } = await filterInternships(unseen);
+  console.log(
+    `Partition: ${unseen.length} new (→ AI), ${seenKeeps.length} seen-keeps, ${seenRejects.length} seen-rejects.`,
+  );
+  const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships(unseen);
+  // The two drop counts are logged but never persisted: those listings stay "unseen" on
+  // purpose, so widening either regex re-evaluates them next run (see reject-router.ts).
+  console.log(
+    `Filter: ${keeps.length} kept, ${newRejects.length} model-rejected, ` +
+      `${titleDropped} title-dropped, ${yoeDropped} experience-dropped.`,
+  );
   const enriched = await extract(keeps);
   await persist({ keeps: enriched, newRejects, seenKeeps, seenRejects });
+  console.log(
+    `Persisted: ${enriched.length} new listings, ${newRejects.length} new rejects, ` +
+      `${seenKeeps.length} refreshed, ${seenRejects.length} reject bumps.`,
+  );
 }

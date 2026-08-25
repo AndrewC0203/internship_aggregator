@@ -4,8 +4,8 @@ import { prisma } from "../../db.js";
 
 export interface PartitionResult {
   unseen: NormalizedListing[]; // never classified before → full AI pipeline
-  seenKeeps: ListingKey[]; // already in `listings` → just bump lastSeenAt (no AI)
-  seenRejects: ListingKey[]; // already in `seen_listings` → just bump lastSeenAt (no AI)
+  seenKeeps: NormalizedListing[]; // already in `listings` → refresh SOURCE fields, skip AI
+  seenRejects: ListingKey[]; // already in `seen_listings` → bump lastSeenAt (key-only)
 }
 
 const keyOf = (k: { source: Source; sourceExternalId: string }) =>
@@ -13,9 +13,12 @@ const keyOf = (k: { source: Source; sourceExternalId: string }) =>
 
 // Partition-by-seen (Decision 12): split this run's listings into ones we've never classified
 // (→ AI) vs. ones already recorded as a keep (in `listings`) or a reject (in `seen_listings`).
-// Already-seen listings skip the AI entirely — they only need their lastSeenAt bumped so the
-// freshness signal stays current. This is what makes the refresh cheap after the initial run:
-// after the first sweep, almost everything falls into seenKeeps/seenRejects.
+//
+// Already-seen listings skip the expensive AI. But note the asymmetry (fix for the
+// content-freeze bug): a seenKeep still carries its full NormalizedListing so persist can
+// refresh the SOURCE fields (title, location, deadline, description…) that the company may
+// have edited — only the AI *inference* is skipped, not content sync. A seenReject is
+// key-only (we never stored its content), so it just needs a lastSeenAt bump.
 export async function partitionBySeen(
   listings: NormalizedListing[],
 ): Promise<PartitionResult> {
@@ -47,14 +50,14 @@ export async function partitionBySeen(
   }
 
   const unseen: NormalizedListing[] = [];
-  const seenKeeps: ListingKey[] = [];
+  const seenKeeps: NormalizedListing[] = [];
   const seenRejects: ListingKey[] = [];
 
   for (const l of listings) {
     const k = keyOf(l);
-    const key: ListingKey = { source: l.source, sourceExternalId: l.sourceExternalId };
-    if (seenKeepSet.has(k)) seenKeeps.push(key);
-    else if (seenRejectSet.has(k)) seenRejects.push(key);
+    if (seenKeepSet.has(k)) seenKeeps.push(l);
+    else if (seenRejectSet.has(k))
+      seenRejects.push({ source: l.source, sourceExternalId: l.sourceExternalId });
     else unseen.push(l);
   }
 

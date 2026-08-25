@@ -58,6 +58,8 @@ Decide two things:
    - "part_time": an ongoing part-time role suitable for a student
    Use null for senior / experienced / manager / staff roles or anything that is not one of these early-career categories — EVEN IF it is cs_relevant.
 
+IMPORTANT — stated experience requirements override the title. If the description states a minimum of 1 or more years of professional experience ("2+ years", "3-5 years of experience"), the role is NOT early-career: return null for opportunity_type no matter how junior the title sounds. A range that starts at zero ("0-3 years", "0 to 1 year") does NOT disqualify the role. Titles like "Junior", "Associate", "Analyst" or "Researcher" are NOT evidence of an early-career role on their own — check the stated requirements.
+
 A listing is kept only if cs_relevant is true AND opportunity_type is not null. When unsure whether a role is genuinely early-career, prefer null.`;
 
 export async function classify(listing: NormalizedListing): Promise<ClassifyResult> {
@@ -111,9 +113,28 @@ const EXTRACT_SYSTEM = `You extract structured fields from a job description. Re
 - citizenship_status: one of "us_citizen_required", "no_sponsorship", "sponsorship_available", "unknown". Use "unknown" only when the posting explicitly discusses work authorization but is ambiguous. Use null when the posting says nothing about it — absence of a statement is NOT permission.
 - application_deadline: the APPLICATION deadline as an ISO date "YYYY-MM-DD". Null if not stated or if applications are rolling. Do NOT mistake a program start/end date ("program runs June 1 - Aug 15") for an application deadline.`;
 
+// A JSON schema guarantees SHAPE (it's a string / an integer), never SEMANTICS (it's a real
+// date / a plausible year). These two guards validate at that seam — model output crossing
+// into our data model gets the same skepticism as an untrusted API.
+
+// Strict YYYY-MM-DD only. `new Date("June 1")` and `new Date("06/01/2026")` both PARSE to a
+// valid-but-wrong Date, which would defeat the "null beats a guess" intent — so reject
+// anything that isn't the exact ISO calendar-date shape. Built at explicit UTC midnight so a
+// negative-offset timezone doesn't render it as the day before.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const parseDate = (s: string): Date | null => {
-  const d = new Date(s);
+  if (!ISO_DATE.test(s)) return null;
+  const d = new Date(`${s}T00:00:00Z`);
   return Number.isNaN(d.getTime()) ? null : d;
+};
+
+// A local model can emit a schema-valid integer that's nonsense — 90210 (misread a zip) or
+// 2 (misread "2+ years experience"). Clamp to a plausible graduation window and null out the
+// rest so a hallucinated year can't silently corrupt the grad-year filter.
+const plausibleGradYear = (y: number | null): number | null => {
+  if (y === null) return null;
+  const now = new Date().getFullYear();
+  return y >= now - 1 && y <= now + 6 ? y : null;
 };
 
 export async function extract(listing: NormalizedListing): Promise<ExtractResult> {
@@ -132,8 +153,8 @@ export async function extract(listing: NormalizedListing): Promise<ExtractResult
   }>({ system: EXTRACT_SYSTEM, user, schema: EXTRACT_SCHEMA });
 
   return {
-    gradYearMin: out.grad_year_min,
-    gradYearMax: out.grad_year_max,
+    gradYearMin: plausibleGradYear(out.grad_year_min),
+    gradYearMax: plausibleGradYear(out.grad_year_max),
     citizenshipStatus: out.citizenship_status,
     applicationDeadline: out.application_deadline ? parseDate(out.application_deadline) : null,
   };

@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "discover": "tsx src/discovery/run.ts",
-    "test": "tsx --test src/**/*.test.ts"
+    "refresh": "tsx src/refresh.ts",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "repository": {
     "type": "git",

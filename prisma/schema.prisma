@@ -92,9 +92,21 @@ model Listing {
   // Links
   url String
 
+  // Dedup linking (Decision 9 storage mechanism, Decision 15 key + representation). A JSON
+  // array of {source, sourceExternalId} objects — every listing suppressed as a duplicate of
+  // THIS row. Never hard-deleted (Decision 9): a duplicate's key lives here instead of getting
+  // its own row. JSONB over a join table because the array is small (single digits per
+  // canonical, observed max 6), is only ever read/written as a whole by dedup.ts, and never
+  // needs its own indexed queries — a second table would be pure ceremony for that access
+  // pattern. Default empty array so every row (not just ones with duplicates) has a value.
+  duplicateKeys Json @default("[]") @map("duplicate_keys")
+
   // Natural key: identifies "same listing across refreshes" (upsert target).
   // Distinct from `id`; cross-source dedup is a separate layer (not this constraint).
   @@unique([source, sourceExternalId])
+  // Supports dedup.ts's lookup: "is there an active listing with this (company, title,
+  // location)?" Added now because dedup runs on every refresh, not deferred as premature.
+  @@index([company, title, location])
   @@map("listings")
 }
 

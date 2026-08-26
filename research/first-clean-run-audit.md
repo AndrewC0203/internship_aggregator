@@ -42,9 +42,10 @@ Two classes needing different treatment:
   student legitimately wants to see separately.
 
 A dedup key of `(company, title)` collapses both; `(company, title, location)` collapses only
-the true duplicates. UNDECIDED — Decision 9's linking algorithm is FIRST-DRAFT-MINE.
+the true duplicates. RESOLVED 2026-08-25 — see Decision 15 (key = `(company, title, location)`).
 
-Current duplicate rate is **42%** against a project success metric of <5%.
+Current duplicate rate is **42%** against a project success metric of <5%. (Measured again on
+the 71-listing run below at 21%; 0% after Decision 15 + backfill.)
 
 ## Finding 2 — one company is 45% of the hub
 
@@ -185,11 +186,13 @@ the double-decode path — not leaked HTML. An audit regex of `<[a-z][^>]*>` fal
 them. The AIFT `Web3 Internship – Software Engineering Intern` anomaly from the previous run
 is RESOLVED — it is now captured, so it was a board-selection artifact, not a filter bug.
 
-**Still open:** duplicate rate 21% (target <5%) — `Meridial::Social Media Annotation` ×6 spans
-6 different countries (arguably distinct) while `AI Training Generalist` ×6 is all
-"United States of America" (pure noise); the dedup key choice decides which collapses.
-Meridial is 24% of all listings. Extraction stays conservative: citizenship 13/71, grad year
-1/71, deadline 0/71.
+**RESOLVED (2026-08-25, Decision 15):** dedup key is `(company, title, location)`, exact match —
+collapses pure-noise (`AI Training Generalist` ×6, all "United States of America") while
+leaving every geo-variant (`Social Media Annotation` ×6 across 6 countries) alone. Backfilled
+the pre-existing duplicates; post-backfill duplicate rate is 0% under this key (was 21.1% under
+the old `(company, title)` metric). See DECISIONS.md Decision 15 and FEATURES.md. Meridial is
+still 24% of all listings — that's Finding 2's scope question, not a dedup problem. Extraction
+stays conservative: citizenship 13/71, grad year 1/71, deadline 0/71.
 
 ## Location data quality — input to a US-filter decision (2026-08-22)
 
@@ -238,3 +241,142 @@ which is still unmade. Greenhouse has tens of thousands of live boards.
 Consequence to remember: the pipeline keeps ~1% of whatever it is fed, so volume scales with
 board count and nothing else. Prompt/regex tuning cannot substitute. **The ATS rate-limit
 decision is the highest-leverage open item — ahead of dedup and the location filter.**
+
+## 787-board run (2026-08-25) — scale-up + season-inflection findings
+
+Discovery re-run uncapped, then `--limit 1000` (787 boards kept, up from 163 — see DECISIONS.md
+for why an uncapped sweep was aborted: Common Crawl's CDX endpoint was ~20% 502/504 that day,
+confirmed independently, not a bug). Refresh run against all 787 boards, now chunked in
+`BOARD_BATCH_SIZE`-board flushes (FEATURES.md P1, unblocked by Decision 15) so a mid-run crash
+loses at most one chunk instead of the whole crawl.
+
+| metric | 2026-08-22 (163 boards) | 2026-08-25 (787 boards) |
+|---|---|---|
+| active listings | 71 | 495 |
+| listings / board | 0.44 | 0.63 |
+| internship share | 10/71 (14%) | 176/495 (**35.6%**) |
+| top-company share | Meridial 24% | DRW 6.7% |
+| distinct companies | ~10 | 151 |
+| dup rate, (company,title,location) | n/a (pre-Decision 15) | **0.0%** (7 real dup groups caught, all correctly suppressed) |
+| gradYear extracted | 1/71 (1.4%) | 78/495 (15.8%) |
+| citizenship extracted | 13/71 (18%) | 112/495 (22.6%) |
+| deadline extracted | 0/71 (0%) | 4/495 (0.8%) |
+
+**INTERNSHIP SEASON HAS ARRIVED, EARLIER THAN PREDICTED.** Finding 3 predicted internship
+volume would stay near-zero until "late August through November." Internship share just moved
+from 14% to 36% of the hub in three days. This is the single most consequential change in this
+run — it means the Decision 13 reject-router (82% drop rate, tuned on ~0.05%-internship data)
+and the Decision 14 YOE filter (cutoff 0, tuned on a 90-posting sample with 3 internships) are
+now operating on exactly the population they were NEVER validated against. Both routers'
+false-reject risk is a live question now, not a September one — and neither drop is recorded
+(by design, for reversibility), so there is no retroactive way to audit what they silently
+rejected this run. **Re-validating both routers against this run's title/YOE-dropped population
+is now the highest-priority open item**, ahead of the ATS rate-limit decision — board count no
+longer bottlenecks internship share the way it did in August.
+
+**Company concentration problem is resolved, as a side effect of board scale, not a targeted
+fix.** Meridial dropped from 24% to 2.2% of the hub purely because 787 boards dilutes any one
+company's share; nothing in the filter/classify logic changed. Top company (DRW) is under 7%.
+Finding 2's "is crowdwork in scope" question (Decision 10) is now much lower-stakes — Meridial
+no longer dominates the product either way.
+
+**Dedup (Decision 15) held cleanly at 7x scale.** 0% duplication under the real key, and the
+suppressed-duplicate audit trail (`duplicateKeys`) caught two NEW real duplicate clusters not
+in the original 38/71-listing sample (Cloudflare's Fall 2026 Research Engineer Intern posted
+under 3 req IDs, its Software Engineer Intern under 2) — evidence the key generalizes past the
+original audit sample, not just fits it.
+
+**Extraction fill rates roughly doubled** (gradYear 1.4%→15.8%, citizenship 18%→22.6%) —
+consistent with the season-inflection finding: internship postings state grad-year/citizenship
+requirements far more often than the new-grad-heavy population this was previously measured on.
+Deadline extraction is still near-zero (0.8%) — unchanged conclusion from Finding 3: most
+postings genuinely don't state one, this isn't an extraction miss.
+
+Crawl health: 783/787 boards successfully crawled at least once, 5 currently carry a
+`last_error`. No pruning action taken — all under Decision 11's ~2–3 month staleness threshold.
+
+## Router false-reject spot-check + US/CS internship count (2026-08-25)
+
+Prompted by the season-inflection finding above: were Decision 13/14's routers, tuned on
+near-zero-internship corpora, actually wrong on this run?
+
+**YOE-filter leak check (cheap — DB-only):** ran `minYearsExperience()` against all 495 active
+keeps' `description_plain`, looking for a kept listing stating a minimum > 0 (would mean the
+gate leaked). Found 7, all `opportunityType: internship`:
+
+```
+DRW :: Quantitative Developer Intern (Python)  -> parsed min 25
+Epic Games :: Machine Learning Intern (x3)      -> parsed min 30
+Truveta :: ML PhD Intern - LLMs & Generative AI -> parsed min 1
+Zscaler :: ...SkillBridge Intern (x2)           -> parsed min 5
+```
+
+**Not filter bugs — the accept-router safety net working as designed.** All 7 titles contain an
+explicit "Intern" + CS/eng token, so Tier 1 (accept-router) kept them regardless of body text
+(Decision 14's ordering: accept-router runs BEFORE the YOE gate on purpose). The parsed numbers
+are themselves false positives of `minYearsExperience`'s context-blindness — "25"/"30" are
+almost certainly company-history mentions ("DRW has been trading for 25 years"), not a
+candidate requirement, and Zscaler's "5" is SkillBridge-program military-experience eligibility,
+not a professional-software-experience bar. **This is a real, concrete case of exactly what
+Decision 14 predicted** ("an incidental '1 year program' in the description would otherwise drop
+a genuine internship") — without the accept-router override, all 7 of these would have been
+wrongly dropped.
+
+**Live router retrace (partial — interrupted before completion):** re-fetched live boards for
+DRW, Canonical, Anthropic, Anduril Industries, Hudson River Trading, and Astranis; for every
+live intern/co-op-titled job, checked whether it's in `listings` (kept), `seen_listings`
+(model-rejected, recorded), or neither (would need live tracing through today's routers).
+DRW (22 intern titles) and Astranis (18) — every non-kept title was a recorded MODEL rejection,
+not a silent regex/YOE drop. Anthropic's 7 intern/co-op-titled matches were all correctly
+title-dropped (Tax/Deal-Desk/Internal-Comms roles that happen to contain "intern" as a
+substring of "international"/"internal", not real internships). Anduril timed out (10s fetch
+limit — a real board, not a router issue); Hudson River Trading's careers page isn't on
+`job-boards.greenhouse.io`/`boards.greenhouse.io` so the token extractor found nothing. **No
+false rejects found in the boards checked before this was interrupted** — Canonical, Anduril,
+and HRT still need a real pass.
+
+**US + CS-adjacent internship count: ~76 of 176 (43%), by manual read, not a location regex**
+(per the Location Data Quality section above, a naive one is provably wrong on this data — e.g.
+Toronto/Saskatoon false-matching a US state-code pattern). Breakdown of exclusions:
+
+- Non-US location is the majority of the loss — DRW/Virtu/HRT/Zscaler all post identical roles
+  across London/Dublin/Singapore/Toronto alongside their US postings; only the US copies count.
+- Non-CS field despite `opportunityType = internship`: `10Beauty :: Consumer Insights Intern`
+  (market research — audit's own Finding 5, still present), `Varda Space :: Biologics
+  Formulation Research Internship` (pharma/biology, not CS), `Voyager Technologies :: Aerospace
+  Technician` (not even internship-shaped), several Varda/True Anomaly/Vast mechanical-
+  engineering roles (Decision 10 scopes "hardware" as computer hardware, not rocket propulsion
+  — judgment call, may not match your intent).
+- Bad location data independent of the US/CS question: `Epic Games :: Machine Learning Intern`
+  has a `"BLANK,BLANK,Multiple Locations"` row — likely a real US posting, uncountable as
+  written. `Cloudflare` has 3 rows with `location = "In-Office"` (no country at all); the 4th
+  survives only because the TITLE names "Austin, TX", not the location field.
+- `Compeer Financial :: Intern Engineering` has 2 rows (`"IL-Bloomington; MN-Mankato;
+  WI-SunPrairie"` vs `"WI-Sun Prairie; IL-Bloomington; MN-Mankato"`) that look like the same
+  posting with reordered/respaced location text — a live example of Decision 15's accepted
+  tradeoff (exact-string key, no semantic normalization) letting a near-duplicate through.
+
+Both the router-leak check and the US/CS count point the same direction as the Location Data
+Quality section: the open location-normalization decision is now costing real, countable
+listings (at minimum Epic Games' and 3 of 4 Cloudflare rows), not just a theoretical dedup risk.
+
+**Pure-CS sub-breakdown of the 76.** Decision 10 scopes CS-adjacent broadly (SWE, data/ML,
+security, hardware, quant, PM). Narrowing to core software/CS roles only (SWE, ML/data science,
+security engineering, SRE) — excluding hardware/EE, quant, and PM as their own disciplines —
+cuts 76 down to **38 (22% of the 176 total)**:
+
+| category cut from the 76 | count | examples |
+|---|---|---|
+| Hardware/EE | ~15 | Astranis (13 of its 15 US roles: Avionics, CAD, Electrical Reliability, Environmental Test, PCB, Radiation Effects), Anduril EE, Virtu FPGA |
+| Quant (research/trading) | ~9 | DRW Quant Research/Trading, Virtu Quant Researcher/Trading, HRT Algorithm Development (×2), CTC Quant Trading |
+| PM | 2 | Databricks PM Intern, Datadog PM Intern |
+| IT/Analyst/ops, not engineering | ~6 | AMOREPACIFIC IT Intern, Accenture Returning Summer Analyst, Zscaler Insider Risk Analyst, Compeer Intern Engineering (×4 — genuinely ambiguous, finance company, unclear if software) |
+| Aerospace/mechanical-adjacent | ~6 | True Anomaly GSE Engineering, Varda GNC |
+
+Judgment call worth flagging: Verkada's 5 "___ Software Engineering Intern" roles (Backend/
+Embedded/Frontend/Mobile/Security) were all counted as pure CS since the titles explicitly say
+"Software Engineering," including Embedded — a different reader might draw that line elsewhere.
+
+Funnel: **176 tagged internship → 76 US + CS-adjacent (broad, Decision 10's actual scope) → 38
+US + pure CS (narrower reading).** Which number is "right" depends on which scope the hub is
+optimizing for — this is presented as a breakdown, not a recommendation to narrow Decision 10.

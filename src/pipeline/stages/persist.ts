@@ -1,4 +1,4 @@
-import type { Source } from "@prisma/client";
+import type { Source, Prisma } from "@prisma/client";
 import type { EnrichedListing, NormalizedListing, ListingKey } from "../types.js";
 import { prisma } from "../../db.js";
 
@@ -44,8 +44,19 @@ export async function persist(input: PersistInput): Promise<void> {
           sourceExternalId: listing.sourceExternalId,
         },
       },
-      create: { ...listing, isListed: true },
-      update: { ...listing, lastSeenAt: now, isListed: true },
+      // duplicateKeys cast: see the same note in dedup.ts — Prisma's Json input type wants an
+      // index signature that ListingKey[] deliberately doesn't have.
+      create: {
+        ...listing,
+        isListed: true,
+        duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
+      },
+      update: {
+        ...listing,
+        lastSeenAt: now,
+        isListed: true,
+        duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 
@@ -73,7 +84,12 @@ export async function persist(input: PersistInput): Promise<void> {
           sourceExternalId: listing.sourceExternalId,
         },
       },
-      data: { ...listing, lastSeenAt: now, isListed: true },
+      data: {
+        ...listing,
+        lastSeenAt: now,
+        isListed: true,
+        duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 

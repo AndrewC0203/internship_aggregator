@@ -79,5 +79,7 @@ export function normalizeGreenhouse(
     applicationDeadline: null, // TODO: map application_deadline if present; else extracted
 
     url: job.absolute_url,
+
+    duplicateKeys: [], // dedup.ts (Decision 15) is the only stage that ever populates this
   };
 }

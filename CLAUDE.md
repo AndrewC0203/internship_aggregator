@@ -108,6 +108,14 @@ repo. Log your objection in the entry if you had one.
 Remind me to update the README architecture diagram when a decision changes it. I maintain
 diagrams myself — never generate them.
 
+## README.md protocol
+
+README.md's "Commands" section is the running list of how to actually operate the project
+(npm scripts, CLI flags, prerequisites like `ollama serve`). Unlike the architecture
+diagram, this is mechanical, not a judgment call — update it yourself, same turn, whenever:
+a new npm script or CLI entrypoint is added, an existing one's flags change, or a new
+prerequisite (service, env var) becomes required to run something. Don't wait to be asked.
+
 ## FEATURES.md protocol
 
 Bullet points for features added. Priority 0 unless stated otherwise; question me if

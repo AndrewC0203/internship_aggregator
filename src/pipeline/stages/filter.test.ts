@@ -37,6 +37,7 @@ const listing = (title: string, descriptionPlain = "no experience minimum stated
   publishedAt: null,
   applicationDeadline: null,
   url: "https://example.com/job",
+  duplicateKeys: [],
 });
 
 // Titles the reject-router drops (no early-career signal, clear seniority / non-CS function).

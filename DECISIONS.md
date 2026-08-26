@@ -765,3 +765,100 @@ coursework" would cause a false reject. Re-validate in September.
 Date: 2026-08-09
 
 ---
+
+## Decision 15: Dedup key + duplicate-link representation
+
+Problem:
+`dedup.ts` was a pass-through, justified by "with only Greenhouse wired there are no
+cross-source duplicates to find." True as written, but wrong in effect — every measured
+duplicate is WITHIN Greenhouse. `research/first-clean-run-audit.md` (Finding 1) measured 21%
+duplication (16 of 38 rows, later 21% of 71), against a <5% success-metric target. Two distinct
+flavours needing different treatment:
+
+```
+PURE NOISE          6x Meridial :: AI Training Generalist, all location "United States of
+                        America", different req IDs — the same posting, re-crawled duplicates.
+GEOGRAPHIC VARIANTS  6x Meridial :: Social Media Annotation, US/UK/Canada/Australia/NZ/Ireland
+                     2x Affirm   :: Software Engineer I, Remote Poland / Remote Spain
+                        — genuinely different postings a student may want to see separately.
+```
+
+Decision 9 already fixed the write-time mechanism (link via an array column on the canonical
+row, suppress only against a currently-ACTIVE canonical, never hard-delete) and left two things
+open: the dedup KEY, and the array's concrete representation.
+
+Options considered (key):
+
+1. `(company, title)` — collapses both flavours above. Simplest, but wrongly merges every
+   geo-variant into one row, hiding real country-specific postings from students in those
+   countries.
+2. `(company, title, location)`, exact string match (only `.trim()`'d, no case-folding or
+   semantic normalization) — collapses only the pure-noise case, since geo-variants have
+   different location strings by construction. Matches the audit's measured data exactly.
+3. `(company, title, normalized_location)` — same as 2 plus mapping location variants like
+   "USA"/"US"/"United States of America" onto one bucket. Solves a real but *separate* problem:
+   the audit already flags `location` as 45 messy free-text strings needing its own decision
+   (structured country column vs. read-time regex vs. extraction). Bundling it into the dedup
+   key would make that call implicitly, by the back door.
+
+Options considered (array representation, Decision 9's open item):
+
+A. JSONB column on the canonical row (`duplicate_keys`, array of `{source, sourceExternalId}`)
+   — matches Decision 9's "array column" language directly; one column, no new table.
+B. A separate `ListingDuplicate` join table — more relational/queryable, but this array is only
+   ever read/written as a whole by `dedup.ts`, never queried independently — a second table +
+   migration is ceremony for an access pattern that doesn't need it.
+
+Decision: Option 2 for the key, Option A for storage.
+
+- New `duplicateKeys Json @default("[]")` column on `listings` (migration
+  `20260825145125_add_duplicate_keys`), plus `@@index([company, title, location])` for the
+  lookup `dedup.ts` runs on every refresh.
+- `dedup.ts` groups the incoming batch by key, picks a deterministic survivor (smallest
+  `sourceExternalId`, so re-runs converge instead of flapping), and checks a single batched
+  lookup against ACTIVE `listings` rows sharing that key. Three outcomes: no active owner → the
+  survivor proceeds as a (possibly new) canonical; the survivor IS the active owner (a
+  seenKeep) → its history merges with any fresh in-batch siblings; a DIFFERENT active row owns
+  the key → the survivor and its siblings are fully suppressed and folded into that row via a
+  direct DB write.
+- Self-healing (Decision 9's invariant) needed no special-case code: the lookup filters to
+  `isListed: true`, so once a canonical goes inactive it stops matching, and the next listing
+  sharing its key is treated as brand new.
+- One-time backfill (`src/backfill-dedup.ts`) applies the same key to rows already in
+  `listings` from before this feature existed — a fresh `dedup()` only prevents new duplicates,
+  it can't retroactively merge two rows that already both have their own ID. Same rule:
+  deactivate losers (`isListed = false`), never delete, fold their keys into the survivor.
+
+Reason: Option 2 fixes exactly the measured problem with a one-line key function and zero
+dependency on the still-open location-quality decision — it's the smallest change that gets
+real duplicates down and leaves every legitimate geo-variant alone. Option A matches Decision
+9's already-decided storage shape and avoids a second table for data that's never queried on
+its own. `.trim()`-only normalization (no case-folding, no semantic location mapping) keeps the
+key's behavior exactly as measured against the audit — anything smarter is Option 3, deferred
+as its own decision so it doesn't quietly ride in on this one.
+
+Tradeoffs accepted: Exact-string matching means near-duplicate location text ("USA" vs.
+"United States of America" from different companies/sources) will NOT collapse — a false
+negative, the safe-direction failure mode, but it means the <5% target depends on Greenhouse
+locations staying reasonably consistent per company; a second source with differently-formatted
+locations could reopen this. The DB lookup is one query per refresh across all of that batch's
+keys (`OR` of up to N triples) — fine at the current/target scale (thousands of listings), would
+need revisiting at much higher volume. `mergeDuplicateKeys` is a read-then-write, not
+transactional — safe only because Decision 4 keeps the refresh single-instance/sequential; a
+concurrent pipeline would need this in a transaction. The backfill is a one-time script, not a
+migration — it must be re-run manually if a future bug reintroduces already-persisted
+duplicates (it's idempotent, so re-running it is always safe, just not automatic).
+
+Measured effect: 71 active listings, 21.1% duplicate under the old (company, title) metric.
+Under the new (company, title, location) key: 3 real duplicate groups found (the known 6x
+Meridial cluster, a second 2x Meridial cluster the audit didn't call out individually, and a 2x
+Amtech Software pair) — all confirmed exact title+location matches, no geo-variant wrongly
+caught. Backfill deactivated 7 rows; active count dropped to 64, all now unique under the new
+key — **0% duplication**, against the <5% target. Note the (company, title) metric itself now
+reads 12.5%, not because duplicates remain but because it's the wrong metric post-decision: it
+counts every legitimate geo-variant as a "duplicate," which is exactly what this decision
+rejected — post-Decision-15, (company, title, location) is the correct duplicate measure.
+
+Date: 2026-08-25
+
+---

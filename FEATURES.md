@@ -36,6 +36,23 @@
 - Listing upsert (persist stage) — upserts each listing on `(source, source_external_id)`:
   `first_seen_at` stamps once via schema default, `last_seen_at`/`is_listed` refresh on
   every run.
+- Incremental persist for the AI tail (2026-08-25) — the shared tail (dedup → partition →
+  filter → extract → persist) now runs in `BOARD_BATCH_SIZE`-board chunks (env var, default
+  10) instead of once over the whole crawl. A crash mid-run (OOM, kill, Ctrl-C) now only loses
+  the current chunk; every prior chunk is already persisted. Was P1-deferred pending dedup v1
+  (Decision 15) — unblocked the same day Decision 15 landed. See `src/pipeline/orchestrator.ts`
+  for why chunking doesn't break dedup (the DB-lookup branch catches cross-chunk duplicates
+  that the in-batch branch would have caught in a single-batch run).
+- Retry with backoff for Ollama calls (2026-08-25) — `chatJson()` (classify + extract, since
+  both share this one call site) now retries a TRANSIENT failure (network error, timeout, 429,
+  5xx) up to `OLLAMA_MAX_RETRIES` times (default 3) with exponential backoff
+  (`OLLAMA_RETRY_BASE_MS`, default 1s: 1s/2s/4s) before giving up on that one listing. A 4xx
+  (bad schema, wrong model tag) is NOT retried — retrying can't fix a config bug. Mirrors
+  `withCdxRetry` in `src/discovery/greenhouse.ts` (same shape, kept as a separate copy on
+  purpose — see that file's comment on why retry stays scoped per layer). The existing
+  per-listing try/catch in `filter.ts`/`extract.ts` is unchanged: it now only sees an error
+  after retries are exhausted, so a listing is skipped (and retried next run, per Decision 12)
+  strictly LESS often than before.
 
 # Priority 1
 
@@ -44,15 +61,6 @@
 - Citizenship / work-authorization filter — filter listings by work-auth requirement
   (sponsorship available / no sponsorship / US citizen required / unknown). The
   `citizenship_status` enum column is part of the v1 schema; the filter itself is P1.
-- Incremental persist for the AI tail (v1 durability add) — flush classify/extract results to
-  the DB in chunks (e.g. per board) instead of one persist at the end of the run, so a
-  process death mid-run (crash / kill / sleep / OOM) doesn't discard all in-memory work. The
-  partition step already makes this crash-RESUMABLE for free: on the next run, already-written
-  listings show up as seenKeeps/seenRejects and are skipped, so only the lost chunk re-runs.
-  Placed P1 (a durability upgrade, not a correctness bug — the per-listing try/catch already
-  closes the reported data-loss case) and DEFERRED until dedup v1 exists, because it
-  restructures the shared tail from "run once over the whole batch" to "per-chunk," which
-  changes what dedup sees. Question the P1 placement if you'd rather it be P0.
 - Keep years-of-experience as data (v1) — store the parsed minimum as a
   `years_experience_min` column instead of only using it to drop listings, and make the cutoff
   configurable rather than the hardcoded `MAX_YEARS_EXPERIENCE = 0` in `filter.ts`. That turns
@@ -130,9 +138,9 @@
   integer/string, never a plausible value. Extracted grad years are clamped to currentYear-1…+6
   (null outside); deadlines accepted only as strict YYYY-MM-DD (null otherwise). Ollama calls
   have a 120s timeout (OLLAMA_TIMEOUT_MS) so a hung request can't stall the sequential run.
-- Dedup is a TEMPORARY single-source pass-through (2026-07-27) — with only Greenhouse wired
-  there are no cross-source dups to find. The real Decision 9 linking algorithm is still
-  FIRST-DRAFT-MINE and must be written when Lever/Ashby are wired.
+- Dedup was a TEMPORARY single-source pass-through (2026-07-27) justified by "no cross-source
+  dups to find" — SUPERSEDED 2026-08-25 (Decision 15): that reasoning was wrong, every measured
+  duplicate was within Greenhouse. See "Within-source dedup" below.
 ## Local-model throughput (Decision 13, 2026-08-04)
 
 - Regex REJECT-router (`reject-router.ts`) drops unambiguously out-of-scope titles before any
@@ -251,3 +259,39 @@
   0/38 experience-filter leaks, and extract correctly returned null for all 6 postings whose
   "deadline" text actually reads "there is no fixed deadline to apply" (rolling → null, per
   Decision 7) — a reminder that a keyword hit is not a stated deadline.
+
+## Within-source dedup (Decision 15, 2026-08-25)
+
+- `dedup.ts` is real now: key is `(company, title, location)`, exact string match (`.trim()`
+  only — no case-folding, no location normalization). Collapses true within-source duplicates
+  (same req reposted under different IDs) while leaving every geographic variant alone, since
+  their location strings differ by construction.
+- Runs BEFORE `partitionBySeen`, so it must handle both an in-batch duplicate (multiple copies
+  of the same req in one crawl) and a duplicate against a row already in `listings` from a past
+  refresh — one deterministic survivor per key (smallest `sourceExternalId`), one batched DB
+  lookup resolves both cases in a single pass.
+- SELF-HEALING NEEDED NO SPECIAL-CASE CODE: the DB lookup only matches `isListed: true` rows, so
+  an inactive canonical simply stops appearing as a match — the next listing sharing its key is
+  treated as brand new and gets its own row. The invariant (Decision 9: only suppress against a
+  currently-ACTIVE canonical) falls directly out of that one filter.
+- New `duplicateKeys Json` column on `listings` (array of `{source, sourceExternalId}`) — link,
+  never delete, per Decision 9. Flows through `persist.ts`'s existing `{...listing}` spreads
+  without that file needing to know dedup exists, because the field lives on `NormalizedListing`
+  itself.
+- ONE-TIME BACKFILL (`src/backfill-dedup.ts`, run once 2026-08-25): a fresh `dedup()` only stops
+  NEW duplicates — it can't retroactively merge two rows that already both have their own ID in
+  `listings`. The backfill applies the same key + survivor rule to existing active rows.
+  Idempotent (a fully-collapsed group is a group of one on re-run), safe to re-run if a future
+  bug reintroduces already-persisted duplicates.
+- MEASURED: 71 active listings, 21.1% duplicate under the old `(company, title)` metric. Found 3
+  real duplicate groups under the new key (the known 6x Meridial cluster, a second 2x Meridial
+  cluster the audit didn't call out individually, and a 2x Amtech Software pair) — all confirmed
+  exact matches, zero geo-variants wrongly caught. Post-backfill: 64 active rows, **0%**
+  duplication under `(company, title, location)`, against the <5% target.
+- `(company, title)` alone now reads 12.5% — NOT remaining duplicates, but the wrong metric:
+  every legitimate geo-variant counts as a "dup" under it, which is exactly what Decision 15
+  rejected. `(company, title, location)` is the metric to trust going forward.
+- KNOWN GAP, accepted: exact-string matching means "USA" and "United States of America" would
+  NOT collapse even if they were the same duplicate — false negative, safe direction. Location
+  normalization is a separate, still-open decision (see the audit's Location Data Quality
+  section) — deliberately not folded into this one.

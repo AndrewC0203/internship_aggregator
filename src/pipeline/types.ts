@@ -38,6 +38,14 @@ export interface NormalizedListing {
   publishedAt: Date | null;
   applicationDeadline: Date | null;
   url: string;
+
+  // Duplicate links (Decision 9 / Decision 15). [] for every fresh normalize() call — dedup.ts
+  // is the only stage that ever populates this, either with in-batch siblings (new canonical)
+  // or merged with a DB row's prior history (an existing canonical seen again). Living on
+  // NormalizedListing means persist()'s existing `{...listing}` spreads carry it through to
+  // both the create and the seenKeep-update paths without either file needing to know dedup
+  // exists.
+  duplicateKeys: ListingKey[];
 }
 
 // The natural key of a listing — how a reject flows through the pipeline (rejects never

@@ -44,3 +44,27 @@ state/country/city dictionaries) writing multi-valued `loc_countries[]` / `loc_u
 raw `location` kept untouched (the Decision 15 dedup key depends on it). Model involvement, if
 any, only as a fallback for strings the parser can't resolve, constrained to enum values, run
 per distinct string. Regions/bare-"Remote" stay unresolved rather than guessed.
+
+## Parser coverage after implementation (2026-08-27, Decision 19)
+
+Measured `resolveLocation()` over the same 1,817 active rows:
+
+| metric | value |
+|---|---|
+| resolved to ≥1 country | 1,680 (**92.5%**) |
+| US rows with ≥1 state facet | 743 / 814 (**91.3%**) |
+| unresolved | 137 rows (7.5%), 61 distinct strings |
+
+The unresolved tail is dominated by strings carrying NO place information in the location
+field itself: "Hybrid" (19), "Remote" (17), "Home based - Worldwide" (12), "Flexible - Any
+SpaceX Site" (8), regions (EMEA/APAC/Americas), "Multiple Locations Available", "In-Office".
+A model reading only the location string could not resolve these either — they'd need the
+DESCRIPTION body (e.g. SpaceX sites are all US). Conclusion: the deferred model fallback in
+Decision 19 is NOT currently worth building for ~7.5% residue that is mostly genuinely
+location-less; revisit only if the unresolved share grows with new sources, and if built, it
+should read the description, not just the location string.
+
+Fix-cycle notes (all pinned in location.test.ts): parenthetical handling must SPLIT, not
+delete — "(Hybrid)" is an annotation but "(United States)" is the place; the " or " segment
+delimiter must be case-insensitive ("Beijing OR Shanghai") and whitespace-bounded so it never
+touches a comma-attached Oregon "OR".

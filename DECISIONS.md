@@ -990,3 +990,56 @@ the expected workflow; verified live on 2026-08-27 (3-listing dry-run correctly 
 Date: 2026-08-27
 
 ---
+
+## Decision 19: Location facets — deterministic parser, arrays, model fallback deferred
+
+Problem:
+Filtering by US state (and by country outside the US) is a P0 product feature, but `location`
+is free text: 762 distinct strings across 1,817 active rows, mixing "New York, NY", "London",
+"US-VA-Arlington", "Toronto, ON", "Remote - US", regions ("EMEA", "Latam"), and multi-location
+strings spanning several states AND countries at once. Measured shapes:
+research/location-shape-analysis.md.
+
+Options considered:
+
+1. Model-only (extract pass adds state/country) — handles arbitrary text, but a 7B is
+   confidently wrong on ambiguous city names (Cambridge/Portland/Vancouver), and a wrong state
+   is invisible corruption of the filter; also costs model time per listing and a model sweep
+   to backfill.
+2. Deterministic parser only — pure code, testable, instant, backfills without model calls;
+   failure mode is "unresolved → empty arrays" (visible, safe direction). Cost: a long tail of
+   strings stays unresolved.
+3. Deterministic-first with a model fallback for the unresolved residue, enum-constrained, run
+   per distinct string.
+
+Decision: Option 3 chosen by the user; only its deterministic half BUILT, fallback deferred by
+measurement. `src/pipeline/stages/location.ts`: segments on `;`/`|`/case-insensitive " or ",
+parens treated as token delimiters (annotation vs "(United States)"), `US-XX-` structured
+prefix, then exact-token dictionaries with the ORDERING INVARIANT that Canadian province codes
+are checked before US state codes ("Toronto, ON" trap — present in real data), then a
+word-bounded prose scan of names only (never 2-letter codes). Ambiguous city names
+(Cambridge/Vancouver/Portland/Springfield) are deliberately absent — unresolved beats a
+coin-flip. Storage: `loc_countries[]` / `loc_us_states[]` scalar-list columns (migration
+`20260827152220`), ARRAYS because single listings measurably span multiple states and
+countries; raw `location` untouched (Decision 15 dedup key matches on it). Facets are computed
+in persist() at the single write choke point — including the seenKeep refresh path, so an
+upstream location edit can never leave stale facets — and unconditionally in reclassify's
+keep path, which is the backfill.
+
+Reason: the measured mess is dictionary-shaped, not judgment-shaped — the built parser
+resolves 92.5% of rows to a country and gives 91.3% of US rows a state, and the 7.5% residue
+is dominated by strings with NO place content ("Hybrid", "Remote", "Multiple Locations
+Available") that a model reading the same string also couldn't resolve. The fallback earns
+nothing today, so it stays unbuilt.
+
+Tradeoffs accepted: dictionaries need occasional tending as new sources add vocabularies (the
+coverage script in the research doc is the check). "Georgia" resolves to the US state, never
+the country (corpus-appropriate bias; Tbilisi still maps to GE). Region strings
+(EMEA/Worldwide) and bare "Remote" are unresolved by design — representing "remote anywhere"
+as a first-class filter value is a UI/product question deliberately not smuggled into this
+schema. If the model fallback is ever built, it must read the DESCRIPTION (e.g. "Flexible -
+Any SpaceX Site" is US-only knowledge), not the location string.
+
+Date: 2026-08-27
+
+---

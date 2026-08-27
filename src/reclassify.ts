@@ -1,5 +1,6 @@
 import { prisma } from "./db.js";
 import { classify, extract } from "./model/classifier.js";
+import { resolveLocation } from "./pipeline/stages/location.js";
 
 // Re-run the CURRENT classify prompt against every active listing in the DB (Decision 18).
 //
@@ -112,12 +113,19 @@ async function main(): Promise<void> {
       // extracted guess (Decision 7) — and the DB can't tell us which origin it was.
       const extracted = withExtract ? await extract(row) : null;
 
+      // Location facets (Decision 19) ride every keep-verdict write unconditionally — the
+      // parser is pure code (no model call, microseconds), so there's no reason to gate the
+      // backfill behind --extract. This is what backfills pre-Decision-19 rows.
+      const loc = resolveLocation(row.location);
+
       if (!dryRun) {
         await prisma.listing.update({
           where: { id: row.id },
           data: {
             opportunityType: verdict.opportunityType,
             csField: verdict.csField,
+            locCountries: loc.countries,
+            locUsStates: loc.usStates,
             ...(extracted && {
               gradDateMin: extracted.gradDateMin,
               gradDateMax: extracted.gradDateMax,

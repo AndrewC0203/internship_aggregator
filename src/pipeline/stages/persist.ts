@@ -1,6 +1,7 @@
 import type { Source, Prisma } from "@prisma/client";
 import type { EnrichedListing, NormalizedListing, ListingKey } from "../types.js";
 import { prisma } from "../../db.js";
+import { resolveLocation } from "./location.js";
 
 export interface PersistInput {
   keeps: EnrichedListing[]; // new keeps → upsert the full classified+extracted row into listings
@@ -35,6 +36,16 @@ function groupBySource(keys: ListingKey[]): Map<Source, string[]> {
 export async function persist(input: PersistInput): Promise<void> {
   const now = new Date();
 
+  // Location facets (Decision 19) are computed HERE, at the single choke point every listing
+  // write goes through, rather than in a pipeline stage — deliberately. The parser is pure and
+  // ~free, and deriving at write time means the seenKeep path below recomputes them too, so a
+  // company editing a posting's location can never leave stale facet arrays behind (the exact
+  // drift-on-content-edit failure mode the duplicateKeys audit flagged).
+  const locFacets = (listing: NormalizedListing) => {
+    const loc = resolveLocation(listing.location);
+    return { locCountries: loc.countries, locUsStates: loc.usStates };
+  };
+
   // New keeps — full-row upsert (source + AI fields).
   for (const listing of input.keeps) {
     await prisma.listing.upsert({
@@ -48,11 +59,13 @@ export async function persist(input: PersistInput): Promise<void> {
       // index signature that ListingKey[] deliberately doesn't have.
       create: {
         ...listing,
+        ...locFacets(listing),
         isListed: true,
         duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
       },
       update: {
         ...listing,
+        ...locFacets(listing),
         lastSeenAt: now,
         isListed: true,
         duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
@@ -86,6 +99,7 @@ export async function persist(input: PersistInput): Promise<void> {
       },
       data: {
         ...listing,
+        ...locFacets(listing),
         lastSeenAt: now,
         isListed: true,
         duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,

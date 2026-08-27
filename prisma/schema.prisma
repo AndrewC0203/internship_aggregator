@@ -119,6 +119,15 @@ model Listing {
   // Links
   url String
 
+  // Derived location facets (Decision 19): ISO-3166 alpha-2 country codes + US state codes
+  // resolved from the raw `location` string by the deterministic parser in
+  // src/pipeline/stages/location.ts. ARRAYS because measured data has single listings spanning
+  // several states and countries ("London, UK; ...; San Francisco, CA" —
+  // research/location-shape-analysis.md). Empty arrays = unresolved/unknown, never a guess.
+  // `location` itself stays raw: the Decision 15 dedup key matches on it exactly.
+  locCountries String[] @default([]) @map("loc_countries")
+  locUsStates  String[] @default([]) @map("loc_us_states")
+
   // Dedup linking (Decision 9 storage mechanism, Decision 15 key + representation). A JSON
   // array of {source, sourceExternalId} objects — every listing suppressed as a duplicate of
   // THIS row. Never hard-deleted (Decision 9): a duplicate's key lives here instead of getting

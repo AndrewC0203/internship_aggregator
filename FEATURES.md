@@ -334,3 +334,21 @@
   can be in both tables post-reclassify, and keeps-first would resurrect delisted rows via
   `persist()`'s forced `isListed: true`. If a prompt is ever LOOSENED, reclassify-delisted keys
   in `seen_listings` must be deleted manually to be re-evaluated.
+
+## Location facets + filter groundwork (Decision 19, 2026-08-27)
+
+- New `loc_countries[]` (ISO alpha-2) and `loc_us_states[]` scalar-list columns, derived from
+  raw `location` by a pure deterministic parser (`src/pipeline/stages/location.ts`) — no model
+  calls. Arrays because real listings span multiple states/countries at once. Raw `location`
+  stays untouched (dedup key input).
+- Computed in `persist()` for every listing write (including seenKeep refreshes — no drift on
+  upstream location edits) and in `reclassify`'s keep path unconditionally (this is the
+  backfill; riding the next reclassify sweep, no `--extract` needed).
+- MEASURED: 92.5% of 1,817 active rows resolve to ≥1 country; 91.3% of US rows get a state.
+  The unresolved 7.5% is mostly place-less strings ("Hybrid", "Remote", "Worldwide") — the
+  Option-3 model fallback is deferred as not-worth-it (research/location-shape-analysis.md).
+- Decisions to remember: Canadian province codes are checked BEFORE US state codes (Toronto-ON
+  trap — real rows exist). Ambiguous cities (Cambridge/Vancouver/Portland/Springfield) are
+  deliberately unmapped: empty facets are the safe failure, wrong facets are invisible. Empty
+  arrays mean "unresolved", which for the US-state filter means "excluded" — surface an
+  "unknown location" bucket in the UI rather than hiding those listings entirely.

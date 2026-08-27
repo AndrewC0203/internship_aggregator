@@ -55,9 +55,15 @@ export async function partitionBySeen(
 
   for (const l of listings) {
     const k = keyOf(l);
-    if (seenKeepSet.has(k)) seenKeeps.push(l);
-    else if (seenRejectSet.has(k))
+    // Reject-memory wins over keep-memory. Historically a key could never be in both tables,
+    // so this ordering was arbitrary — the reclassify command (src/reclassify.ts) broke that:
+    // a listing reclassified OUT keeps its (delisted) `listings` row for audit AND gains a
+    // seen_listings row. Checking keeps first would route it to seenKeeps, and persist()
+    // force-sets isListed: true on every seenKeep — silently resurrecting the row on the next
+    // crawl. Rejects-first means "the most recent verdict wins."
+    if (seenRejectSet.has(k))
       seenRejects.push({ source: l.source, sourceExternalId: l.sourceExternalId });
+    else if (seenKeepSet.has(k)) seenKeeps.push(l);
     else unseen.push(l);
   }
 

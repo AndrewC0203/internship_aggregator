@@ -12,6 +12,7 @@
     "db:studio": "prisma studio",
     "discover": "tsx src/discovery/run.ts",
     "refresh": "tsx src/refresh.ts",
+    "reclassify": "tsx src/reclassify.ts",
     "test": "tsx --test \"src/**/*.test.ts\""
   },
   "repository": {

@@ -5,6 +5,7 @@ import type {
   CompInterval,
   CitizenshipStatus,
   OpportunityType,
+  CsField,
 } from "@prisma/client";
 
 // Raw payload from a source API. Shape is source-specific, so it stays `unknown`
@@ -61,11 +62,19 @@ export interface ListingKey {
 // rejects don't reach this stage.
 export interface ClassifiedListing extends NormalizedListing {
   opportunityType: OpportunityType;
+  // Primary CS subfield (Decision 16). Nullable even on a keep: the model may abstain, and a
+  // router-accepted title with no mappable token (e.g. bare "Computer Science Intern") has no
+  // deterministic field to assign.
+  csField: CsField | null;
 }
 
 // After the extract pass: classified + the AI-extracted body fields (grad year, citizenship;
 // applicationDeadline already lives on NormalizedListing and is filled/kept there).
 export interface EnrichedListing extends ClassifiedListing {
+  // Stated graduation window verbatim ("YYYY-MM"/"YYYY") + the class years derived from it
+  // (Decision 17); see src/model/grad-date.ts for the rule.
+  gradDateMin: string | null;
+  gradDateMax: string | null;
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;

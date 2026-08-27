@@ -58,6 +58,23 @@ enum OpportunityType {
   part_time
 }
 
+// Primary CS subfield of the role (Decision 16). Single-label on purpose: a role that
+// straddles ("ML SWE") gets its dominant field, because this drives one-click UI filters —
+// multi-label is a v2 question. Null = kept before this field existed, or the classifier
+// abstained; `other` = confidently CS-adjacent but none of the named buckets.
+enum CsField {
+  swe
+  ml_ai
+  data
+  quant
+  security
+  hardware_embedded
+  devops_infra
+  it
+  product
+  other
+}
+
 model Listing {
   // Identity / provenance
   id               Int    @id @default(autoincrement())
@@ -77,10 +94,20 @@ model Listing {
   compMax           Decimal?           @map("comp_max") @db.Decimal(12, 2)
   compCurrency      String?            @map("comp_currency")
   compInterval      CompInterval?      @map("comp_interval")
+  // Derived from gradDateMin/Max via the class-year rule (Decision 17): Aug–Dec graduation
+  // months roll into the FOLLOWING class year. These stay because the filter/API reads years;
+  // the raw stated months below are the source of truth they're recomputed from.
   gradYearMin       Int?               @map("grad_year_min")
   gradYearMax       Int?               @map("grad_year_max")
+  // The graduation window as the posting literally states it — "YYYY-MM", or "YYYY" when no
+  // month is given (Decision 17). Facts, not policy: extraction copies these verbatim, and
+  // the class-year conversion happens in code, so a change to that rule re-derives the year
+  // columns without re-running the model.
+  gradDateMin       String?            @map("grad_date_min")
+  gradDateMax       String?            @map("grad_date_max")
   citizenshipStatus CitizenshipStatus? @map("citizenship_status")
   opportunityType   OpportunityType?   @map("opportunity_type")
+  csField           CsField?           @map("cs_field")
 
   // Dates / lifecycle
   publishedAt         DateTime? @map("published_at") @db.Timestamptz(6)

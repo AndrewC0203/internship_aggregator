@@ -862,3 +862,131 @@ rejected — post-Decision-15, (company, title, location) is the correct duplica
 Date: 2026-08-25
 
 ---
+
+## Decision 16: CS-subfield classification (`cs_field`) + IT-scope tightening
+
+Problem:
+Two related classify-prompt gaps. (1) No subfield: the hub can't answer "show me only ML
+internships" — `opportunity_type` says *what kind* of opportunity, nothing says *what kind of
+CS*. (2) IT scope was undefined: `CLASSIFY_SYSTEM` never mentioned IT/support roles, so the 7B
+decided help-desk postings unguided, and manual/phone-support roles were leaking in as keeps.
+
+Options considered:
+
+1. Separate model pass for subfield — clean separation, but measured prefill economics kill
+   it: 87% of a classify call is prompt prefill (~1,450 tokens in, ~21 out), so a second pass
+   doubles model time to gain ~10 output tokens.
+2. Add `cs_field` to the existing classify pass — same prompt tokens, one more field in the
+   constrained JSON schema; marginal cost ≈ zero. Router-accepted listings never reach the
+   model, so they get a deterministic title→field regex (`csFieldFromTitle`) instead.
+3. Multi-label (array of fields) — more truthful for straddling roles ("ML SWE"), but the
+   consumer is one-click UI filters; primary-label is simpler everywhere downstream.
+
+Decision: Option 2, single-label. New nullable `CsField` enum column on `listings`
+(`swe, ml_ai, data, quant, security, hardware_embedded, devops_infra, it, product, other`),
+migration `20260827144421_add_cs_field_and_grad_dates`. IT tightening in the same prompt
+revision: engineering-side IT (sysadmin, networking, cloud infra, IT security, automation) is
+cs_relevant; service-side IT (help desk, desk-side, phone/ticket support) is not.
+
+Reason: the subfield rides the call we already pay for, and the title-regex fallback keeps the
+accept-router's no-model-call property while still filling the field for the highest-confidence
+listings. Null vs `other` is kept meaningful on purpose: `other` = the model's confident
+"CS-relevant but uncategorized"; null = nobody decided (regex had no token / model abstained /
+row predates the field).
+
+Tradeoffs accepted: single-label loses secondary fields ("ML SWE" shows under one filter, not
+two) — revisit as multi-label only if users ask. The IT split now lives in prompt text, so it's
+enforced by a 7B's judgment, not code; the reclassify dry-run is the check on how well it
+lands. Prompt changes are not retroactive (rejects are never re-evaluated; keeps only via
+`npm run reclassify` — Decision 18).
+
+Date: 2026-08-27
+
+---
+
+## Decision 17: Grad-date representation — extract stated months, derive class year in code
+
+Problem:
+Postings state eligibility windows as month+year ranges ("graduating between September 2027 and
+June 2028"). The extract schema forced bare integer years, so the model lossily truncated that
+to `gradYearMin 2027, gradYearMax 2028` — wrongly presenting Spring-2027 grads (whom the
+posting excludes) as eligible. Found by the user in real DB rows.
+
+Options considered:
+
+1. Term enums (`Fall`/`Spring` + year) — matches how students talk, but makes the MODEL do the
+   month→term mapping, reintroducing inference exactly where a small model is weakest.
+2. Extract the stated window verbatim as `"YYYY-MM"`/`"YYYY"` strings, then derive class years
+   in code with one documented rule. Copying beats converting for a 7B, and the policy becomes
+   testable TypeScript instead of prompt behavior.
+3. Leave years as-is and note the inaccuracy — free, but the whole point of grad-year data is
+   an eligibility filter; a filter that's wrong for every Fall-start window is worse than none.
+
+Decision: Option 2 — the same fact-vs-policy split Decision 14 used for `experience.ts`.
+New nullable `gradDateMin`/`gradDateMax` string columns (validated `YYYY-MM` or `YYYY`;
+`src/model/grad-date.ts`), extraction copies what the posting states. `gradYearMin/Max` stay
+but become DERIVED: graduation months Aug–Dec roll into the FOLLOWING class year (Sep 2027 →
+class of 2028); bare years pass through unchanged (unspecified month ≈ Spring, which keeps its
+calendar year). The motivating case now stores dates `2027-09`/`2028-06` and years 2028/2028.
+A failed plausibility clamp on the derived year also nulls the stored date string — a fact we
+don't believe shouldn't sit in the DB looking authoritative.
+
+Reason: verbatim extraction is the easiest possible task for the model (copy, don't infer),
+and keeping the raw months means the Aug-cutoff rule can be changed later and the year columns
+recomputed for free, with zero model calls. Existing rows backfill via
+`npm run reclassify -- --extract` (Decision 18).
+
+Tradeoffs accepted: the Aug–Dec→next-class rule is a heuristic — a quarter-system December grad
+or a posting that genuinely means calendar years can be mis-bucketed by one year (mitigated:
+the stated string is preserved, so any future rule fixes re-derive without re-extraction).
+"Unspecified means Spring" biases bare years toward including more students, the
+keep-biased direction consistent with the rest of the filter stack.
+
+Date: 2026-08-27
+
+---
+
+## Decision 18: Reclassify command — retroactive prompt application, delist-don't-delete
+
+Problem:
+Prompt changes are not retroactive by design: keeps live in `listings`, rejects in
+`seen_listings`, and the pipeline never re-classifies either. So Decision 16's tightened prompt
+(and any future prompt change) would only govern future postings, leaving stale verdicts —
+e.g. already-kept help-desk rows — in the product forever.
+
+Options considered:
+
+1. Hard-delete rows the new prompt rejects — simplest, but destroys paid-for content and the
+   audit trail of what the old prompt kept; contradicts Decision 9's delete posture.
+2. Delist (`isListed=false`) + write the key to `seen_listings` — row preserved for audit,
+   future crawls skip it via existing reject-memory. Requires one semantic change: a key can
+   now be in BOTH tables, so `partitionBySeen` must check reject-memory FIRST (previously
+   arbitrary order; keeps-first would let `persist()`'s seenKeep path force `isListed: true`
+   and silently resurrect the row on the next crawl).
+3. Delist only, no `seen_listings` row — avoids the partition change but is broken by that
+   same resurrection path.
+
+Decision: Option 2, as `npm run reclassify` (`--dry-run`, `--extract`, `--limit N`). Walks
+ACTIVE listings only, sequential like every model loop. Still-keeps get `opportunityType` +
+`csField` updated in place; new-rejects get the atomic delist+seen pair (one transaction, so a
+crash can't leave the resurrection-prone half-state). `lastSeenAt` is never touched — a
+reclassify is not a sighting. `--extract` additionally re-runs pass 2 for the Decision 17
+backfill; `applicationDeadline` is fill-if-null only, since an existing value may be
+Greenhouse's structured field (Decision 7) and the DB can't distinguish origin.
+
+Reason: delisting keeps every reversal path cheap (flip `isListed` back / delete the seen key)
+while reusing the existing reject-memory machinery instead of inventing a parallel one. The
+partition ordering change is one line and encodes a defensible general rule: when memories
+conflict, the most recent verdict wins.
+
+Tradeoffs accepted: a reclassify-delisted key in `seen_listings` is permanent skip-memory like
+any other reject — if the prompt later LOOSENS, those keys must be deleted manually to get
+re-evaluated (documented in `src/reclassify.ts`). Rows delisted this way keep their content
+(unlike pipeline rejects, which are key-only) — deliberate asymmetry, since the content was
+already paid for and is the audit trail for prompt-change review. Dry-run before real run is
+the expected workflow; verified live on 2026-08-27 (3-listing dry-run correctly delisted a
+"Consumer Insights Intern" false keep and subfielded the two real keeps).
+
+Date: 2026-08-27
+
+---

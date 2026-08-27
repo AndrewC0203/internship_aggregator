@@ -1,6 +1,7 @@
-import type { OpportunityType, CitizenshipStatus } from "@prisma/client";
+import type { OpportunityType, CitizenshipStatus, CsField } from "@prisma/client";
 import type { NormalizedListing } from "../pipeline/types.js";
 import { chatJson } from "./ollama.js";
+import { parseGradDate, classYear } from "./grad-date.js";
 
 // The local-model prompts + output schemas for the two passes (Decision 12). Kept together so
 // the prompt and the JSON schema it must satisfy live next to each other. Enum lists mirror
@@ -13,6 +14,19 @@ const OPPORTUNITY_TYPES = [
   "new_grad",
   "research",
   "part_time",
+] as const;
+
+const CS_FIELDS = [
+  "swe",
+  "ml_ai",
+  "data",
+  "quant",
+  "security",
+  "hardware_embedded",
+  "devops_infra",
+  "it",
+  "product",
+  "other",
 ] as const;
 
 const CITIZENSHIP = [
@@ -32,6 +46,7 @@ const truncate = (s: string) => (s.length > MAX_DESC_CHARS ? s.slice(0, MAX_DESC
 export interface ClassifyResult {
   csRelevant: boolean;
   opportunityType: OpportunityType | null;
+  csField: CsField | null;
 }
 
 const CLASSIFY_SCHEMA = {
@@ -39,17 +54,33 @@ const CLASSIFY_SCHEMA = {
   properties: {
     cs_relevant: { type: "boolean" },
     opportunity_type: { type: ["string", "null"], enum: [...OPPORTUNITY_TYPES, null] },
+    cs_field: { type: ["string", "null"], enum: [...CS_FIELDS, null] },
   },
-  required: ["cs_relevant", "opportunity_type"],
+  required: ["cs_relevant", "opportunity_type", "cs_field"],
 } as const;
 
 const CLASSIFY_SYSTEM = `You classify job listings for a Computer-Science opportunities hub aimed at students and new grads.
 
-Decide two things:
+Decide three things:
 
 1. cs_relevant (boolean): true if the role is CS-adjacent — software / SWE, data / ML, security, hardware / embedded / firmware, devops / SRE / infrastructure, quantitative, or a technical product/program role. Non-technical roles (sales, marketing, HR, finance, recruiting, operations, non-technical design) are NOT cs_relevant.
 
-2. opportunity_type: which early-career category the role is, or null if none apply:
+IT roles are split: engineering-side IT (systems administration, networking, cloud infrastructure, IT security, scripting/automation) IS cs_relevant; service-side IT (help desk, service desk, desktop/desk-side support, phone or ticket-based customer support, hardware break-fix, AV support) is NOT cs_relevant, even when the title says "IT" or "Technical Support".
+
+2. cs_field: the role's PRIMARY technical subfield, or null:
+   - "swe": software engineering (backend, frontend, full-stack, mobile, platform)
+   - "ml_ai": machine learning / AI
+   - "data": data science, data engineering, data analytics
+   - "quant": quantitative research / trading / development
+   - "security": security engineering, cybersecurity
+   - "hardware_embedded": hardware, embedded, firmware, chip/FPGA
+   - "devops_infra": devops, SRE, cloud/infrastructure engineering
+   - "it": engineering-side IT (sysadmin, networking) — never service-side (that is not cs_relevant at all)
+   - "product": technical product / program management
+   - "other": cs_relevant but none of the above
+   If the role straddles fields, pick the dominant one from the title. Use null when cs_relevant is false, or when you cannot tell.
+
+3. opportunity_type: which early-career category the role is, or null if none apply:
    - "internship": an internship
    - "co_op": a multi-term co-op
    - "fellowship": a fellowship program
@@ -62,7 +93,15 @@ IMPORTANT — stated experience requirements override the title. If the descript
 
 A listing is kept only if cs_relevant is true AND opportunity_type is not null. When unsure whether a role is genuinely early-career, prefer null.`;
 
-export async function classify(listing: NormalizedListing): Promise<ClassifyResult> {
+// Pick<> rather than the full NormalizedListing: classify only reads these four fields, and
+// the narrower type lets the reclassify command (src/reclassify.ts) pass a DB row straight in
+// without fabricating the rest of a NormalizedListing it doesn't have (e.g. duplicateKeys).
+export type ClassifyInput = Pick<
+  NormalizedListing,
+  "title" | "company" | "department" | "descriptionPlain"
+>;
+
+export async function classify(listing: ClassifyInput): Promise<ClassifyResult> {
   const user = [
     `Title: ${listing.title}`,
     `Company: ${listing.company}`,
@@ -75,31 +114,45 @@ export async function classify(listing: NormalizedListing): Promise<ClassifyResu
   const out = await chatJson<{
     cs_relevant: boolean;
     opportunity_type: OpportunityType | null;
+    cs_field: CsField | null;
   }>({ system: CLASSIFY_SYSTEM, user, schema: CLASSIFY_SCHEMA });
 
-  return { csRelevant: out.cs_relevant, opportunityType: out.opportunity_type };
+  return {
+    csRelevant: out.cs_relevant,
+    opportunityType: out.opportunity_type,
+    // A subfield only makes sense on a CS-relevant keep; a stray label on a reject would be
+    // noise if it ever leaked into a row, so normalize it away at the boundary.
+    csField: out.cs_relevant ? out.cs_field : null,
+  };
 }
 
 // ─── Pass 2: extract (grad year / citizenship / deadline) ─────────────────────────────
 
 export interface ExtractResult {
+  // Verbatim stated window ("YYYY-MM" / "YYYY", validated) — the facts (Decision 17)…
+  gradDateMin: string | null;
+  gradDateMax: string | null;
+  // …and the class years derived from them in code (Aug–Dec rolls forward; see grad-date.ts).
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;
   applicationDeadline: Date | null;
 }
 
+// grad_date_* replaced the old grad_year_* integers (Decision 17): forcing integers made the
+// model lossily truncate "September 2027 – June 2028" to 2027–2028, which wrongly includes
+// Spring-2027 grads. Copying the stated month is easier for a 7B than converting it.
 const EXTRACT_SCHEMA = {
   type: "object",
   properties: {
-    grad_year_min: { type: ["integer", "null"] },
-    grad_year_max: { type: ["integer", "null"] },
+    grad_date_min: { type: ["string", "null"] },
+    grad_date_max: { type: ["string", "null"] },
     citizenship_status: { type: ["string", "null"], enum: [...CITIZENSHIP, null] },
     application_deadline: { type: ["string", "null"] },
   },
   required: [
-    "grad_year_min",
-    "grad_year_max",
+    "grad_date_min",
+    "grad_date_max",
     "citizenship_status",
     "application_deadline",
   ],
@@ -109,7 +162,7 @@ const EXTRACT_SCHEMA = {
 // extracted value silently corrupts a filter, so null is always safer than a guess.
 const EXTRACT_SYSTEM = `You extract structured fields from a job description. Return null for any field you are not confident about — do NOT guess.
 
-- grad_year_min / grad_year_max: the graduation-year window the role targets. "graduating in 2026 or 2027" -> min 2026, max 2027; a single year -> both equal that year. Null if not stated. NEVER infer a year from a salary figure, a zip code, or any unrelated number.
+- grad_date_min / grad_date_max: the graduation window the role targets, copied EXACTLY as stated. Use "YYYY-MM" when the posting gives a month ("graduating between September 2027 and June 2028" -> min "2027-09", max "2028-06") and bare "YYYY" when it only gives years ("graduating in 2026 or 2027" -> min "2026", max "2027"). A single stated date -> both fields equal it. Do NOT convert months to years or seasons — copy what is written. Null if not stated. NEVER infer a year from a salary figure, a zip code, or any unrelated number.
 - citizenship_status: one of "us_citizen_required", "no_sponsorship", "sponsorship_available", "unknown". Use "unknown" only when the posting explicitly discusses work authorization but is ambiguous. Use null when the posting says nothing about it — absence of a statement is NOT permission.
 - application_deadline: the APPLICATION deadline as an ISO date "YYYY-MM-DD". Null if not stated or if applications are rolling. Do NOT mistake a program start/end date ("program runs June 1 - Aug 15") for an application deadline.`;
 
@@ -137,7 +190,22 @@ const plausibleGradYear = (y: number | null): number | null => {
   return y >= now - 1 && y <= now + 6 ? y : null;
 };
 
-export async function extract(listing: NormalizedListing): Promise<ExtractResult> {
+// Validate a raw model grad-date string down to (verbatim string, derived class year) — or
+// (null, null) when it's malformed or implausible. The plausibility clamp runs on the DERIVED
+// year, and a failed clamp nulls the stored string too: a fact we don't believe shouldn't be
+// kept around looking authoritative.
+const gradField = (raw: string | null): { date: string | null; year: number | null } => {
+  if (!raw) return { date: null, year: null };
+  const parsed = parseGradDate(raw);
+  if (!parsed) return { date: null, year: null };
+  const year = plausibleGradYear(classYear(parsed));
+  return year === null ? { date: null, year: null } : { date: raw.trim(), year };
+};
+
+// Same Pick<> rationale as ClassifyInput: lets reclassify pass a DB row directly.
+export type ExtractInput = Pick<NormalizedListing, "title" | "descriptionPlain">;
+
+export async function extract(listing: ExtractInput): Promise<ExtractResult> {
   const user = [
     `Title: ${listing.title}`,
     "",
@@ -146,15 +214,20 @@ export async function extract(listing: NormalizedListing): Promise<ExtractResult
   ].join("\n");
 
   const out = await chatJson<{
-    grad_year_min: number | null;
-    grad_year_max: number | null;
+    grad_date_min: string | null;
+    grad_date_max: string | null;
     citizenship_status: CitizenshipStatus | null;
     application_deadline: string | null;
   }>({ system: EXTRACT_SYSTEM, user, schema: EXTRACT_SCHEMA });
 
+  const min = gradField(out.grad_date_min);
+  const max = gradField(out.grad_date_max);
+
   return {
-    gradYearMin: plausibleGradYear(out.grad_year_min),
-    gradYearMax: plausibleGradYear(out.grad_year_max),
+    gradDateMin: min.date,
+    gradDateMax: max.date,
+    gradYearMin: min.year,
+    gradYearMax: max.year,
     citizenshipStatus: out.citizenship_status,
     applicationDeadline: out.application_deadline ? parseDate(out.application_deadline) : null,
   };

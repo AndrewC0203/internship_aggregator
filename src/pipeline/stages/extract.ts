@@ -24,6 +24,8 @@ export async function extract(
       const fields = await extractFields(listing);
       enriched.push({
         ...listing,
+        gradDateMin: fields.gradDateMin,
+        gradDateMax: fields.gradDateMax,
         gradYearMin: fields.gradYearMin,
         gradYearMax: fields.gradYearMax,
         citizenshipStatus: fields.citizenshipStatus,
@@ -36,6 +38,8 @@ export async function extract(
       );
       enriched.push({
         ...listing,
+        gradDateMin: null,
+        gradDateMax: null,
         gradYearMin: null,
         gradYearMax: null,
         citizenshipStatus: null,

@@ -295,3 +295,42 @@
   NOT collapse even if they were the same duplicate — false negative, safe direction. Location
   normalization is a separate, still-open decision (see the audit's Location Data Quality
   section) — deliberately not folded into this one.
+
+## CS subfield + IT-scope tightening (Decision 16, 2026-08-27)
+
+- New nullable `cs_field` enum on `listings` (`swe, ml_ai, data, quant, security,
+  hardware_embedded, devops_infra, it, product, other`) — set by the classify pass (one extra
+  schema field on the call we already pay for; prefill dominates, so marginal cost ≈ 0) or, for
+  router-accepted listings that never reach the model, by a deterministic title regex
+  (`csFieldFromTitle` in `accept-router.ts`, first-match-wins with specific fields before the
+  `swe` catch-all).
+- `CLASSIFY_SYSTEM` now splits IT: engineering-side (sysadmin/networking/cloud/IT-security) is
+  cs_relevant, service-side (help desk, desk-side, phone/ticket support) is not.
+- Decisions to remember: `null` csField ≠ `other`. `other` is the model's confident
+  "CS but no bucket"; `null` means nobody decided (regex abstained / model abstained / row
+  predates the field). Don't collapse them in UI filters.
+
+## Grad dates as stated months (Decision 17, 2026-08-27)
+
+- Extraction now copies the stated graduation window verbatim into new `grad_date_min/max`
+  ("YYYY-MM" or "YYYY", strictly validated); `grad_year_min/max` are DERIVED in code
+  (`src/model/grad-date.ts`): months Aug–Dec roll into the following class year, bare years
+  pass through ("unspecified means Spring").
+- Fixes the real bug where "Sep 2027 – June 2028" stored years 2027–2028 and wrongly included
+  Spring-2027 grads; it now derives 2028/2028.
+- Decisions to remember: the year columns are recomputable from the date columns without model
+  calls — if the Aug-cutoff rule ever changes, re-derive, don't re-extract. A failed
+  plausibility clamp nulls BOTH the year and the stored date string.
+
+## Reclassify command (Decision 18, 2026-08-27)
+
+- `npm run reclassify` re-runs the CURRENT classify prompt over all active listings; flags
+  `--dry-run` (log, no writes — run this first after any prompt change), `--extract` (also
+  re-run pass 2; used once for the Decision 17 grad-date backfill), `--limit N` (smoke run).
+- Still-keeps: `opportunityType`/`csField` updated in place, `lastSeenAt` untouched (not a
+  sighting). New-rejects: atomically delisted (`isListed=false`, row kept for audit) + key
+  written to `seen_listings` so crawls skip them.
+- Decisions to remember: `partitionBySeen` now checks reject-memory BEFORE keep-memory — a key
+  can be in both tables post-reclassify, and keeps-first would resurrect delisted rows via
+  `persist()`'s forced `isListed: true`. If a prompt is ever LOOSENED, reclassify-delisted keys
+  in `seen_listings` must be deleted manually to be re-evaluated.

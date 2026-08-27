@@ -115,6 +115,15 @@ test("accept-router keeps carry a non-null opportunityType", async () => {
   );
 });
 
+test("accept-router keeps get a title-derived csField (no model call) — Decision 16", async () => {
+  const { keeps } = await filterInternships(REGEX_ACCEPTED.map((t) => listing(t)));
+
+  assert.deepEqual(
+    keeps.map((k) => k.csField),
+    ["swe", "data"],
+  );
+});
+
 test("an empty batch is a no-op", async () => {
   const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships([]);
 

@@ -27,6 +27,9 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run discover -- --crawl CC-MAIN-2026-25` | Discovery against a specific Common Crawl snapshot instead of the latest |
 | `npm run refresh` | Full ingestion pipeline over every active `crawl_target`: fetch → normalize → dedup → filter → classify → extract → persist. Requires `ollama serve` running. |
 | `npm run refresh -- --limit 5` | Refresh capped to 5 boards per source (smoke test) |
+| `npm run reclassify -- --dry-run` | Preview re-running the current classify prompt against all active listings (no writes). Run after any prompt change. Requires `ollama serve`. |
+| `npm run reclassify` | Apply it: still-keeps get `opportunity_type`/`cs_field` updated; new-rejects are delisted (kept in DB, `is_listed=false`) and remembered in `seen_listings` |
+| `npm run reclassify -- --extract --limit 20` | Also re-run the extraction pass (grad dates / citizenship); `--limit` caps rows for a smoke run |
 | `npm test` | Run the test suite (`node:test`; no live DB or Ollama needed — all DB-touching stages are unit-tested against fakes) |
 | `npm run build` | Type-check + compile to `dist/` |
 | `npx tsx src/backfill-dedup.ts` | One-time cleanup: collapses pre-existing duplicate rows already in `listings` (see DECISIONS.md Decision 15) |

@@ -1,5 +1,5 @@
 import type { NormalizedListing, ClassifiedListing, ListingKey } from "../types.js";
-import { acceptRoute } from "./accept-router.js";
+import { acceptRoute, csFieldFromTitle } from "./accept-router.js";
 import { rejectRoute } from "./reject-router.js";
 import { minYearsExperience } from "./experience.js";
 import { classify } from "../../model/classifier.js";
@@ -59,7 +59,9 @@ export async function filterInternships(
       // genuine internship. The accept-router is high-precision, so letting it win is safe.
       const routed = acceptRoute(listing.title);
       if (routed) {
-        keeps.push({ ...listing, opportunityType: routed });
+        // Router accepts never see the model, so their csField comes from the same title the
+        // router matched on — deterministic, and null when no token maps (see accept-router.ts).
+        keeps.push({ ...listing, opportunityType: routed, csField: csFieldFromTitle(listing.title) });
         console.log(`[classify ${i + 1}/${listings.length}] router-accepted: "${listing.title}"`);
         continue;
       }
@@ -95,9 +97,9 @@ export async function filterInternships(
       // listings that survive both routers get a line, which keeps the log readable now that
       // the reject-router removes the bulk of them silently.
       console.log(`[classify ${i + 1}/${listings.length}] calling model: "${listing.title}"...`);
-      const { csRelevant, opportunityType } = await classify(listing);
+      const { csRelevant, opportunityType, csField } = await classify(listing);
       if (csRelevant && opportunityType) {
-        keeps.push({ ...listing, opportunityType });
+        keeps.push({ ...listing, opportunityType, csField });
         console.log(`[classify ${i + 1}/${listings.length}] KEEP (${opportunityType})`);
       } else {
         newRejects.push({

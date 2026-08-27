@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { acceptRoute } from "./accept-router.js";
+import { acceptRoute, csFieldFromTitle } from "./accept-router.js";
 
 // The accept-router is a pure, high-stakes function (a false accept writes a non-CS role
 // past the CS filter — Decision 12 / Decision 10), so its precision is worth pinning down.
@@ -43,4 +43,27 @@ test("rejects physical-security roles (bare 'security' is not a CS token)", () =
 
 test("defers non-obvious early-career titles to the AI (accepted false negative)", () => {
   assert.equal(acceptRoute("Summer 2026 Analyst Program"), null);
+});
+
+// --- csFieldFromTitle (Decision 16: subfield for router accepts, no model call) ---
+
+test("maps common router-accepted titles to their subfield", () => {
+  assert.equal(csFieldFromTitle("Software Engineering Intern"), "swe");
+  assert.equal(csFieldFromTitle("Data Science Co-op"), "data");
+  assert.equal(csFieldFromTitle("Machine Learning Intern"), "ml_ai");
+  assert.equal(csFieldFromTitle("Cybersecurity Intern"), "security");
+  assert.equal(csFieldFromTitle("Embedded Firmware Intern"), "hardware_embedded");
+  assert.equal(csFieldFromTitle("Site Reliability Engineer Intern"), "devops_infra");
+});
+
+test("specific fields win over the broad swe catch-all — first match order", () => {
+  // Both titles contain a swe token; the leading specific token must decide the field.
+  assert.equal(csFieldFromTitle("Machine Learning Software Engineer Intern"), "ml_ai");
+  assert.equal(csFieldFromTitle("Security Software Engineer Intern"), "security");
+});
+
+test("returns null, not 'other', when no token maps", () => {
+  // "other" is the MODEL's confident cs-but-uncategorized verdict; the regex abstains instead,
+  // so the two remain distinguishable in the DB.
+  assert.equal(csFieldFromTitle("Computer Science Intern"), null);
 });

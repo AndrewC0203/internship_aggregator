@@ -1,5 +1,14 @@
 # Priority 0
 
+- Search page + API + apply status (Decisions 20, 21) — `npm run serve` starts one Fastify
+  process serving the SSR search page (`/`), the JSON search API (`/api/search`), and
+  apply-status writes (`PUT /api/applications/:id`). Faceted filters (type, cs_field, US
+  state, country, class year, application status, new-only) with honest facet counts (each
+  facet's counts computed with its own selection removed), free-text scan over title/company,
+  freshness-first default sort with a NEW-since-3-days queue section, keyboard triage
+  (j/k + s/a/i/o/x/u/Enter), pagination. Apply status lives in the user-owned `applications`
+  table (saved/applied/interviewing/offer/rejected; row absence = untouched). Visual world:
+  "Dispatch Board" (CTC panel; direction contract in `src/server/render.ts`, DESIGN.md).
 - Greenhouse board discovery via Common Crawl (Decision 11) — a standalone discovery job
   (`npm run discover`) mines Common Crawl's URL index for `boards.greenhouse.io` /
   `job-boards.greenhouse.io` tokens, validates each against the live API (200 + non-empty

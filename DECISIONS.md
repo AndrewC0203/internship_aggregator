@@ -1043,3 +1043,73 @@ Any SpaceX Site" is US-only knowledge), not the location string.
 Date: 2026-08-27
 
 ---
+
+## Decision 20: Frontend stack — Fastify server-rendered HTML, no SPA framework
+
+Problem: Phase 1 requires a search API + minimal UI, and no frontend stack was chosen
+(PRODUCT.md left it explicitly undecided). This is a lock-in technology choice: whatever
+renders the first page becomes the thing every later surface extends.
+
+Options considered:
+
+1. Fastify + server-rendered HTML — one process serves both the JSON search endpoint and the
+   HTML page rendered from the same query layer; no build step, no bundler, vanilla
+   progressive-enhancement JS. Failure mode: rich client-side interactivity (optimistic
+   updates, complex state) gets hand-rolled if the UI grows.
+2. Vite + React SPA over a JSON API — familiar to interviewers, scales to a real app; costs a
+   second process, a build step, ~200MB of dependencies, and doubles the explainable surface.
+3. Astro — islands middle ground; a third framework's conventions to defend, buying little
+   for a single logged-out page.
+
+Decision: Option 1 — Fastify + SSR HTML (user choice, 2026-08-27, from Claude's
+recommendation).
+
+Reason: Matches Decision 4's local-first single service — one process, one thing to run, one
+thing to whiteboard. The search endpoint returns JSON and the page renders server-side from
+the same query function, so the API the UI needs is the API the project promises, not a
+parallel path. Under the recruiting deadline, zero build tooling is the fastest route to a
+demoable end-to-end slice, and "I can explain every byte" is the interview criterion.
+
+Tradeoffs accepted: No client framework means row-level interactivity (apply-status marking)
+is hand-written fetch + DOM code; if the UI later needs real client state (saved views,
+optimistic bulk edits), that's the point to revisit — the JSON API survives such a migration
+unchanged.
+
+Date: 2026-08-27
+
+---
+
+## Decision 21: Apply-status storage — separate `applications` table
+
+Problem: The search page needs per-listing apply status (saved / applied / interviewing /
+offer / rejected). That state is user-authored, but `listings` is pipeline-owned: the daily
+refresh upserts every row by natural key, and reclassify can delist rows. Where user state
+lives is a schema/migration decision.
+
+Options considered:
+
+1. New `applications` table — one row per listing the user has touched: listing_id (PK/FK),
+   status enum, note, updated_at. One join at read time.
+2. `application_status` column on `listings` — no join, but mixes hand-entered state into the
+   table two pipelines upsert daily; a future multi-user split means a painful backfill.
+3. Browser localStorage — zero migration, but status dies with the browser profile, can't be
+   queried/sorted server-side, throwaway on multi-user.
+
+Decision: Option 1 — separate `applications` table (user choice, 2026-08-27, from Claude's
+recommendation).
+
+Reason: Ownership boundary, same argument as Decision 12's seen_listings: tables are owned by
+their writer. `listings` is written by the pipeline, `applications` by the human; neither can
+clobber the other. A delisted listing keeps its application row (history survives freshness),
+and when multi-user arrives the table grows a user_id column instead of forcing a listings
+migration. `not_applied` is represented by row absence, not a stored default — the table only
+holds listings the user acted on, so it stays small (dozens, not thousands).
+
+Tradeoffs accepted: One LEFT JOIN on every search query (negligible at 1.8k rows, and the FK
+is the listings PK). Status is keyed to the canonical row id: if dedup ever re-canonicalizes
+a listing under a different row, the application row must follow — acceptable because
+Decision 15's dedup never deletes canonical rows.
+
+Date: 2026-08-27
+
+---

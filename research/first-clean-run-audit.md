@@ -380,3 +380,24 @@ Embedded/Frontend/Mobile/Security) were all counted as pure CS since the titles 
 Funnel: **176 tagged internship → 76 US + CS-adjacent (broad, Decision 10's actual scope) → 38
 US + pure CS (narrower reading).** Which number is "right" depends on which scope the hub is
 optimizing for — this is presented as a breakdown, not a recommendation to narrow Decision 10.
+
+## Reclassify sweep results (2026-08-27, Decisions 16–19 applied)
+
+Full `reclassify --extract` over 1,817 actives: 1,623 kept, 194 delisted (~10.7%), 0 errors;
+every delist has its paired `seen_listings` key (resurrection invariant held). cs_field filled
+on 95% of keeps (swe 573, ml_ai 249, quant 179, data 155, hardware 105, devops 98, other 91,
+null 83, security 39, it 34, product 17). Location facets: 92% ≥1 country; 665/728 US rows
+have a state. Grad dates: 243 stated windows, 109/109 fall-window class-year derivations
+correct (e.g. Databricks `2027-09..2028-06 → 2028..2028` — the Decision 17 motivating case).
+
+Delists split into the two intended categories: service-side IT (Decision 16 targets, e.g.
+"IT Service Desk Intern") and experienced roles previously false-kept ("Research Scientist"
+anchoring to the `research` type — an unpredicted bonus of the prompt revision).
+
+**Measured asymmetry: reclassify bypasses the accept-router tier** (it calls the model
+directly), so router-protected titles are exposed to pure model judgment. Cost this sweep:
+2 of 194 delists had router-protected titles — Neuralink "Electrical Engineer Intern, Implant
+Embedded Systems" (likely false delist) and ThreatLocker "Jr Cyber Hero Intern" (likely
+correct; product-support branding). All 7 previously-documented router-saved canaries (DRW,
+Epic ×3, Truveta, Zscaler) survived. At 1/194 error rate, no structural guard added —
+accepted; revisit if future sweeps show more.

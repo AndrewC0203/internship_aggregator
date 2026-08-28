@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "border-left:5px solid var(--etch-faint)",
+        "createdAt": "2026-08-27T22:17:22.268Z",
+        "reason": "finish reviewer adjudicated false positive: width:0/height:0 CSS-triangle disclosure caret on .grp summary::before, not a card accent border"
+      }
+    ]
+  }
+}

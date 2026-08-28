@@ -75,6 +75,17 @@ enum CsField {
   other
 }
 
+// User-authored application pipeline state (Decision 21). "not_applied" is deliberately NOT
+// an enum value — absence of a row means untouched, so the table only holds listings the
+// user acted on.
+enum ApplicationStatus {
+  saved
+  applied
+  interviewing
+  offer
+  rejected
+}
+
 model Listing {
   // Identity / provenance
   id               Int    @id @default(autoincrement())
@@ -137,6 +148,8 @@ model Listing {
   // pattern. Default empty array so every row (not just ones with duplicates) has a value.
   duplicateKeys Json @default("[]") @map("duplicate_keys")
 
+  application Application?
+
   // Natural key: identifies "same listing across refreshes" (upsert target).
   // Distinct from `id`; cross-source dedup is a separate layer (not this constraint).
   @@unique([source, sourceExternalId])
@@ -144,6 +157,21 @@ model Listing {
   // location)?" Added now because dedup runs on every refresh, not deferred as premature.
   @@index([company, title, location])
   @@map("listings")
+}
+
+// Apply-status per listing (Decision 21). Separate table by ownership boundary: `listings`
+// is pipeline-written (refresh upserts daily), this is human-written — neither clobbers the
+// other. listingId is both PK and FK (1:1); a delisted listing keeps its application row so
+// history survives freshness. When multi-user lands, this table grows a user_id — the
+// listings table doesn't change.
+model Application {
+  listingId Int               @id @map("listing_id")
+  status    ApplicationStatus
+  note      String?
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  listing   Listing           @relation(fields: [listingId], references: [id])
+
+  @@map("applications")
 }
 
 // A discovered ATS board to crawl (Decision 11). Populated by the Common Crawl discovery

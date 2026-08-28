@@ -1,4 +1,5 @@
 import type { Source } from "@prisma/client";
+import type { FetchResult } from "../pipeline/types.js";
 
 // Discovery is slug-only (Decision 11): a discovered target is just its source + board token.
 export interface DiscoveredToken {
@@ -15,9 +16,11 @@ export interface DiscoveryOptions {
   targetCount?: number;
 }
 
-// A board fetcher used by the validation step: returns the board's raw jobs (throws on
-// HTTP/parse failure). The existing per-source fetch functions already match this shape.
-export type BoardFetcher = (token: string) => Promise<unknown[]>;
+// A board fetcher used by the validation step: returns the board's fetch result (throws on
+// HTTP/parse failure). The existing per-source fetch functions already match this shape —
+// discovery never passes a prior etag, so it always gets the full "ok" response
+// (see FetchResult in ../pipeline/types.ts, Decision 23).
+export type BoardFetcher = (token: string, priorEtag?: string | null) => Promise<FetchResult>;
 
 // Each ATS implements this. `discoverCandidates` mines Common Crawl for candidate tokens;
 // `fetchBoard` is that source's live fetcher, reused by validation to confirm a board is

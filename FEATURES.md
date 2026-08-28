@@ -361,3 +361,28 @@
   deliberately unmapped: empty facets are the safe failure, wrong facets are invisible. Empty
   arrays mean "unresolved", which for the US-state filter means "excluded" — surface an
   "unknown location" bucket in the UI rather than hiding those listings entirely.
+
+## Staleness / delisting (Decision 22, 2026-08-28)
+
+- The pipeline now delists: right after each board's SUCCESSFUL fetch+normalize, active
+  `listings` rows scoped to that board's `(source, company)` whose `sourceExternalId` was
+  absent from the response get `isListed=false` (`src/pipeline/stages/delist.ts`). Failed or
+  skipped crawls take the catch path and never reach the delist call — a flaky board cannot
+  wipe its listings; a crashed run has only delisted against boards it actually completed.
+- Zero grace period: a successful Greenhouse fetch is the whole board in one response
+  (fetch.ts errors on malformed payloads rather than returning empty), so one absence is
+  authoritative. Reversal is automatic, not manual: a delisted posting that reappears routes
+  as a seenKeep and persist()'s forced `isListed: true` relists it — no special-case code.
+- New nullable `CrawlTarget.company` cache (migration `20260828142547`), learned from each
+  unambiguous successful crawl — exists so a board that legitimately returns `jobs: []` (a
+  company pulling all postings) can still be delisted against.
+- Gated per-source by `supportsFreshness` (Greenhouse only): the flag asserts "a successful
+  fetch = the complete board." Do NOT enable for Lever/Ashby until their fetchers are
+  confirmed to paginate to completion.
+- Decisions to remember: staleness-delist deliberately does NOT write `seen_listings` — that
+  table is classifier reject-memory, and its absence here is exactly what lets stale rows
+  auto-relist while reclassify-delisted rows (whose keys ARE there) stay dead. The delist
+  diff runs on the RAW normalized board output (pre-dedup/pre-filter), so suppressed
+  duplicates and non-CS postings still count as "seen on the board." Boards deactivated by
+  discovery are never crawled, so their rows never delist — the future CrawlTarget pruning
+  logic must handle that case.

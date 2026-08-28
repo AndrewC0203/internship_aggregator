@@ -194,6 +194,22 @@ model CrawlTarget {
   lastCrawledAt DateTime? @map("last_crawled_at") @db.Timestamptz(6)
   lastError     String?   @map("last_error")
 
+  // Learned (not discovered) company name for this board, refreshed from the normalized
+  // payload on every successful crawl that resolves to exactly one company (Decision 22). Also
+  // closes Decision 11's flagged "open consequence" — company was never attributed back to a
+  // target before this. The staleness/delist stage (src/pipeline/stages/delist.ts) reads this
+  // as its fallback anchor for a crawl that returns zero jobs, where nothing in that crawl's
+  // own response can be used to derive a company. Null until the first successful crawl that
+  // resolves unambiguously.
+  company String?
+
+  // HTTP ETag from this board's last successful full fetch (Decision 23). Sent back as
+  // If-None-Match on the next crawl; a 304 means the body would be byte-identical, so the
+  // whole normalize/pipeline pass is skipped for that board. Null = never fully fetched (or
+  // `--full` refresh requested a re-download). Greenhouse-only in practice today; harmless
+  // null for sources that don't send validators.
+  etag String?
+
   // Natural key: discovery re-runs upsert on (source, token) instead of duplicating.
   @@unique([source, token])
   @@map("crawl_targets")

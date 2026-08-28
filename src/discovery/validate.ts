@@ -15,8 +15,11 @@ export async function validateToken(
   fetchBoard: BoardFetcher,
 ): Promise<ValidationOutcome> {
   try {
-    const jobs = await fetchBoard(token);
-    return jobs.length > 0 ? "valid" : "empty";
+    const result = await fetchBoard(token);
+    // Discovery never passes a prior etag, so "not_modified" is unreachable in practice —
+    // but if it ever arrives, the server just confirmed the board exists, which is "valid".
+    if (result.kind === "not_modified") return "valid";
+    return result.jobs.length > 0 ? "valid" : "empty";
   } catch (err) {
     // 404 = "no such board" — an expected drop, not an error. The board fetchers carry the
     // HTTP status on the error (e.g. GreenhouseFetchError.status); duck-typed so this stays

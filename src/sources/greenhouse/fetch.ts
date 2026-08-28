@@ -1,4 +1,4 @@
-import type { RawJob } from "../../pipeline/types.js";
+import type { RawJob, FetchResult } from "../../pipeline/types.js";
 
 const BASE = "https://boards-api.greenhouse.io/v1/boards";
 const TIMEOUT_MS = 10_000;
@@ -21,10 +21,20 @@ export class GreenhouseFetchError extends Error {
 // The public Job Board API returns the full jobs list in a single response (no
 // pagination), and `?content=true` includes each job's HTML description + departments.
 //
+// Conditional fetch (Decision 23): pass `priorEtag` (the stored validator from the last
+// successful full fetch) and it's sent as If-None-Match. Greenhouse answers 304 with an
+// empty body when the board is unchanged — measured ~0.13s / 0 bytes vs ~0.4s / 3.5MB for
+// a large board — and the caller skips the whole normalize/pipeline pass. A 304 is still a
+// SUCCESSFUL crawl for freshness purposes: the server asserted the body is unchanged, so
+// the listing set is exactly what it was last time.
+//
 // FREE-tier scope only: a plain GET with timeout + edge-case handling. NO retry/backoff
 // (FIRST-DRAFT-MINE) and NO rate-limit throttling (GATED) are baked in here — add them
 // at the orchestrator level once decided.
-export async function fetchGreenhouse(boardToken: string): Promise<RawJob[]> {
+export async function fetchGreenhouse(
+  boardToken: string,
+  priorEtag: string | null = null,
+): Promise<FetchResult> {
   const url = `${BASE}/${encodeURIComponent(boardToken)}/jobs?content=true`;
 
   const controller = new AbortController();
@@ -33,7 +43,10 @@ export async function fetchGreenhouse(boardToken: string): Promise<RawJob[]> {
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(priorEtag ? { "If-None-Match": priorEtag } : {}),
+      },
       signal: controller.signal,
     });
   } catch (err) {
@@ -50,6 +63,12 @@ export async function fetchGreenhouse(boardToken: string): Promise<RawJob[]> {
     );
   } finally {
     clearTimeout(timeout);
+  }
+
+  // 304 sits outside res.ok but is the SUCCESS case of a conditional request, so it must be
+  // checked before the !ok throw. Only reachable when priorEtag was sent.
+  if (res.status === 304) {
+    return { kind: "not_modified" };
   }
 
   if (!res.ok) {
@@ -89,5 +108,8 @@ export async function fetchGreenhouse(boardToken: string): Promise<RawJob[]> {
       res.status,
     );
   }
-  return jobs;
+  // The etag is captured only from a fully-validated 200 — if any of the shape checks above
+  // threw, no validator is returned, so a malformed response can never poison the stored etag
+  // into 304-ing us past a future valid body.
+  return { kind: "ok", jobs, etag: res.headers.get("etag") };
 }

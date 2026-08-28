@@ -1,5 +1,6 @@
 import type { Source } from "@prisma/client";
 import type {
+  FetchResult,
   NormalizedListing,
   NormalizeContext,
   RawJob,
@@ -16,15 +17,21 @@ import { partitionBySeen } from "./stages/partition.js";
 import { filterInternships } from "./stages/filter.js";
 import { extract } from "./stages/extract.js";
 import { persist } from "./stages/persist.js";
+import { delistStaleForBoard } from "./stages/delist.js";
 
 const SOURCES: Array<{
   source: Source;
-  fetch: (token: string) => Promise<RawJob[]>;
+  fetch: (token: string, priorEtag?: string | null) => Promise<FetchResult>;
   normalize: (raw: RawJob, ctx: NormalizeContext) => NormalizedListing | null;
+  // Delisting (Decision 22) trusts a successful fetch to mean "the WHOLE board," not a page of
+  // it — true today only for Greenhouse's fetch (single-response, no pagination; see
+  // src/sources/greenhouse/fetch.ts). Lever/Ashby are unimplemented stubs; flip this once their
+  // fetchers are confirmed to paginate to completion, not on the day they merely stop throwing.
+  supportsFreshness: boolean;
 }> = [
-  { source: "greenhouse", fetch: fetchGreenhouse, normalize: normalizeGreenhouse },
-  { source: "lever", fetch: fetchLever, normalize: normalizeLever },
-  { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby },
+  { source: "greenhouse", fetch: fetchGreenhouse, normalize: normalizeGreenhouse, supportsFreshness: true },
+  { source: "lever", fetch: fetchLever, normalize: normalizeLever, supportsFreshness: false },
+  { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby, supportsFreshness: false },
 ];
 
 // Boards per flush of the shared tail (FEATURES.md P1 "incremental persist for the AI tail",
@@ -35,7 +42,8 @@ const BOARD_BATCH_SIZE = Number(process.env.BOARD_BATCH_SIZE ?? 10);
 
 // Pipeline shape (Decision 9 + Decision 12): per-source fetch -> normalize, then shared
 // stages dedup -> partition -> filter -> extract -> persist. `limit` caps boards per source
-// (for a small first run); omit for a full refresh.
+// (for a small first run); omit for a full refresh. `full` disables conditional fetches
+// (Decision 23) so every board re-downloads even if its etag says unchanged.
 //
 // Runs the shared tail in BOARD_BATCH_SIZE-board chunks rather than once over the whole crawl
 // (FEATURES.md P1, deferred until dedup v1 existed — Decision 15, 2026-08-25). A crash mid-run
@@ -48,7 +56,7 @@ const BOARD_BATCH_SIZE = Number(process.env.BOARD_BATCH_SIZE ?? 10);
 // outcome, different one of dedup's two existing branches. The alternative (accumulate
 // everything, flush once) was the status quo; rejected because it makes a large crawl entirely
 // non-durable — hours of classify calls lost to one late failure.
-export async function runPipeline(opts: { limit?: number } = {}): Promise<void> {
+export async function runPipeline(opts: { limit?: number; full?: boolean } = {}): Promise<void> {
   let batch: NormalizedListing[] = [];
   let boardsSinceFlush = 0;
   let totalKept = 0;
@@ -101,17 +109,76 @@ export async function runPipeline(opts: { limit?: number } = {}): Promise<void> 
       // One board's fetch/normalize failure shouldn't abort every other board in the
       // run — log and skip it. This is error isolation, not retry: no re-attempt happens.
       try {
-        const raw = await src.fetch(target.token);
-        for (const job of raw) {
-          // normalize() returns null for a job it can't safely map (e.g. missing
-          // company_name) — drop just that job, not the whole board.
-          const listing = src.normalize(job, {});
-          if (listing) batch.push(listing);
+        // Conditional fetch (Decision 23): hand back the stored validator; `--full` forces a
+        // re-download by withholding it (e.g. after a normalize bug fix, when the stored rows
+        // need rebuilding from bodies the etag would otherwise skip).
+        const result = await src.fetch(target.token, opts.full ? null : target.etag);
+
+        if (result.kind === "not_modified") {
+          // A 304 is a SUCCESSFUL crawl of an UNCHANGED board: same listing set as last time,
+          // by server assertion. So — crawl health updates, the board's active listings get
+          // their lastSeenAt sighting bump (scoped by the Decision 22 company cache; the same
+          // update persist() would have produced for each seenKeep, minus the content sync,
+          // which is exactly what "unchanged" makes unnecessary)... and NO delist call, not
+          // because delisting would be wrong but because nothing can be absent from an
+          // unchanged set. The board's seen_listings reject keys do NOT get bumped (that
+          // table has no company column to scope by) — the future reject-pruning logic must
+          // treat seen_listings.lastSeenAt as a lower bound, not an exact last sighting.
+          await prisma.crawlTarget.update({
+            where: { id: target.id },
+            data: { lastCrawledAt: new Date(), lastError: null },
+          });
+          if (target.company) {
+            await prisma.listing.updateMany({
+              where: { source: src.source, company: target.company, isListed: true },
+              data: { lastSeenAt: new Date() },
+            });
+          }
+        } else {
+          const boardListings: NormalizedListing[] = [];
+          for (const job of result.jobs) {
+            // normalize() returns null for a job it can't safely map (e.g. missing
+            // company_name) — drop just that job, not the whole board.
+            const listing = src.normalize(job, {});
+            if (listing) {
+              batch.push(listing);
+              boardListings.push(listing);
+            }
+          }
+          await prisma.crawlTarget.update({
+            where: { id: target.id },
+            data: { lastCrawledAt: new Date(), lastError: null, etag: result.etag },
+          });
+
+          // Staleness/delisting (Decision 22): runs HERE, right after a confirmed-successful
+          // fetch, independent of the batch/flush cycle below — it only needs this board's raw
+          // sourceExternalIds, not the dedup/filter/classify/extract verdict on them, so there's
+          // no reason to wait for a flush (or for the AI tail to even succeed) before acting on it.
+          // Gated on supportsFreshness so a source whose fetch might only be a partial page (not
+          // yet true for any wired source) can't have a real listing wrongly read as "absent."
+          if (src.supportsFreshness) {
+            const { delistedCount, resolvedCompany } = await delistStaleForBoard(
+              src.source,
+              boardListings,
+              target.company,
+            );
+            if (delistedCount > 0) {
+              console.log(
+                `[delist] ${src.source}/${target.token}: ${delistedCount} listing(s) delisted ` +
+                  `(absent from a successful crawl)`,
+              );
+            }
+            // Only a FRESH resolution (derived from this run's own response) overwrites the
+            // cache — a fallback to the old cached value on an empty-response run isn't new
+            // information about this board, so it isn't worth a write.
+            if (resolvedCompany && resolvedCompany !== target.company) {
+              await prisma.crawlTarget.update({
+                where: { id: target.id },
+                data: { company: resolvedCompany },
+              });
+            }
+          }
         }
-        await prisma.crawlTarget.update({
-          where: { id: target.id },
-          data: { lastCrawledAt: new Date(), lastError: null },
-        });
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         console.error(`Skipping ${src.source} board "${target.token}": ${reason}`);

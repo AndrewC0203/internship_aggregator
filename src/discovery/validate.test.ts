@@ -7,9 +7,12 @@ import { GreenhouseFetchError } from "../sources/greenhouse/fetch.js";
 // validateToken has no I/O of its own — it takes an injected BoardFetcher, so every branch
 // is drivable with a fake. These fakes stand in for what a real fetch resolves/throws.
 
-// Resolves to a jobs array of the given length.
-const resolvesWith = (count: number): BoardFetcher => async () =>
-  Array.from({ length: count }, (_, i) => ({ id: i }));
+// Resolves to a full fetch result with a jobs array of the given length (Decision 23 shape).
+const resolvesWith = (count: number): BoardFetcher => async () => ({
+  kind: "ok",
+  jobs: Array.from({ length: count }, (_, i) => ({ id: i })),
+  etag: null,
+});
 
 // Rejects with the given value (Error, error-like, or raw).
 const rejectsWith = (err: unknown): BoardFetcher => async () => {
@@ -24,6 +27,13 @@ test("valid: board resolves with one job", async () => {
 
 test("valid: board resolves with many jobs", async () => {
   assert.equal(await validateToken("gitlab", resolvesWith(179)), "valid");
+});
+
+test("valid: a not_modified result counts as a live board", async () => {
+  // Unreachable today (discovery sends no etag) but pinned: a 304 is server confirmation
+  // the board exists, so it must never be read as empty/error if the wiring ever changes.
+  const notModified: BoardFetcher = async () => ({ kind: "not_modified" });
+  assert.equal(await validateToken("gitlab", notModified), "valid");
 });
 
 // ── Outcome: empty ──────────────────────────────────────────────────────────────────────
@@ -72,7 +82,7 @@ test("forwards the exact token to the fetcher", async () => {
   let seen: string | undefined;
   const spy: BoardFetcher = async (token) => {
     seen = token;
-    return [{ id: 1 }];
+    return { kind: "ok", jobs: [{ id: 1 }], etag: null };
   };
   await validateToken("stripe", spy);
   assert.equal(seen, "stripe");

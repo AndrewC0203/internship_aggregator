@@ -1113,3 +1113,103 @@ Decision 15's dedup never deletes canonical rows.
 Date: 2026-08-27
 
 ---
+
+## Decision 22: Staleness/delisting — snapshot-diff per successful crawl, zero grace period
+
+Problem: Nothing ever set `isListed=false` when a posting disappeared from its board, so
+active listings only accumulated — some of the ~1,600 "active" rows were dead postings with
+dead apply links (flagged in research/first-clean-run-audit.md), a credibility problem now
+that the search page exists. The core rule to implement: a listing is stale when its board
+was crawled SUCCESSFULLY after the listing was last seen and the listing wasn't in the
+response — absence from a failed or skipped crawl proves nothing.
+
+Options considered:
+
+1. Timestamp threshold ("lastSeenAt older than N days → delist") as a separate sweep —
+   simplest query, but it violates the core rule by construction: a board that errored for
+   N days (or was simply not crawled — `--limit` runs crawl a subset) would get its listings
+   wiped by pure clock time, with no successful crawl ever contradicting them. A flaky board
+   must not wipe its listings, so a wall-clock rule is disqualified regardless of N.
+2. Snapshot diff per successful crawl, inline in the refresh loop — right after ONE board's
+   fetch+normalize succeeds, flip `isListed=false` on that board's active rows whose
+   `sourceExternalId` was absent from the response. Scoped per-board, so a run that crashes
+   partway has only delisted against boards it actually crawled successfully; failed fetches
+   take the catch path and never reach the delist call at all.
+3. Run-level diff as a separate end-of-run command ("delist everything no successful crawl
+   touched this run") — one bulk query, but it must reconstruct which boards succeeded after
+   the fact, turns a partial/crashed run into a mass-delist hazard, and adds a second
+   operational step that can be forgotten. The per-board version gets crash-safety for free
+   from its scoping.
+
+Sub-decision (grace period): NONE — one successful crawl without the listing delists it
+immediately. A successful Greenhouse fetch is an authoritative full snapshot of the board
+(single response, no pagination; fetch.ts treats a malformed/missing `jobs` field as an
+ERROR, never as an empty board), so "absent from one successful crawl" literally means "not
+on the board right now." Grace periods exist to hedge partial or untrustworthy responses;
+with a full-snapshot source the hedge buys nothing and costs N more days of dead apply
+links — and dead links are the exact credibility problem being fixed. The safety valve is
+reversibility, not grace: a wrongly-delisted listing relists automatically on the next
+successful crawl (below), so the worst case of a bad-but-well-formed empty response is one
+crawl cycle of invisibility, not data loss.
+
+Decision: Option 2, zero grace — `src/pipeline/stages/delist.ts`, called from the
+orchestrator immediately after each board's successful fetch+normalize (and ONLY from that
+success path — the catch branch never reaches it, which is where the "failed crawls prove
+nothing" invariant physically lives). Independent of the batch/flush AI tail: delisting
+needs only the board's raw `sourceExternalId`s, not classify/extract verdicts, so it doesn't
+wait for a flush and survives an AI-tail crash. Gated per-source by a `supportsFreshness`
+flag — true only for Greenhouse today, because the flag means "a successful fetch is the
+WHOLE board"; Lever/Ashby must not get it until their (unimplemented) fetchers are confirmed
+to paginate to completion.
+
+Board→listings scoping: `Listing` has no FK to `CrawlTarget`, so the delist query is scoped
+by `(source, company)`, with company derived fresh from the board's own normalized payload
+each crawl (same no-guessing posture as Decision 11's company handling). New nullable
+`CrawlTarget.company` cache column (migration `20260828142547`), refreshed whenever a
+successful crawl resolves to exactly ONE company, exists for the empty-board case: a company
+that pulls every posting returns a legitimate `jobs: []`, and with nothing in the response
+to derive company from, only the cache can scope the delist. Two hard no-op cases: no fresh
+AND no cached company (first-ever crawl of an empty board — nothing to act on), and an
+AMBIGUOUS crawl (≥2 distinct companies in one board's response — dirty data; guessing or
+falling back to the cache could delist the wrong company's rows, so it does nothing and
+writes nothing). Chosen over storing `token` on `Listing` (more precise, but existing rows
+have no token and can't be reliably backfilled, so it would fix only future postings — the
+existing ~1,600 rows are the actual stated problem) and over no-cache (silently can't handle
+the pulled-board case).
+
+Reversibility (why relisting needs no code): delist flips `isListed=false` and touches
+NOTHING else — crucially not `seen_listings`, which is classifier reject-memory (Decisions
+12/18), and a staleness delist is not a classification verdict. When a delisted posting
+reappears, `partitionBySeen`'s listings lookup (which ignores `isListed`) routes it as a
+seenKeep, and `persist()`'s existing forced `isListed: true` — the exact path Decision 18
+had to defend against for reclassify-rejects — is precisely the desired behavior here.
+The Decision 18 asymmetry holds because the two delist flavors differ in `seen_listings`
+membership: reclassify-delisted keys ARE there (reject-memory wins, row stays dead);
+staleness-delisted keys are NOT (row relists through the normal pipeline).
+
+Interactions verified: dedup self-healing (Decision 15) — a delisted canonical stops
+matching dedup's `isListed: true` lookup, so a still-live duplicate surfaces as a new
+canonical, possibly in the same run (delist runs pre-flush, so the flush's dedup lookup
+already sees the flip); Application rows (Decision 21) — untouched, apply history survives
+delisting by the table-ownership design; suppressed duplicates — delist diffs the RAW
+normalized board output (pre-dedup, pre-filter), so a sourceExternalId that is live on the
+board but suppressed/rejected by later stages still counts as seen and cannot cause its
+canonical's wrongful delist... and non-CS rejects were never `listings` rows, so `notIn`
+simply doesn't match them.
+
+Tradeoffs accepted: (source, company) scoping delists across ALL boards sharing a company
+string within a source — if discovery ever registered two Greenhouse tokens for one company,
+board A's crawl could delist board B's rows until B's own crawl relists them (flappy, not
+lossy; not observed in current data; the `token`-on-`Listing` design fixes it properly if it
+ever materializes). A well-formed-but-wrong empty response from an ATS delists the whole
+board for one cycle (self-corrects on the next successful crawl). The company cache trusts
+payload-derived names; a company renaming itself mid-board ("Acme" → "Acme Inc") makes old
+rows unmatchable by the new company string, orphaning them as permanently-active — same
+staleness bug this fixes, at much smaller scale; acceptable because renames are rare and the
+rows remain findable/fixable by query. Rows belonging to boards discovery has deactivated
+(`isActive=false`) are never crawled, so they never delist — CrawlTarget pruning (Decision
+11's open FIRST-DRAFT-MINE item) should delist a deactivated board's listings when built.
+
+Date: 2026-08-28
+
+---

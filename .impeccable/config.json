@@ -8,6 +8,18 @@
         "value": "border-left:5px solid var(--etch-faint)",
         "createdAt": "2026-08-27T22:17:22.268Z",
         "reason": "finish reviewer adjudicated false positive: width:0/height:0 CSS-triangle disclosure caret on .grp summary::before, not a card accent border"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "1px",
+        "createdAt": "2026-08-28T15:07:32.537Z",
+        "reason": "Terminal Board world locked by user (seed ff70fa62): flat near-square chrome; DESIGN.md rewrite pending at finish"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "40px",
+        "createdAt": "2026-08-28T15:07:32.564Z",
+        "reason": "Terminal Board world locked by user (seed ff70fa62): the oversized NEW figure is a named raise on the chosen card; DESIGN.md rewrite pending at finish"
       }
     ]
   }

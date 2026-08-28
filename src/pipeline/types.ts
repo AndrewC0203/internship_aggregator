@@ -12,6 +12,19 @@ import type {
 // until each source's normalize() narrows it.
 export type RawJob = unknown;
 
+// What one board's fetch produced (Decision 23). A DISCRIMINATED UNION on purpose, not
+// `{ jobs: [], notModified: true }`: a 304 carries no body, so representing it as an empty
+// jobs array would be indistinguishable from a board that legitimately returned zero
+// postings — and the delist stage (Decision 22) treats a genuine empty board as "delist
+// everything via the cached company." Making "not modified" a shape without a `jobs` field
+// at all forces every caller to handle the two cases explicitly.
+//
+// `etag` on the ok-shape is the validator from THIS response (null when the server sent
+// none); callers persist it and hand it back as `priorEtag` on the next crawl.
+export type FetchResult =
+  | { kind: "ok"; jobs: RawJob[]; etag: string | null }
+  | { kind: "not_modified" };
+
 // Context a normalize() needs beyond the raw payload. `company` is optional: crawl_targets
 // (Decision 11) is slug-only, so most sources must derive company from the payload itself
 // instead of relying on this context (see each source's normalize() for how).

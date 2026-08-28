@@ -77,6 +77,10 @@ function gradWindow(min: number | null, max: number | null): string {
 const MARK_HELD = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
 const MARK_FLIGHT = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="currentColor"/></svg>`;
 const MARK_REJ = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4"/></svg>`;
+// New = a blue diamond, not a repeated word: with a young corpus the word stamped 50 times
+// per sheet was pure noise; the divider band and header figure still say NEW in words.
+// Diamond ≠ square keeps the mark readable without color.
+const MARK_NEW = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="2.2" width="5.6" height="5.6" transform="rotate(45 5 5)" fill="currentColor"/></svg>`;
 
 function statusCell(status: string | null, isNew: boolean): string {
   if (status === "saved") return `<span class="st held">${MARK_HELD}HELD</span>`;
@@ -84,7 +88,7 @@ function statusCell(status: string | null, isNew: boolean): string {
   if (status === "interviewing") return `<span class="st flight">${MARK_FLIGHT}INT</span>`;
   if (status === "offer") return `<span class="st flight">${MARK_FLIGHT}OFF</span>`;
   if (status === "rejected") return `<span class="st rej">${MARK_REJ}REJ</span>`;
-  if (isNew) return `<span class="st new">NEW</span>`;
+  if (isNew) return `<span class="st new">${MARK_NEW}<span class="vh">new</span></span>`;
   return `<span class="st idle">—</span>`;
 }
 
@@ -105,7 +109,7 @@ function setControl(id: number, current: string | null): string {
   return `<span class="keys" role="group" aria-label="application status">${btns}</span>`;
 }
 
-function row(r: SearchResult["rows"][number], idx: number): string {
+function row(r: SearchResult["rows"][number]): string {
   const deadlineDelta = r.applicationDeadline
     ? r.applicationDeadline.getTime() - Date.now()
     : null;
@@ -116,9 +120,7 @@ function row(r: SearchResult["rows"][number], idx: number): string {
   const meta: string[] = [];
   if (r.csField) meta.push(`<span class="code">${FIELD_LABEL[r.csField] ?? r.csField}</span>`);
   const grad = gradWindow(r.gradYearMin, r.gradYearMax);
-  const isFresh = r.isNew && !r.status;
   return `<tr class="pos${r.status === "rejected" ? " rej-row" : ""}" data-id="${r.id}"${r.isNew ? " data-new" : ""} tabindex="0">
-<td class="c-idx"><span class="idx${isFresh ? " new" : ""}">${String(idx).padStart(3, "0")}</span></td>
 <td class="c-st">${statusCell(r.status, r.isNew)}</td>
 <td class="c-co"><span class="co" title="${esc(r.company)}">${esc(r.company)}</span></td>
 <td class="c-title"><a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.title.trim())} — opens at ${esc(r.company)}">${esc(r.title.trim())}</a>
@@ -134,11 +136,11 @@ function row(r: SearchResult["rows"][number], idx: number): string {
 
 // --- screener fragments -------------------------------------------------------------------
 
-// Filter rows: an authored square mark + label + count. Selection is weight and fill, not a
-// new hue — the active square fills white and the label sets heavier.
+// Filter chips: pill-shaped label + count. Selection is still a monochrome inversion — an
+// active chip fills white with dark text and sets heavier; no hue is spent on selection.
 function frow(href: string, label: string, count: number | undefined, on: boolean): string {
-  return `<a class="frow${on ? " on" : ""}" href="${href}" aria-current="${on ? "true" : "false"}">
-<svg class="fbox" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.2"/></svg><span class="f-label">${label}</span><span class="f-count">${count ?? 0}</span></a>`;
+  return `<a class="chip${on ? " on" : ""}" href="${href}" aria-current="${on ? "true" : "false"}">
+<span class="ch-label">${label}</span><span class="ch-count">${count ?? 0}</span></a>`;
 }
 
 const CHEV = `<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -202,7 +204,7 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
   const yearRows = years
     .map((y) => {
       const on = p.gradYear === y;
-      return `<a class="frow${on ? " on" : ""}" href="${qs(p, { gradYear: on ? null : String(y) })}" aria-current="${on ? "true" : "false"}"><svg class="fbox" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.2"/></svg><span class="f-label">CLASS OF ’${String(y).slice(2)}</span></a>`;
+      return `<a class="chip${on ? " on" : ""}" href="${qs(p, { gradYear: on ? null : String(y) })}" aria-current="${on ? "true" : "false"}"><span class="ch-label">CLASS OF ’${String(y).slice(2)}</span></a>`;
     })
     .join("");
   const sorts: Array<[SearchParams["sort"], string]> = [
@@ -211,36 +213,33 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
   const sortRows = sorts
     .map(([val, label]) => {
       const on = (p.sort ?? "first_seen") === val;
-      return `<a class="frow${on ? " on" : ""}" href="${qs(p, { sort: val === "first_seen" ? null : (val as string) })}" aria-current="${on ? "true" : "false"}"><svg class="fbox" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.2"/></svg><span class="f-label">${label}</span></a>`;
+      return `<a class="chip${on ? " on" : ""}" href="${qs(p, { sort: val === "first_seen" ? null : (val as string) })}" aria-current="${on ? "true" : "false"}"><span class="ch-label">${label}</span></a>`;
     })
     .join("");
 
   // Board rows with NEW / EARLIER dividers (only meaningful on the freshness sort).
-  // Row index numbers count absolute position in the result set, so page 2 starts at 051 —
-  // the fixed margin column that makes j/k keyboard position legible.
   let rowsHtml = "";
   if (res.rows.length === 0) {
-    rowsHtml = `<tr class="empty-row"><td colspan="10">
+    rowsHtml = `<tr class="empty-row"><td colspan="9">
 <div class="empty"><p class="empty-head">NO MATCHES</p>
 <p class="empty-sub">Nothing on the board matches these filters.</p>
 ${anyFilter ? `<a class="clear-btn" href="/">CLEAR FILTERS</a>` : ""}</div></td></tr>`;
   } else {
     const showDividers = (p.sort ?? "first_seen") === "first_seen" && !p.newOnly;
-    const baseIdx = (res.page - 1) * res.per;
     let inNew = false;
     let openedEarlier = false;
     const parts: string[] = [];
     for (let i = 0; i < res.rows.length; i++) {
       const r = res.rows[i];
       if (showDividers && i === 0 && r.isNew) {
-        parts.push(`<tr class="divider new-div"><td colspan="10"><span>NEW</span><span class="div-detail">${res.newCount} IN ${NEW_WINDOW_DAYS} DAYS</span></td></tr>`);
+        parts.push(`<tr class="divider new-div"><td colspan="9"><span>NEW</span><span class="div-detail">${res.newCount} IN ${NEW_WINDOW_DAYS} DAYS</span></td></tr>`);
         inNew = true;
       }
       if (showDividers && inNew && !r.isNew && !openedEarlier) {
-        parts.push(`<tr class="divider"><td colspan="10"><span>EARLIER</span></td></tr>`);
+        parts.push(`<tr class="divider"><td colspan="9"><span>EARLIER</span></td></tr>`);
         openedEarlier = true;
       }
-      parts.push(row(r, baseIdx + i + 1));
+      parts.push(row(r));
     }
     rowsHtml = parts.join("\n");
   }
@@ -293,22 +292,22 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 <aside class="screener" aria-label="filters">
   <form method="get" action="/" class="query">
     <input type="search" name="q" value="${esc(p.q ?? "")}" placeholder="SEARCH TITLE / COMPANY" aria-label="search title or company">
-    ${p.type ? `<input type="hidden" name="type" value="${p.type.join(",")}">` : ""}
-    ${p.field ? `<input type="hidden" name="field" value="${p.field.join(",")}">` : ""}
-    ${p.state ? `<input type="hidden" name="state" value="${p.state.join(",")}">` : ""}
-    ${p.country ? `<input type="hidden" name="country" value="${p.country.join(",")}">` : ""}
-    ${p.status ? `<input type="hidden" name="status" value="${p.status.join(",")}">` : ""}
+    ${p.type ? `<input type="hidden" name="type" value="${esc(p.type.join(","))}">` : ""}
+    ${p.field ? `<input type="hidden" name="field" value="${esc(p.field.join(","))}">` : ""}
+    ${p.state ? `<input type="hidden" name="state" value="${esc(p.state.join(","))}">` : ""}
+    ${p.country ? `<input type="hidden" name="country" value="${esc(p.country.join(","))}">` : ""}
+    ${p.status ? `<input type="hidden" name="status" value="${esc(p.status.join(","))}">` : ""}
     ${p.gradYear ? `<input type="hidden" name="gradYear" value="${p.gradYear}">` : ""}
     ${p.newOnly ? `<input type="hidden" name="new" value="1">` : ""}
     ${p.sort && p.sort !== "first_seen" ? `<input type="hidden" name="sort" value="${p.sort}">` : ""}
   </form>
-  ${railGroup("TYPE", `<div class="frows">${typeRows}</div>`)}
-  ${railGroup("FIELD", `<div class="frows">${fieldRows}</div>`)}
-  ${railGroup("US STATE", `<div class="frows">${stateRows}</div>${stateMore ? `<details class="more"><summary>ALL STATES</summary><div class="frows">${stateMore}</div></details>` : ""}`)}
-  ${railGroup("COUNTRY", `<div class="frows">${countryRows}</div>`, false)}
-  ${railGroup("CLASS YEAR", `<div class="frows" role="group" aria-label="class year">${yearRows}</div><p class="grp-note">Listings stating no window stay visible.</p>`, false)}
-  ${railGroup("MY PIPELINE", `<div class="frows">${statusRows}</div>`, false)}
-  ${railGroup("ORDER", `<div class="frows" role="group" aria-label="sort">${sortRows}</div>`, false)}
+  ${railGroup("TYPE", `<div class="chips">${typeRows}</div>`)}
+  ${railGroup("FIELD", `<div class="chips">${fieldRows}</div>`)}
+  ${railGroup("US STATE", `<div class="chips">${stateRows}</div>${stateMore ? `<details class="more"><summary>ALL STATES</summary><div class="chips">${stateMore}</div></details>` : ""}`)}
+  ${railGroup("COUNTRY", `<div class="chips">${countryRows}</div>`, false)}
+  ${railGroup("CLASS YEAR", `<div class="chips" role="group" aria-label="class year">${yearRows}</div><p class="grp-note">Listings stating no window stay visible.</p>`, false)}
+  ${railGroup("MY PIPELINE", `<div class="chips">${statusRows}</div>`, false)}
+  ${railGroup("ORDER", `<div class="chips" role="group" aria-label="sort">${sortRows}</div>`, false)}
   ${anyFilter ? `<a class="clear-btn rail-clear" href="/">CLEAR FILTERS</a>` : ""}
 </aside>
 <main class="board" id="board">
@@ -318,7 +317,6 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   </div>
   <table class="grid">
     <thead><tr>
-      <th class="c-idx" scope="col">#</th>
       <th class="c-st" scope="col">STATUS</th>
       <th class="c-co" scope="col">COMPANY</th>
       <th class="c-title" scope="col">POSITION</th>
@@ -336,7 +334,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
     <span class="sheet-pos">PAGE ${res.page} / ${totalSheets}</span>
     ${res.page < totalSheets ? `<a class="sheet-btn" href="${pageHref(res.page + 1)}">NEXT</a>` : `<span class="sheet-btn off">NEXT</span>`}
   </nav>
-  <p class="board-foot">j/k move · s save · a applied · i interview · o offer · x reject · u clear · ⏎ open</p>
+  <p class="board-foot">j/k move · s save · a applied · i interview · o offer · x reject · u clear · enter open</p>
 </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -353,7 +351,7 @@ function css(): string {
 :root{
   --bg0:#050507; --bg1:#0C0D11; --bg2:#13151B; --bg3:#1A1D25;
   --line:#1E2129; --line-2:#2A2E38;
-  --ink:#ECEDEF; --ink-2:#9DA2AD; --ink-3:#757B86;
+  --ink:#ECEDEF; --ink-2:#9DA2AD; --ink-3:#7E8490;
   --blue:#4D9FFF;
   --sans:system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'Chivo Mono',ui-monospace,monospace;
 }
@@ -371,26 +369,27 @@ a{color:inherit;text-decoration:none}
 .skip{position:absolute;left:-9999px;top:0;background:var(--ink);color:var(--bg0);padding:8px 14px;font-weight:700;z-index:99}
 .skip:focus{left:8px}
 
-/* ---- tape (header) ---- */
-.tape{display:flex;align-items:stretch;gap:0;background:var(--bg1);border-bottom:1px solid var(--line-2)}
-.brand{padding:14px 22px 12px;border-right:1px solid var(--line);min-width:210px}
+/* ---- tape (header): one open row, one hairline below — no internal cell borders ---- */
+.tape{display:flex;align-items:center;gap:26px;padding:0 22px;background:var(--bg1);border-bottom:1px solid var(--line-2)}
+.brand{padding:10px 0}
 .brand h1{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.18em;white-space:nowrap}
-.brand-sub{display:block;font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:.22em;color:var(--ink-3);margin-top:3px}
-.ticker{display:flex;flex:1;min-width:0;overflow-x:auto;font-family:var(--mono)}
-.tick{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px 18px;border-right:1px solid var(--line);white-space:nowrap}
-.tick:hover{background:var(--bg2)}
+.brand-sub{display:block;font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:.22em;color:var(--ink-3);margin-top:2px}
+.ticker{display:flex;flex:1;min-width:0;overflow-x:auto;font-family:var(--mono);gap:20px;scrollbar-width:none}
+.ticker::-webkit-scrollbar{display:none}
+.tick{display:flex;align-items:baseline;gap:7px;padding:6px 0;white-space:nowrap}
+.tick:hover .tk-l{color:var(--ink)}
 .tk-l{font-size:9px;font-weight:500;letter-spacing:.14em;color:var(--ink-3)}
-.tk-n{font-size:15px;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
-.tick.on{background:var(--bg2);box-shadow:0 -2px 0 var(--ink) inset}
-.tick.on .tk-l{color:var(--ink-2);font-weight:700}
+.tk-n{font-size:13px;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tick.on{box-shadow:0 -2px 0 var(--ink) inset}
+.tick.on .tk-l{color:var(--ink);font-weight:700}
 .tick.on .tk-n{color:var(--ink);font-weight:700}
 /* The one shouting figure: the NEW count is the page's single oversized element and never
    shrinks. Blue's only job on this page. */
-.new-block{display:flex;align-items:baseline;gap:10px;padding:0 22px;border-left:1px solid var(--line);font-family:var(--mono)}
-.new-block:hover{background:var(--bg2)}
-.nb-n{font-size:40px;font-weight:600;line-height:64px;color:var(--blue);font-variant-numeric:tabular-nums}
+.new-block{display:flex;align-items:baseline;gap:10px;font-family:var(--mono)}
+.new-block:hover .nb-l{color:var(--ink)}
+.nb-n{font-size:40px;font-weight:600;line-height:56px;color:var(--blue);font-variant-numeric:tabular-nums}
 .nb-l{font-size:9px;font-weight:600;letter-spacing:.18em;color:var(--ink-3)}
-.new-block.on{box-shadow:0 -2px 0 var(--blue) inset;background:var(--bg2)}
+.new-block.on{box-shadow:0 -2px 0 var(--blue) inset}
 .new-block.on .nb-l{color:var(--ink);font-weight:700}
 
 /* ---- deck ---- */
@@ -408,17 +407,15 @@ a{color:inherit;text-decoration:none}
 .grp summary .chev{width:9px;height:9px;color:var(--ink-3);flex:none}
 .grp[open]>summary .chev{transform:rotate(90deg)}
 .grp summary::-webkit-details-marker{display:none}
-.frows{display:flex;flex-direction:column;margin-top:6px}
-.frow{display:flex;align-items:center;gap:9px;padding:5px 6px;font-size:12px;font-weight:500;
-  letter-spacing:.04em;color:var(--ink-2);font-family:var(--mono)}
-.frow:hover{background:var(--bg2);color:var(--ink)}
-.frow .fbox{width:10px;height:10px;color:var(--ink-3);flex:none}
-.frow:hover .fbox{color:var(--ink-2)}
-.frow.on{color:var(--ink);font-weight:700}
-.frow.on .fbox{color:var(--ink)}
-.f-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.f-count{font-size:10.5px;font-weight:500;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.frow.on .f-count{color:var(--ink-2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding:0 2px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border:1px solid var(--line-2);
+  border-radius:999px;font-family:var(--mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.04em;color:var(--ink-2)}
+.chip:hover{border-color:var(--ink-2);color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg0);font-weight:700}
+.ch-label{white-space:nowrap}
+.ch-count{font-size:9.5px;font-weight:500;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.chip.on .ch-count{color:var(--bg0);opacity:.65}
 .more{margin-top:4px}
 .more summary{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);cursor:pointer;padding:4px 6px;list-style:none}
 .more summary::-webkit-details-marker{display:none}
@@ -439,26 +436,26 @@ table.grid{width:100%;border-collapse:collapse}
   font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--ink-3);
   padding:7px 8px;border-bottom:1px solid var(--line-2)}
 .grid td{padding:0 8px;border-bottom:1px solid var(--line);height:40px;vertical-align:middle}
-.c-idx{width:46px}
-.c-st{width:74px}
-.c-co{width:160px}
+/* Fixed columns kept lean so POSITION (the flex column) gets the width — it is what the
+   owner actually reads; company is recognizable truncated, a title is not. */
+.c-st{width:66px}
+.grid th.c-st,.grid td.c-st{padding-left:22px}
+.c-co{width:118px}
 .c-field{width:60px}
-.c-loc{width:184px}
+.c-loc{width:150px}
 .c-grad{width:62px}
 .c-cit{width:68px}
 .c-seen{width:80px}
-.c-set{width:148px}
+.c-set{width:140px}
 tr.pos:hover,tr.pos.cur{background:var(--bg2)}
-tr.pos:focus-visible{outline:none;background:var(--bg2)}
-/* Keyboard cursor: the index cell inverts — a monochrome flip, the terminal's cursor cell */
-.idx{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:500;color:var(--ink-3);
-  font-variant-numeric:tabular-nums;padding:2px 4px}
-.idx.new{color:var(--blue);font-weight:700}
-tr.pos.cur .idx,tr.pos:focus-visible .idx{background:var(--ink);color:var(--bg0);font-weight:700}
+/* Keyboard cursor: a 2px white inset bar at the left edge + row wash — monochrome, no hue */
+tr.pos.cur{box-shadow:2px 0 0 var(--ink) inset}
+tr.pos:focus-visible{outline:none;background:var(--bg2);box-shadow:2px 0 0 var(--ink) inset}
 tr.rej-row td{opacity:.4}
 tr.rej-row .c-title a{text-decoration:line-through;text-decoration-color:var(--ink-3)}
-.co{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
-  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+/* Company is a word, so it speaks the word voice (sans, normal case) — Two Voices rule */
+.co{font-size:12px;font-weight:500;color:var(--ink-2);
+  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
 .c-title{max-width:0}
 .c-title a{font-size:13.5px;font-weight:500;color:var(--ink);display:block;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;text-underline-offset:3px}
@@ -489,7 +486,7 @@ tr.pos:hover .keys,tr.pos.cur .keys,tr.pos:focus-within .keys,.keys:has(.on){opa
   background:var(--bg0);color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer}
 .key:hover{border-color:var(--ink-2);color:var(--ink)}
 .key.on{background:var(--ink);color:var(--bg0);border-color:var(--ink);font-weight:700}
-.key.pending{animation:pend .5s steps(2,end) infinite}
+.key.pending{opacity:.6}
 @keyframes pend{0%{opacity:.35}100%{opacity:1}}
 
 /* ---- dividers ---- */
@@ -516,25 +513,31 @@ a.sheet-btn:hover{border-color:var(--ink);color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
   background:var(--bg3);border:1px solid var(--line-2);color:var(--ink);
   font-size:12px;padding:10px 18px;z-index:50;visibility:hidden}
-.toast.show{visibility:visible;animation:blink .18s steps(2,end)}
+.toast.show{visibility:visible}
 @keyframes blink{0%{opacity:0}100%{opacity:1}}
 
 /* ---- feed-connect (the one authored motion: rows snap in like a feed catching up).
-   Nothing glides — steps(1) means each row appears whole, staggered down the board. ---- */
+   Nothing glides — steps(1) means each row appears whole, staggered down the board.
+   The pending flash and toast blink also live here: any repeating flash is exactly what
+   prefers-reduced-motion exists for; outside it, pending is a static dim. ---- */
 @media (prefers-reduced-motion:no-preference){
   tbody tr{animation:snapin .01s steps(1,end) backwards;animation-delay:420ms}
   ${Array.from({ length: 52 }, (_, i) => `tbody tr:nth-child(${i + 1}){animation-delay:${i * 8}ms}`).join("")}
   tr.pos.ticked{animation:tick .24s steps(2,end)}
+  .key.pending{opacity:1;animation:pend .5s steps(2,end) infinite}
+  .toast.show{animation:blink .18s steps(2,end)}
 }
 @keyframes snapin{from{opacity:0}to{opacity:1}}
 @keyframes tick{0%{background:var(--bg3)}100%{background:transparent}}
 
 /* ---- mobile ---- */
 @media (max-width:880px){
-  .tape{flex-wrap:wrap}
-  .brand{min-width:0;flex:1;border-right:0}
-  .new-block{order:2}
-  .ticker{order:3;flex-basis:100%;border-top:1px solid var(--line)}
+  .tape{flex-wrap:wrap;padding:0 14px;gap:0 14px}
+  /* The figure never shrinks (locked raise) — the brand block yields instead */
+  .brand{min-width:0;flex:1;padding:10px 0}
+  .brand h1{font-size:11px;overflow:hidden;text-overflow:ellipsis}
+  .new-block{order:2;flex:none}
+  .ticker{order:3;flex-basis:100%;border-top:1px solid var(--line);gap:16px}
   .deck{grid-template-columns:1fr}
   .screener{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line-2);padding:12px 14px 16px}
   .query input{font-size:16px}
@@ -543,8 +546,8 @@ a.sheet-btn:hover{border-color:var(--ink);color:var(--ink)}
   table.grid,tbody,tr.pos{display:block}
   tr.pos{position:relative;padding:10px 14px 10px 14px;border-bottom:1px solid var(--line)}
   tr.pos td{display:none;border:0;height:auto;padding:0}
-  tr.pos td.c-st{display:block;position:absolute;right:14px;top:12px;width:auto}
-  tr.pos td.c-co,tr.pos td.c-title,tr.pos td.c-set{display:block}
+  tr.pos td.c-st{display:block;position:absolute;right:14px;top:12px;width:auto;padding:0}
+  tr.pos td.c-co,tr.pos td.c-title,tr.pos td.c-set{display:block;width:auto}
   .c-title{max-width:none}
   .c-title a{white-space:normal;font-size:14px;line-height:1.35;padding-right:64px}
   .co{max-width:none;padding-right:64px}
@@ -576,13 +579,14 @@ function js(): string {
   var MK_HELD='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
   var MK_FLIGHT='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="currentColor"/></svg>';
   var MK_REJ='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4"/></svg>';
+  var MK_NEW='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="2.2" width="5.6" height="5.6" transform="rotate(45 5 5)" fill="currentColor"/></svg>';
   function statusCellHTML(status,isNew){
     if(status==='saved')return '<span class="st held">'+MK_HELD+'HELD</span>';
     if(status==='applied')return '<span class="st flight">'+MK_FLIGHT+'APP</span>';
     if(status==='interviewing')return '<span class="st flight">'+MK_FLIGHT+'INT</span>';
     if(status==='offer')return '<span class="st flight">'+MK_FLIGHT+'OFF</span>';
     if(status==='rejected')return '<span class="st rej">'+MK_REJ+'REJ</span>';
-    if(isNew)return '<span class="st new">NEW</span>';
+    if(isNew)return '<span class="st new">'+MK_NEW+'<span class="vh">new</span></span>';
     return '<span class="st idle">—</span>';
   }
   function setStatus(tr,status){
@@ -604,8 +608,6 @@ function js(): string {
         tr.classList.toggle('rej-row',next==='rejected');
         var isNew=tr.hasAttribute('data-new');
         tr.querySelector('.c-st').innerHTML=statusCellHTML(next,isNew&&!next);
-        var idx=tr.querySelector('.idx');
-        if(idx)idx.classList.toggle('new',isNew&&!next);
         // the tick: a committed write flashes and settles, like a price update
         tr.classList.remove('ticked');void tr.offsetWidth;tr.classList.add('ticked');
       })

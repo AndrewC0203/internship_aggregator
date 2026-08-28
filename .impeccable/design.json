@@ -1,468 +1,153 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-27T23:30:00Z",
-  "title": "Design System: Dispatch Board",
+  "generatedAt": "2026-08-28T00:00:00.000Z",
+  "title": "Design System: Terminal Board",
   "extensions": {
     "colorMeta": {
-      "amber": {
-        "role": "primary",
-        "displayName": "Amber",
-        "canonical": "#FFB000",
-        "tonalRamp": [
-          "oklch(15% 0.17 75)",
-          "oklch(26% 0.17 75)",
-          "oklch(37% 0.17 75)",
-          "oklch(48% 0.17 75)",
-          "oklch(59% 0.17 75)",
-          "oklch(70% 0.17 75)",
-          "oklch(82% 0.17 75)",
-          "oklch(95% 0.08 75)"
-        ]
-      },
-      "amber-soft": {
-        "role": "primary",
-        "displayName": "Amber Soft",
-        "canonical": "#FFC24D",
-        "tonalRamp": [
-          "oklch(15% 0.13 80)",
-          "oklch(26% 0.13 80)",
-          "oklch(37% 0.13 80)",
-          "oklch(48% 0.13 80)",
-          "oklch(59% 0.13 80)",
-          "oklch(70% 0.13 80)",
-          "oklch(82% 0.13 80)",
-          "oklch(95% 0.07 80)"
-        ]
-      },
-      "green": {
-        "role": "secondary",
-        "displayName": "In-Flight Green",
-        "canonical": "#46C978",
-        "tonalRamp": [
-          "oklch(15% 0.15 155)",
-          "oklch(26% 0.15 155)",
-          "oklch(37% 0.15 155)",
-          "oklch(48% 0.15 155)",
-          "oklch(59% 0.15 155)",
-          "oklch(70% 0.15 155)",
-          "oklch(82% 0.15 155)",
-          "oklch(95% 0.07 155)"
-        ]
-      },
-      "white-lamp": {
-        "role": "tertiary",
-        "displayName": "White Lamp",
-        "canonical": "#F2F7F0",
-        "tonalRamp": [
-          "oklch(15% 0.005 150)",
-          "oklch(26% 0.005 150)",
-          "oklch(37% 0.005 150)",
-          "oklch(48% 0.005 150)",
-          "oklch(59% 0.005 150)",
-          "oklch(70% 0.005 150)",
-          "oklch(82% 0.005 150)",
-          "oklch(97% 0.005 150)"
-        ]
-      },
-      "red": {
-        "role": "tertiary",
-        "displayName": "Deadline Red",
-        "canonical": "#FF6B5E",
-        "tonalRamp": [
-          "oklch(15% 0.17 25)",
-          "oklch(26% 0.17 25)",
-          "oklch(37% 0.17 25)",
-          "oklch(48% 0.17 25)",
-          "oklch(59% 0.17 25)",
-          "oklch(70% 0.17 25)",
-          "oklch(82% 0.12 25)",
-          "oklch(95% 0.05 25)"
-        ]
-      },
-      "enamel-0": {
-        "role": "neutral",
-        "displayName": "Enamel 0 (deepest ground)",
-        "canonical": "#0E1512",
-        "tonalRamp": [
-          "oklch(13% 0.016 165)",
-          "oklch(17% 0.016 165)",
-          "oklch(25% 0.016 165)",
-          "oklch(35% 0.016 165)",
-          "oklch(48% 0.016 165)",
-          "oklch(62% 0.016 165)",
-          "oklch(78% 0.012 165)",
-          "oklch(95% 0.006 165)"
-        ]
-      },
-      "enamel-1": {
-        "role": "neutral",
-        "displayName": "Enamel 1 (panel ground)",
-        "canonical": "#141D18",
-        "tonalRamp": [
-          "oklch(13% 0.016 165)",
-          "oklch(21% 0.016 165)",
-          "oklch(30% 0.016 165)",
-          "oklch(40% 0.016 165)",
-          "oklch(52% 0.016 165)",
-          "oklch(65% 0.016 165)",
-          "oklch(80% 0.012 165)",
-          "oklch(95% 0.006 165)"
-        ]
-      },
-      "enamel-2": {
-        "role": "neutral",
-        "displayName": "Enamel 2 (raised ground)",
-        "canonical": "#1B2721",
-        "tonalRamp": [
-          "oklch(13% 0.017 165)",
-          "oklch(25% 0.017 165)",
-          "oklch(35% 0.017 165)",
-          "oklch(45% 0.017 165)",
-          "oklch(56% 0.017 165)",
-          "oklch(68% 0.017 165)",
-          "oklch(82% 0.012 165)",
-          "oklch(95% 0.006 165)"
-        ]
-      },
-      "enamel-3": {
-        "role": "neutral",
-        "displayName": "Enamel 3 (highest ground)",
-        "canonical": "#24332B",
-        "tonalRamp": [
-          "oklch(13% 0.018 160)",
-          "oklch(22% 0.018 160)",
-          "oklch(30% 0.018 160)",
-          "oklch(42% 0.018 160)",
-          "oklch(54% 0.018 160)",
-          "oklch(66% 0.018 160)",
-          "oklch(80% 0.012 160)",
-          "oklch(95% 0.006 160)"
-        ]
-      },
-      "etch": {
-        "role": "neutral",
-        "displayName": "Etch (primary ink)",
-        "canonical": "#E9EFE9",
-        "tonalRamp": [
-          "oklch(15% 0.006 155)",
-          "oklch(26% 0.006 155)",
-          "oklch(37% 0.006 155)",
-          "oklch(48% 0.006 155)",
-          "oklch(60% 0.006 155)",
-          "oklch(72% 0.006 155)",
-          "oklch(84% 0.006 155)",
-          "oklch(94% 0.006 155)"
-        ]
-      },
-      "etch-dim": {
-        "role": "neutral",
-        "displayName": "Etch Dim (secondary ink)",
-        "canonical": "#A9BFB0",
-        "tonalRamp": [
-          "oklch(15% 0.02 155)",
-          "oklch(26% 0.02 155)",
-          "oklch(37% 0.02 155)",
-          "oklch(48% 0.02 155)",
-          "oklch(59% 0.02 155)",
-          "oklch(70% 0.02 155)",
-          "oklch(78% 0.02 155)",
-          "oklch(95% 0.01 155)"
-        ]
-      },
-      "etch-faint": {
-        "role": "neutral",
-        "displayName": "Etch Faint (tertiary ink)",
-        "canonical": "#84998B",
-        "tonalRamp": [
-          "oklch(15% 0.025 160)",
-          "oklch(26% 0.025 160)",
-          "oklch(37% 0.025 160)",
-          "oklch(48% 0.025 160)",
-          "oklch(58% 0.025 160)",
-          "oklch(65% 0.025 160)",
-          "oklch(80% 0.015 160)",
-          "oklch(95% 0.008 160)"
-        ]
-      },
-      "groove": {
-        "role": "neutral",
-        "displayName": "Groove (recessed seam)",
-        "canonical": "#0A100D",
-        "tonalRamp": [
-          "oklch(13% 0.012 165)",
-          "oklch(20% 0.012 165)",
-          "oklch(30% 0.012 165)",
-          "oklch(40% 0.012 165)",
-          "oklch(52% 0.012 165)",
-          "oklch(65% 0.012 165)",
-          "oklch(80% 0.008 165)",
-          "oklch(95% 0.005 165)"
-        ]
-      },
-      "ridge": {
-        "role": "neutral",
-        "displayName": "Ridge (raised seam)",
-        "canonical": "#2C3D33",
-        "tonalRamp": [
-          "oklch(13% 0.02 160)",
-          "oklch(22% 0.02 160)",
-          "oklch(33% 0.02 160)",
-          "oklch(44% 0.02 160)",
-          "oklch(55% 0.02 160)",
-          "oklch(67% 0.02 160)",
-          "oklch(80% 0.012 160)",
-          "oklch(95% 0.006 160)"
-        ]
-      }
+      "blue": { "role": "primary", "displayName": "NEW Blue", "canonical": "#4D9FFF", "tonalRamp": ["#0A1E3A", "#12335F", "#1B4A87", "#2663AE", "#357ED4", "#4D9FFF", "#84BAFF", "#C2DCFF"] },
+      "bg0": { "role": "neutral", "displayName": "Ground Zero", "canonical": "#050507", "tonalRamp": ["#050507", "#0C0D11", "#13151B", "#1A1D25", "#2A2E38", "#464B58", "#7E8490", "#D8DADE"] },
+      "bg1": { "role": "neutral", "displayName": "Panel Ground", "canonical": "#0C0D11", "tonalRamp": ["#050507", "#0C0D11", "#13151B", "#1A1D25", "#2A2E38", "#464B58", "#7E8490", "#D8DADE"] },
+      "bg2": { "role": "neutral", "displayName": "Hover Wash", "canonical": "#13151B", "tonalRamp": ["#050507", "#0C0D11", "#13151B", "#1A1D25", "#2A2E38", "#464B58", "#7E8490", "#D8DADE"] },
+      "bg3": { "role": "neutral", "displayName": "Flash Ground", "canonical": "#1A1D25", "tonalRamp": ["#050507", "#0C0D11", "#13151B", "#1A1D25", "#2A2E38", "#464B58", "#7E8490", "#D8DADE"] },
+      "line": { "role": "neutral", "displayName": "Hairline Rule", "canonical": "#1E2129", "tonalRamp": ["#0B0C10", "#14161C", "#1E2129", "#2A2E38", "#3C414E", "#575D6C", "#828894", "#D3D5DA"] },
+      "line-2": { "role": "neutral", "displayName": "Structural Rule", "canonical": "#2A2E38", "tonalRamp": ["#0B0C10", "#14161C", "#1E2129", "#2A2E38", "#3C414E", "#575D6C", "#828894", "#D3D5DA"] },
+      "ink": { "role": "neutral", "displayName": "Primary Ink", "canonical": "#ECEDEF", "tonalRamp": ["#16171B", "#2A2C33", "#464A54", "#636876", "#7E8490", "#9DA2AD", "#C6C9CF", "#ECEDEF"] },
+      "ink-2": { "role": "neutral", "displayName": "Secondary Ink", "canonical": "#9DA2AD", "tonalRamp": ["#16171B", "#2A2C33", "#464A54", "#636876", "#7E8490", "#9DA2AD", "#C6C9CF", "#ECEDEF"] },
+      "ink-3": { "role": "neutral", "displayName": "Tertiary Ink", "canonical": "#7E8490", "tonalRamp": ["#16171B", "#2A2C33", "#464A54", "#636876", "#7E8490", "#9DA2AD", "#C6C9CF", "#ECEDEF"] }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "Plate Legend",
-        "purpose": "The h1 'DISPATCH BOARD' only; the single display-size text on the board."
-      },
-      "title": {
-        "displayName": "Position Title",
-        "purpose": "Row position links; 14.5px wrapping on mobile blocks."
-      },
-      "body": {
-        "displayName": "Base",
-        "purpose": "Page default; most text renders smaller than this."
-      },
-      "label": {
-        "displayName": "Tracked Caps Label",
-        "purpose": "Column heads, group summaries, button text, divider legends; 9-11px, uppercase, 0.14-0.2em tracking."
-      },
-      "figures": {
-        "displayName": "Instrument Figures",
-        "purpose": "Chivo Mono for every number, date, count, code, key-cap, and the scan input; always tabular-nums."
-      }
+      "display": { "displayName": "The NEW Figure", "purpose": "The 40px tape count — the page's single oversized element; never shrinks at any breakpoint." },
+      "title": { "displayName": "Position Title", "purpose": "The row's position link; the sans voice for the listing's name." },
+      "body": { "displayName": "Running Words", "purpose": "Page default for sentences: locations, notes, empty-state subtext, toast." },
+      "label": { "displayName": "Tracked Caps Label", "purpose": "Column heads, rail summaries, buttons, dividers — mono uppercase, tracked 0.14–0.24em." },
+      "figures": { "displayName": "Figures", "purpose": "Every count, date, code, index number, and key-cap; always tabular-nums." }
     },
     "shadows": [
-      {
-        "name": "plate-drop",
-        "value": "0 6px 18px rgba(0,0,0,.35)",
-        "purpose": "Legend plate overhang; the only drop shadow in the world."
-      },
-      {
-        "name": "ridge-inset",
-        "value": "0 1px 0 #2C3D33 inset",
-        "purpose": "One-pixel machined highlight on the raised side of a seam (plate, column heads, rail edge)."
-      },
-      {
-        "name": "recess",
-        "value": "0 1px 4px rgba(0,0,0,.4) inset",
-        "purpose": "Pressed-into-enamel well on active plate-counts."
-      },
-      {
-        "name": "socket",
-        "value": "0 1px 2px rgba(0,0,0,.6) inset",
-        "purpose": "Unlit lamp sockets and lever pip tracks."
-      },
-      {
-        "name": "glow-amber",
-        "value": "0 0 2px rgba(255,176,0,.35)",
-        "purpose": "Emitted light from a lit amber lamp."
-      },
-      {
-        "name": "glow-green",
-        "value": "0 0 2px rgba(70,201,120,.3)",
-        "purpose": "Emitted light from a lit green lamp."
-      },
-      {
-        "name": "glow-white",
-        "value": "0 0 2px rgba(242,247,240,.3)",
-        "purpose": "Emitted light from a lit white lamp."
-      },
-      {
-        "name": "glow-pip",
-        "value": "0 0 5px rgba(242,247,240,.6)",
-        "purpose": "Thrown lever pip."
-      },
-      {
-        "name": "row-select-bar",
-        "value": "2px 0 0 #FFB000 inset",
-        "purpose": "Amber left-edge bar on the keyboard-selected or focused row."
-      },
-      {
-        "name": "pip-socket",
-        "value": "0 1px 1px rgba(0,0,0,.5) inset",
-        "purpose": "Shallower socket well on the 8px lever pip track (the 11px lamp socket uses the deeper .6 variant)."
-      }
+      { "name": "tab-underline-ink", "value": "0 -2px 0 #ECEDEF inset", "purpose": "Active ticker cell marker — a tab underline drawn with the shadow primitive, not depth." },
+      { "name": "tab-underline-blue", "value": "0 -2px 0 #4D9FFF inset", "purpose": "Active new-only filter marker on the NEW block; blue because it is NEW's own identity." }
     ],
     "motion": [
-      {
-        "name": "ease-repack",
-        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "The one authored moment: rows settle on render, .3s, staggered 9ms per row (nth-child 1-52), 470ms base delay, gated by prefers-reduced-motion."
-      },
-      {
-        "name": "ease-throw",
-        "value": "cubic-bezier(0.2, 0.9, 0.3, 1)",
-        "purpose": "Lever pip slide (.15s) and toast entrance (.25s)."
-      },
-      {
-        "name": "duration-functional",
-        "value": "0.12s-0.25s",
-        "purpose": "All hover/state transitions; never longer."
-      },
-      {
-        "name": "pend-pulse",
-        "value": "pend 0.7s ease-in-out infinite alternate (opacity .4 to 1)",
-        "purpose": "Throw buttons while a status write is in flight."
-      }
+      { "name": "snapin", "value": "snapin .01s steps(1,end) backwards; 420ms base delay + 8ms/row stagger (rows 1-52)", "purpose": "Feed-connect arrival: rows appear whole, like a feed catching up. Inside prefers-reduced-motion: no-preference." },
+      { "name": "tick", "value": "tick .24s steps(2,end) (#1A1D25 -> transparent)", "purpose": "A committed status write flashes and settles, like a price update." },
+      { "name": "pend", "value": "pend .5s steps(2,end) infinite", "purpose": "In-flight write flash on the key row; static opacity .6 dim when motion is reduced." },
+      { "name": "blink", "value": "blink .18s steps(2,end)", "purpose": "Toast arrival snap. No animation in this world eases or glides — steps() only." }
     ],
     "breakpoints": [
-      {
-        "name": "mobile",
-        "value": "880px",
-        "purpose": "Single breakpoint: rail collapses above the line (groups closed by JS), table re-flows to stacked blocks."
-      }
+      { "name": "board", "value": "880px" }
     ]
   },
   "components": [
     {
-      "name": "Block Lamp",
+      "name": "Status Cell",
       "kind": "custom",
-      "refersTo": "lamp",
-      "description": "11px state indicator: unlit socket, amber (awaiting), white (held), green (in flight), closed (rejected, extinguished).",
-      "html": "<span style=\"display:inline-flex;gap:14px;align-items:center\"><span class=\"ds-lamp\"></span><span class=\"ds-lamp ds-lit-amber\"></span><span class=\"ds-lamp ds-lit-white\"></span><span class=\"ds-lamp ds-lit-green\"></span><span class=\"ds-lamp ds-closed\"></span></span>",
-      "css": ".ds-lamp{display:inline-block;width:11px;height:11px;border-radius:50%;background:#0A100D;box-shadow:0 1px 2px rgba(0,0,0,.6) inset}.ds-lamp.ds-lit-amber{background:#FFB000;box-shadow:0 0 2px rgba(255,176,0,.35),0 0 1px rgba(0,0,0,.4) inset}.ds-lamp.ds-lit-green{background:#46C978;box-shadow:0 0 2px rgba(70,201,120,.3),0 0 1px rgba(0,0,0,.4) inset}.ds-lamp.ds-lit-white{background:#F2F7F0;box-shadow:0 0 2px rgba(242,247,240,.3),0 0 1px rgba(0,0,0,.4) inset}.ds-lamp.ds-closed{background:#050807;position:relative}.ds-lamp.ds-closed::after{content:'';position:absolute;inset:3px;border-radius:50%;border:1px solid #84998B;opacity:.5}"
+      "refersTo": "row",
+      "description": "Signature: application state as an authored 10px mark plus a mono code word — never a hue.",
+      "html": "<div class=\"ds-strip\"><span class=\"ds-st ds-st-new\">NEW</span><span class=\"ds-st ds-st-held\"><svg class=\"ds-mk\" viewBox=\"0 0 10 10\" aria-hidden=\"true\"><rect x=\"1.5\" y=\"1.5\" width=\"7\" height=\"7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"/></svg>HELD</span><span class=\"ds-st ds-st-flight\"><svg class=\"ds-mk\" viewBox=\"0 0 10 10\" aria-hidden=\"true\"><rect x=\"1.5\" y=\"1.5\" width=\"7\" height=\"7\" fill=\"currentColor\"/></svg>APP</span><span class=\"ds-st ds-st-rej\"><svg class=\"ds-mk\" viewBox=\"0 0 10 10\" aria-hidden=\"true\"><path d=\"M2 2l6 6M8 2l-6 6\" stroke=\"currentColor\" stroke-width=\"1.4\"/></svg>REJ</span><span class=\"ds-st ds-st-idle\">—</span></div>",
+      "css": ".ds-strip { display: flex; gap: 18px; align-items: center; background: #050507; padding: 12px 16px; } .ds-st { display: inline-flex; align-items: center; gap: 6px; font-family: 'Chivo Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: .08em; } .ds-mk { width: 10px; height: 10px; flex: none; } .ds-st-new { color: #4D9FFF; font-weight: 700; } .ds-st-held { color: #9DA2AD; } .ds-st-flight { color: #ECEDEF; } .ds-st-rej { color: #7E8490; } .ds-st-idle { color: #7E8490; font-weight: 400; }"
     },
     {
-      "name": "Throw Group",
+      "name": "Set Keys",
       "kind": "button",
-      "refersTo": "throw",
-      "description": "Per-row status control: five 24px mono key-caps; the active throw is a hard figure-ground inversion.",
-      "html": "<span class=\"ds-throws\"><button class=\"ds-throw\">S</button><button class=\"ds-throw ds-on\">A</button><button class=\"ds-throw\">I</button><button class=\"ds-throw\">O</button><button class=\"ds-throw\">X</button></span>",
-      "css": ".ds-throws{display:inline-flex;gap:3px}.ds-throw{font-family:'Chivo Mono',ui-monospace,monospace;font-size:10px;font-weight:600;width:24px;height:24px;border-radius:3px;background:#0A100D;color:#A9BFB0;border:1px solid #2C3D33;cursor:pointer;transition:all .12s}.ds-throw:hover{border-color:#A9BFB0;color:#E9EFE9}.ds-throw:focus-visible{outline:2px solid #FFB000;outline-offset:2px}.ds-throw.ds-on{background:#E9EFE9;color:#0E1512;border-color:#E9EFE9;font-weight:700}"
+      "refersTo": "key",
+      "description": "The five square status key-caps; the active key is a hard monochrome inversion.",
+      "html": "<span class=\"ds-keys\" role=\"group\" aria-label=\"application status\"><button class=\"ds-key ds-key-on\" aria-pressed=\"true\">S</button><button class=\"ds-key\" aria-pressed=\"false\">A</button><button class=\"ds-key\" aria-pressed=\"false\">I</button><button class=\"ds-key\" aria-pressed=\"false\">O</button><button class=\"ds-key\" aria-pressed=\"false\">X</button></span>",
+      "css": ".ds-keys { display: inline-flex; gap: 3px; background: #050507; padding: 10px; } .ds-key { font-family: 'Chivo Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; width: 22px; height: 22px; background: #050507; color: #9DA2AD; border: 1px solid #2A2E38; border-radius: 0; cursor: pointer; } .ds-key:hover { border-color: #9DA2AD; color: #ECEDEF; } .ds-key:focus-visible { outline: 2px solid #ECEDEF; outline-offset: 2px; border-radius: 1px; } .ds-key-on { background: #ECEDEF; color: #050507; border-color: #ECEDEF; font-weight: 700; }"
     },
     {
-      "name": "Slide Lever",
+      "name": "Filter Row",
       "kind": "chip",
-      "refersTo": "lever",
-      "description": "Rail filter row: slide-switch pip, tracked label, mono count; thrown pip slides right and lights white.",
-      "html": "<div style=\"width:230px;background:#141D18;padding:4px\"><a class=\"ds-lever\" href=\"#\"><span class=\"ds-pip\"></span><span class=\"ds-lv-label\">INTERNSHIP</span><span class=\"ds-lv-count\">607</span></a><a class=\"ds-lever ds-on\" href=\"#\"><span class=\"ds-pip\"></span><span class=\"ds-lv-label\">NEW GRAD</span><span class=\"ds-lv-count\">883</span></a></div>",
-      "css": ".ds-lever{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:4px;font-family:'National Park',system-ui,sans-serif;font-size:12px;font-weight:600;letter-spacing:.05em;color:#A9BFB0;text-decoration:none;transition:background .12s,color .12s}.ds-lever:hover{background:#24332B;color:#E9EFE9}.ds-lever:focus-visible{outline:2px solid #FFB000;outline-offset:2px}.ds-pip{position:relative;width:18px;height:8px;border-radius:4px;background:#0A100D;box-shadow:0 1px 1px rgba(0,0,0,.5) inset;flex:none;transition:background .15s}.ds-pip::after{content:'';position:absolute;top:1px;left:1px;width:6px;height:6px;border-radius:3px;background:#2C3D33;transition:left .15s cubic-bezier(.2,.9,.3,1),background .15s,box-shadow .15s}.ds-lever:hover .ds-pip::after{background:#A9BFB0}.ds-lever.ds-on{color:#E9EFE9}.ds-lever.ds-on .ds-pip{background:#24332B}.ds-lever.ds-on .ds-pip::after{left:11px;background:#F2F7F0;box-shadow:0 0 5px rgba(242,247,240,.6)}.ds-lv-label{flex:1;white-space:nowrap}.ds-lv-count{font-family:'Chivo Mono',ui-monospace,monospace;font-size:10.5px;font-weight:500;color:#84998B;font-variant-numeric:tabular-nums}"
+      "refersTo": "filter-row",
+      "description": "Screener rail filter: authored square + label + count; active fills the square white and sets heavier.",
+      "html": "<div class=\"ds-rail\"><a class=\"ds-frow ds-frow-on\" href=\"#\" aria-current=\"true\"><svg class=\"ds-fbox\" viewBox=\"0 0 10 10\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"8\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.2\"/></svg><span class=\"ds-flabel\">INTERNSHIP</span><span class=\"ds-fcount\">607</span></a><a class=\"ds-frow\" href=\"#\" aria-current=\"false\"><svg class=\"ds-fbox\" viewBox=\"0 0 10 10\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/></svg><span class=\"ds-flabel\">NEW GRAD</span><span class=\"ds-fcount\">883</span></a></div>",
+      "css": ".ds-rail { display: flex; flex-direction: column; width: 212px; background: #0C0D11; padding: 8px; } .ds-frow { display: flex; align-items: center; gap: 9px; padding: 5px 6px; font-size: 12px; font-weight: 500; letter-spacing: .04em; color: #9DA2AD; font-family: 'Chivo Mono', ui-monospace, monospace; text-decoration: none; } .ds-frow:hover { background: #13151B; color: #ECEDEF; } .ds-fbox { width: 10px; height: 10px; color: #7E8490; flex: none; } .ds-frow:hover .ds-fbox { color: #9DA2AD; } .ds-frow-on { color: #ECEDEF; font-weight: 700; } .ds-frow-on .ds-fbox { color: #ECEDEF; } .ds-flabel { flex: 1; } .ds-fcount { font-size: 10.5px; font-weight: 500; color: #7E8490; font-variant-numeric: tabular-nums; } .ds-frow-on .ds-fcount { color: #9DA2AD; }"
     },
     {
-      "name": "Code Chip",
-      "kind": "chip",
-      "refersTo": "code-chip",
-      "description": "Informational field code (SWE, ML/AI); mono, ridge-bordered, no selected state.",
-      "html": "<span class=\"ds-code\">ML/AI</span>",
-      "css": ".ds-code{display:inline-block;font-family:'Chivo Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.06em;color:#A9BFB0;border:1px solid #2C3D33;border-radius:3px;padding:2px 5px}"
-    },
-    {
-      "name": "Scan Input",
+      "name": "Search Input",
       "kind": "input",
-      "refersTo": "scan-input",
-      "description": "The search well: recessed groove ground, mono typed query, amber caret and focus ring.",
-      "html": "<input class=\"ds-scan\" type=\"search\" placeholder=\"SCAN \u2014 title / company\">",
-      "css": ".ds-scan{width:230px;background:#0A100D;border:1px solid #2C3D33;border-radius:4px;color:#E9EFE9;font-family:'Chivo Mono',ui-monospace,monospace;font-size:11.5px;padding:9px 11px;letter-spacing:.02em;caret-color:#FFB000}.ds-scan::placeholder{color:#84998B}.ds-scan:focus-visible{outline:2px solid #FFB000;outline-offset:2px;border-radius:2px}"
+      "refersTo": "search-input",
+      "description": "The screener's square recessed search well; caret and focus ring in primary ink.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"SEARCH TITLE / COMPANY\" aria-label=\"search title or company\">",
+      "css": ".ds-input { width: 212px; background: #050507; border: 1px solid #2A2E38; border-radius: 0; color: #ECEDEF; caret-color: #ECEDEF; font-family: 'Chivo Mono', ui-monospace, monospace; font-size: 11.5px; padding: 9px 11px; letter-spacing: .02em; } .ds-input::placeholder { color: #9DA2AD; } .ds-input:focus-visible { outline: 2px solid #ECEDEF; outline-offset: 2px; border-radius: 1px; }"
     },
     {
       "name": "Clear Button",
       "kind": "button",
       "refersTo": "clear-button",
-      "description": "Secondary action (RESET ALL LEVERS / PREV / NEXT): ridge-bordered tracked caps; hover borrows amber.",
-      "html": "<a class=\"ds-clear\" href=\"#\">RESET ALL LEVERS</a>",
-      "css": ".ds-clear{display:inline-block;padding:8px 14px;border:1px solid #2C3D33;border-radius:4px;font-family:'National Park',system-ui,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.16em;color:#A9BFB0;text-decoration:none;transition:all .15s}.ds-clear:hover{border-color:#FFB000;color:#FFB000}.ds-clear:focus-visible{outline:2px solid #FFB000;outline-offset:2px}"
+      "description": "Square bordered tracked-caps button; hover raises to primary ink — monochrome, never blue.",
+      "html": "<a class=\"ds-clear\" href=\"#\">CLEAR FILTERS</a>",
+      "css": ".ds-clear { display: inline-block; padding: 8px 14px; border: 1px solid #2A2E38; border-radius: 0; font-family: 'Chivo Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700; letter-spacing: .16em; color: #9DA2AD; text-decoration: none; } .ds-clear:hover { border-color: #ECEDEF; color: #ECEDEF; } .ds-clear:focus-visible { outline: 2px solid #ECEDEF; outline-offset: 2px; border-radius: 1px; }"
     },
     {
-      "name": "NEW Divider",
+      "name": "Code Chip",
+      "kind": "chip",
+      "refersTo": "code-chip",
+      "description": "Informational field code — square, bordered, mono; no selected state, no hue.",
+      "html": "<span class=\"ds-code\">ML/AI</span>",
+      "css": ".ds-code { display: inline-block; font-family: 'Chivo Mono', ui-monospace, monospace; font-size: 9.5px; font-weight: 600; letter-spacing: .06em; color: #9DA2AD; border: 1px solid #2A2E38; border-radius: 0; padding: 2px 5px; }"
+    },
+    {
+      "name": "Ticker Cell",
+      "kind": "nav",
+      "refersTo": "row",
+      "description": "Tape navigation: label-over-count type cells; active takes the wash plus a 2px ink inset underline.",
+      "html": "<nav class=\"ds-ticker\" aria-label=\"listings by type\"><a class=\"ds-tick ds-tick-on\" href=\"#\" aria-current=\"true\"><span class=\"ds-tkl\">INTERNSHIP</span><span class=\"ds-tkn\">607</span></a><a class=\"ds-tick\" href=\"#\" aria-current=\"false\"><span class=\"ds-tkl\">NEW GRAD</span><span class=\"ds-tkn\">883</span></a></nav>",
+      "css": ".ds-ticker { display: flex; background: #0C0D11; border-bottom: 1px solid #2A2E38; font-family: 'Chivo Mono', ui-monospace, monospace; } .ds-tick { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 10px 18px; border-right: 1px solid #1E2129; white-space: nowrap; text-decoration: none; } .ds-tick:hover { background: #13151B; } .ds-tkl { font-size: 9px; font-weight: 500; letter-spacing: .14em; color: #7E8490; } .ds-tkn { font-size: 15px; font-weight: 500; color: #9DA2AD; font-variant-numeric: tabular-nums; } .ds-tick-on { background: #13151B; box-shadow: 0 -2px 0 #ECEDEF inset; } .ds-tick-on .ds-tkl { color: #9DA2AD; font-weight: 700; } .ds-tick-on .ds-tkn { color: #ECEDEF; font-weight: 700; }"
+    },
+    {
+      "name": "NEW Block",
       "kind": "custom",
-      "refersTo": "divider",
-      "description": "The amber band opening the fresh section of the line on the default sort.",
-      "html": "<div class=\"ds-newdiv\"><span>NEW ON THE BOARD</span><span class=\"ds-div-detail\">1584 BLOCKS \u00b7 LAST 3 DAYS</span></div>",
-      "css": ".ds-newdiv{padding:4px 22px;height:30px;display:flex;align-items:center;background:linear-gradient(90deg,rgba(255,176,0,.07),rgba(255,176,0,.01));border-bottom:1px solid rgba(255,176,0,.16)}.ds-newdiv span{font-family:'National Park',system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:.18em;color:#FFC24D}.ds-div-detail{margin-left:16px;font-family:'Chivo Mono',ui-monospace,monospace;letter-spacing:.1em;font-weight:500}"
-    },
-    {
-      "name": "New Indicator",
-      "kind": "button",
-      "refersTo": "new-indicator",
-      "description": "Plate-right NEW counter; inverts to solid amber when the new-only filter is thrown.",
-      "html": "<span style=\"display:inline-flex;gap:12px\"><a class=\"ds-newind\" href=\"#\"><span class=\"ds-lamp ds-lit-amber\"></span><span class=\"ds-ni-n\">1584</span><span class=\"ds-ni-l\">NEW / 3D</span></a><a class=\"ds-newind ds-on\" href=\"#\"><span class=\"ds-lamp\"></span><span class=\"ds-ni-n\">1584</span><span class=\"ds-ni-l\">NEW / 3D</span></a></span>",
-      "css": ".ds-newind{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border:1px solid #2C3D33;border-radius:5px;background:#141D18;text-decoration:none;transition:background .15s}.ds-newind:hover{background:#24332B}.ds-newind .ds-lamp{display:inline-block;width:11px;height:11px;border-radius:50%;background:#0A100D}.ds-newind .ds-lit-amber{background:#FFB000;box-shadow:0 0 6px 1px rgba(255,176,0,.55)}.ds-ni-n{font-family:'Chivo Mono',ui-monospace,monospace;font-size:15px;font-weight:600;color:#E9EFE9}.ds-ni-l{font-family:'National Park',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.14em;color:#A9BFB0}.ds-newind.ds-on{background:#FFB000;border-color:#FFB000}.ds-newind.ds-on .ds-ni-n,.ds-newind.ds-on .ds-ni-l{color:#141D18}.ds-newind.ds-on .ds-lamp{background:#141D18;box-shadow:none}"
+      "refersTo": "row",
+      "description": "Signature: the 40px blue NEW figure — the page's single oversized element and blue's only job.",
+      "html": "<a class=\"ds-newblock\" href=\"#\" title=\"show only new listings\"><span class=\"ds-nbn\">1563</span><span class=\"ds-nbl\">NEW · 3D</span></a>",
+      "css": ".ds-newblock { display: inline-flex; align-items: baseline; gap: 10px; padding: 0 22px; background: #0C0D11; border-left: 1px solid #1E2129; font-family: 'Chivo Mono', ui-monospace, monospace; text-decoration: none; } .ds-newblock:hover { background: #13151B; } .ds-nbn { font-size: 40px; font-weight: 600; line-height: 64px; color: #4D9FFF; font-variant-numeric: tabular-nums; } .ds-nbl { font-size: 9px; font-weight: 600; letter-spacing: .18em; color: #7E8490; }"
     },
     {
       "name": "Toast",
       "kind": "custom",
       "refersTo": "toast",
-      "description": "Bottom-center status plate; slides up .25s, in-world failure copy.",
-      "html": "<div class=\"ds-toast\">SIGNAL FAILURE \u2014 status not saved. Check the server and retry.</div>",
-      "css": ".ds-toast{display:inline-block;background:#24332B;border:1px solid #2C3D33;color:#E9EFE9;border-radius:5px;font-family:'National Park',system-ui,sans-serif;font-size:12px;padding:10px 18px}"
+      "description": "Bottom-center status plate; arrives with a steps() blink, used for write failures.",
+      "html": "<div class=\"ds-toast\" role=\"status\">WRITE FAILED — status not saved. Check the server and retry.</div>",
+      "css": ".ds-toast { display: inline-block; background: #1A1D25; border: 1px solid #2A2E38; border-radius: 0; color: #ECEDEF; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; padding: 10px 18px; }"
     }
   ],
   "narrative": {
-    "northStar": "The Dispatch Board",
-    "overview": "The hub is a CTC railroad dispatcher's panel, not a job board. Every listing is a block on the line; every apply-status is a lamp the dispatcher throws. The world refuses the white-card job-board scaffold entirely: no cards, no light surfaces, no brand gradients. The material is backlit enamel \u2014 deep green-black grounds machined into panels, legends etched in near-white, indicator lamps that emit real light. One faint top-center backlight on the deck is the single ambient light source; every other glow comes from a lit lamp. Density is the point: 42px rows, 9-11px tracked caps, tabular mono figures. Committed states are hard figure-ground inversions, never tints; rejected blocks go dark the way a closed block loses its light.",
+    "northStar": "The Terminal Board",
+    "overview": "The hub is a job search run as a market terminal. Listings are instruments on a watchlist, the pipeline is the portfolio, and NEW is the movers column. The world refuses the white-card job board entirely: no cards, no light surfaces, no imagery, no brand gradients. The material is true-black ruled data surfaces — four background steps from bg0 to bg3, white-to-gray inks, hairline rules — and the market metaphor is structural (density, the numbered index column, tick motion), never literal: no fake charts, no gain/loss color.\n\nThe page is near-total monochrome. Exactly one hue exists — blue — and it has exactly one job: NEW. Application status is a 10px authored mark plus a code word (HELD / APP / INT / OFF / REJ), never a hue. Selection and commitment are weight and monochrome inversion, not tint. Nothing glides: every state change is a steps() animation that snaps and settles like a price tick. Rows are 40px, labels are 9–10px tracked mono caps, every figure is tabular Chivo Mono, and the whole board runs from the keyboard (j/k/enter/s/a/i/o/x/u).",
     "keyCharacteristics": [
-      "Backlit-enamel dark world: four enamel grounds, three etch inks, one groove + one ridge seam pair",
-      "Lamp semantics carry all state color; each hue has exactly one meaning",
-      "Two voices: National Park for every word, Chivo Mono for every figure",
-      "Depth by machined seams and inset shadows, not drop shadows",
-      "One authored motion moment (the repack); everything else is sub-250ms functional transition",
-      "Browser chrome is themed in-world: selection, caret, scrollbar, focus ring, tabular numerals",
-      "Microcopy stays in the dispatcher's voice (\"BLOCKS ON THE LINE\", \"SIGNAL FAILURE\")"
+      "True-black ruled data surfaces: four background steps, two hairline rules, three inks, one blue",
+      "One law per hue — blue means NEW and nothing else; no green, no red, anywhere",
+      "Status is a mark + code word; selection is weight and monochrome inversion",
+      "Flat and square: no shadows-as-depth, no radii (focus ring's 1px is the lone exception)",
+      "Nothing glides — all motion is steps(), gated behind prefers-reduced-motion",
+      "One oversized element: the 40px blue NEW figure, which never shrinks",
+      "Browser chrome themed in-world: inverted selection, white caret, dark scrollbar, 2px white focus ring, tabular numerals"
     ],
     "rules": [
-      {
-        "name": "The One Lamp, One Meaning Rule",
-        "body": "Amber = awaiting your decision (new and untouched). White = held (saved). Green = in flight (applied / interviewing / offer). Red = live deadline pressure only. A rejected block gets no hue at all \u2014 it goes dark (opacity .45, extinguished lamp). No signal hue may take a second job.",
-        "section": "colors"
-      },
-      {
-        "name": "The Amber Chrome Rule",
-        "body": "Amber is additionally the only interaction accent \u2014 focus ring, caret, selection, hover accents. Green, white-lamp, and red never appear in interaction chrome; they exist only as state.",
-        "section": "colors"
-      },
-      {
-        "name": "The Two Voices Rule",
-        "body": "National Park speaks every word; Chivo Mono renders every figure, code, date, count, and key-cap (plus the scan query). No text may use a third family, and numeric columns are always tabular-nums.",
-        "section": "typography"
-      },
-      {
-        "name": "The Tracked Caps Rule",
-        "body": "Every label is uppercase, 9-11px, letter-spaced 0.14-0.2em, in an etch ink. Sentence-case is reserved for row titles, notes, and empty-state subtext.",
-        "section": "typography"
-      },
-      {
-        "name": "The One Moment Rule",
-        "body": "New motion may tune the repack; it may not add a second authored moment. Functional transitions stay at or under 0.25s.",
-        "section": "layout"
-      },
-      {
-        "name": "The Groove-and-Ridge Rule",
-        "body": "Every structural edge is a seam: a groove line (#0A100D) on the recessed side, a one-pixel ridge highlight (#2C3D33) inset on the raised side. New panels must be seamed, not shadowed.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Light-Is-Signal Rule",
-        "body": "Outward glow belongs exclusively to lit lamps and the thrown pip; the only drop shadow is the plate's. Decorative glows, glassy blurs, and hover drop shadows do not exist in this world.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Hard Inversion Rule",
-        "body": "A committed state is a full figure-ground flip \u2014 dark ground gains light fill and dark text (throw.on, new-ind.on, ::selection). Never a tinted or half-toned selected state.",
-        "section": "components"
-      }
+      { "name": "The One Law Per Hue Rule", "body": "Blue = NEW. That is the whole chromatic vocabulary. There is no green, no red, no amber anywhere on the board: urgency is weight (a live deadline inside 14 days sets bold white; a passed one drops to ink-3 \"CLOSED\"), and rejection is loss of light (rows at opacity .4 with a line-through title), never a hue. A second hue, or a second job for blue, breaks the world.", "section": "colors" },
+      { "name": "The Mark-Plus-Code Rule", "body": "Application state is a 10px authored SVG mark plus a mono code word: outline square = HELD, filled square = APP / INT / OFF (in flight), stroke cross = REJ. State never gets a color; the marks differ by fill and the words differ by ink weight. Render-side statusCell() and client-side statusCellHTML() are the same rule in two runtimes and must never drift.", "section": "colors" },
+      { "name": "The Two Voices Rule", "body": "Chivo Mono renders every figure, code, and label; the system sans speaks every running word. No third family, no remote font, and numeric data is always tabular.", "section": "typography" },
+      { "name": "The One Figure Rule", "body": "The 40px NEW figure is the only oversized element the page may carry. At the 880px breakpoint the brand block yields (shrinks and truncates) so the figure never does. A second shouting number would repeal the law that makes the first one legible.", "section": "typography" },
+      { "name": "The Nothing Glides Rule", "body": "New motion must be a steps() snap, gated behind prefers-reduced-motion, with a static fallback. A transition or eased keyframe is a foreign material here — there are none in the build, and none may be added.", "section": "layout" },
+      { "name": "The Ruled-Surface Rule", "body": "New panels are separated by hairlines and background steps, never by shadow. If a surface needs to read as \"above,\" it takes the next background step and a line-2 rule; if an element needs to read as \"active,\" it inverts or takes the 2px inset underline.", "section": "elevation" },
+      { "name": "The Monochrome Inversion Rule", "body": "A committed or focused state is a hard figure-ground flip in black and white — active keys, the keyboard cursor's index cell, active ticker underlines, ::selection. Never a tint, never a hue (blue's underline on the NEW block is NEW's identity, not a selection color).", "section": "elevation" }
     ],
     "dos": [
-      "Do keep every hue on its one job: amber = awaiting decision + interaction chrome, white = held, green = in flight, red = live deadline (< 14 days, unexpired) only.",
-      "Do seam new panels with the groove (#0A100D) + ridge (#2C3D33) pair and the four enamel steps; depth is machined, never floated.",
-      "Do set every number in Chivo Mono with tabular-nums, and every label as tracked uppercase (0.14-0.2em) in an etch ink.",
-      "Do make committed states hard inversions (light ground, dark text) with aria-pressed / aria-current kept truthful.",
-      "Do theme browser chrome in-world on any new surface: amber selection and caret, enamel scrollbar, the 2px amber :focus-visible ring.",
-      "Do write microcopy in the dispatcher's voice \u2014 blocks, levers, sheets, lines, signal failure \u2014 in tracked caps for legends.",
-      "Do wrap any future motion in prefers-reduced-motion and keep functional transitions at or under 0.25s."
+      "Do keep blue (#4D9FFF) on its one job: NEW, and nothing else — the figure, the status word, the divider band, the new-only underline, the favicon.",
+      "Do express state as an authored 10px mark + mono code word, and urgency as weight (bold white live deadlines, ink-3 passed ones).",
+      "Do make committed and focused states hard monochrome inversions with truthful aria-pressed / aria-current.",
+      "Do set every figure, label, and code in Chivo Mono — labels as tracked caps (0.14–0.24em), numerals always tabular-nums — and running words in the system sans.",
+      "Do build new motion as steps() snaps inside @media (prefers-reduced-motion: no-preference) with a static fallback; flashing states especially stay behind the gate.",
+      "Do separate new surfaces with line/line-2 hairlines and the four background steps; keep every control square with a 1px border.",
+      "Do theme browser chrome in-world on any new surface: inverted white selection, white caret, dark 10px scrollbar, the 2px white :focus-visible ring (1px radius).",
+      "Do keep render-side statusCell() and client-side statusCellHTML() in lockstep when states change — same rule, two runtimes."
     ],
     "donts": [
-      "Don't introduce white cards, light-mode surfaces, brand gradients, or imagery \u2014 the world is backlit enamel, and the deck's single radial backlight is the only ambient light.",
-      "Don't color a rejected or expired thing red \u2014 closed states lose light (dark lamp, reduced opacity, etch-faint ink), they never gain a hue.",
-      "Don't add outward glows or drop shadows beyond the plate drop and lamp/pip glows.",
-      "Don't add a third typeface, a radius beyond 5px (lamps excepted), or a non-1px border.",
-      "Don't author a second motion moment; the repack owns arrival.",
-      "Don't let render-side lamp() and client-side lampClass() drift apart when adding states \u2014 they are the same rule in two runtimes."
+      "Don't introduce a second hue or a second job for blue — no green/red gain-loss color, no red errors, no amber warnings; this world's market metaphor is structural, never literal (no fake charts, no sparklines).",
+      "Don't add white cards, light surfaces, gradients, glows, drop shadows, or imagery — the only lawful box-shadow form is the 2px inset tab underline.",
+      "Don't round a corner (focus ring's 1px and the scrollbar thumb excepted), add a non-1px border, or bring in a pill or circle.",
+      "Don't ease, fade, slide, or transition anything — nothing glides; and don't author a second arrival moment: feed-connect owns it.",
+      "Don't oversize a second element — the 40px NEW figure is the page's single shout and never shrinks; competing scale dilutes it.",
+      "Don't add a third typeface or a remote font; the board loads one woff2."
     ]
   }
 }

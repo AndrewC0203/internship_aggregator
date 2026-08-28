@@ -1213,3 +1213,62 @@ rows remain findable/fixable by query. Rows belonging to boards discovery has de
 Date: 2026-08-28
 
 ---
+
+## Decision 23: Conditional fetch — ETag/304 revalidation per board
+
+Problem: The refresh sweep is now the wall-clock bottleneck: 3,187 active crawl targets
+fetched sequentially at ~0.4–1.5s each is ~30–90 minutes per run, and the vast majority of
+boards are unchanged day-to-day — but "unchanged" still must be *verified*, because as of
+Decision 22 every successful crawl doubles as the absence-evidence that delists dead
+postings. Skipping boards outright would silently skip freshness.
+
+Options considered:
+
+1. ETag conditional requests — store the validator from each full fetch on `CrawlTarget`,
+   send `If-None-Match` next crawl; a 304 (measured: ~0.13s, 0 bytes, vs ~0.4s / 3.5MB for
+   a large board) proves the body — and therefore the listing set — is unchanged, so the
+   entire normalize/pipeline pass is skipped with freshness semantics fully intact.
+   Verified live before building: Greenhouse sends stable weak ETags and honors
+   If-None-Match with a real 304.
+2. Concurrent fetching (~8-wide worker pool) — 5–10x wall-clock cut, but it IS the
+   still-open GATED rate-limit posture toward Greenhouse (3,187 boards hammered 8-wide
+   daily); must be decided deliberately, and stacks WITH option 1 later anyway.
+3. Tiered crawl scheduling (quiet boards weekly) — Phase 2 scheduler territory; delays
+   freshness on skipped boards by design, and buys little while option 1 is free.
+
+Decision: Option 1 — new nullable `CrawlTarget.etag` column (migration `20260828150435`),
+`fetchGreenhouse(token, priorEtag)` sends If-None-Match and returns a DISCRIMINATED UNION
+(`{kind:"ok", jobs, etag} | {kind:"not_modified"}`, src/pipeline/types.ts). The union is
+load-bearing, not style: a 304 represented as an empty jobs array would be indistinguishable
+from a genuinely-empty board, and Decision 22 treats a genuine empty board as "delist
+everything via the cached company" — the type makes that catastrophic conflation impossible
+rather than merely discouraged. Orchestrator 304 path: bump `lastCrawledAt`/clear
+`lastError`, bump `lastSeenAt` on the board's active listings (scoped by the Decision 22
+company cache), skip delist (nothing can be absent from an unchanged set), skip
+normalize/dedup/AI entirely. The etag is captured only from a fully-validated 200 — a
+malformed response throws before the validator is surfaced, so a bad payload can never
+poison the cache into 304-ing past a future valid body. `npm run refresh -- --full`
+withholds stored etags to force re-downloads (needed when stored rows must be rebuilt from
+bodies, e.g. after a normalize bug fix — a 304 skips exactly the content a rebuild needs).
+
+Reason: it attacks the measured bottleneck (transfer + processing of unchanged boards)
+without touching the GATED rate-limit posture — conditional requests REDUCE load on
+Greenhouse rather than renegotiating it — and it composes with any future concurrency
+decision instead of preempting it. Expected effect: an unchanged board costs ~0.13s and 0
+bytes, so a mostly-unchanged daily sweep drops from ~30–90 min toward ~10–15 min
+sequential, with ~40x bandwidth reduction.
+
+Tradeoffs accepted: trusts Greenhouse's validator semantics — a server bug that 304s a
+changed body would freeze that board's content AND suppress its delisting until the etag
+next changes (bounded staleness, self-corrects; `--full` is the manual override). On a 304
+the board's `seen_listings` reject keys get no `lastSeenAt` bump (that table has no company
+column to scope by), so the future reject-pruning logic must treat `seen_listings.lastSeenAt`
+as a LOWER bound on last sighting, not an exact one — documented in the orchestrator at the
+304 path. seenKeep content sync is skipped on 304, which is exactly correct (unchanged body
+= nothing to sync) but means the etag must be trusted for content freshness too, same bounded
+exposure as above. Lever/Ashby fetch stubs accept-and-ignore `priorEtag`; their validator
+support must be verified per-source when implemented.
+
+Date: 2026-08-28
+
+---

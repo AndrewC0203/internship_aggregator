@@ -386,3 +386,43 @@
   duplicates and non-CS postings still count as "seen on the board." Boards deactivated by
   discovery are never crawled, so their rows never delist — the future CrawlTarget pruning
   logic must handle that case.
+
+## Conditional fetch — ETag/304 (Decision 23, 2026-08-28)
+
+- `fetchGreenhouse` now sends `If-None-Match` with the etag stored from the last successful
+  full fetch (new nullable `CrawlTarget.etag`, migration `20260828150435`); a 304 skips the
+  board's entire normalize/dedup/AI pass. Measured: ~0.13s / 0 bytes per unchanged board vs
+  ~0.4s / 3.5MB full — a mostly-unchanged sweep of 3,187 boards drops from ~30–90 min toward
+  ~10–15 min.
+- Fetch results are a discriminated union (`{kind:"ok",jobs,etag} | {kind:"not_modified"}`) —
+  deliberately NOT an empty jobs array, which would be indistinguishable from a genuinely
+  empty board and would trigger Decision 22's delist-via-cached-company on unchanged boards.
+- 304 path in the orchestrator: crawl health + `lastSeenAt` bump for the board's active
+  listings (scoped by the company cache), NO delist (nothing can be absent from an unchanged
+  set). Etag only stored from a fully-validated 200, so a malformed payload can't poison the
+  cache.
+- `npm run refresh -- --full` ignores stored etags and re-downloads everything — required
+  after normalize-layer bug fixes, since a 304 skips exactly the bodies a rebuild needs.
+- Decisions to remember: on a 304, `seen_listings` reject keys get NO lastSeenAt bump (no
+  company column to scope by) — future reject-pruning must read that column as a lower bound.
+  Lever/Ashby must have validator support verified per-source before trusting this path.
+
+## UI reroll: Terminal Board world (2026-08-28)
+
+- Replaced the Dispatch Board visual world (vintage CTC panel) with **Terminal Board —
+  Monochrome**: market-data watchlist grammar in near-total monochrome on true black, chosen
+  by the user on the decision page (seed ff70fa62) after two re-roll rounds and a
+  four-variation comparison (Swiss light/dark vs Terminal mono/light).
+- All behavior preserved: querystring filters + facets, j/k + s/a/i/o/x/u keyboard triage,
+  status PUT, NEW/EARLIER dividers, pagination, single 880px breakpoint. Only `render.ts`
+  changed; fonts trimmed to Chivo Mono (figures) + system sans (words).
+- One law per hue: `#4D9FFF` blue may only mean NEW (figure, status code, divider, toggle).
+  Statuses are marks + code words (HELD/APP/INT/OFF/REJ); deadlines are bold white; rejected
+  rows dim + strikethrough. No green/red anywhere.
+- Finish-review fix batch included a real security fix: hidden-input filter values are now
+  `esc()`-escaped, closing a reflected-markup injection via `?state="><img...>` that also
+  existed in the old world.
+- Decisions to remember: the market metaphor is structural only — no sparklines/fake tickers
+  (no per-listing time series exists to plot); the NEW figure never shrinks at any
+  breakpoint; all motion is `steps()` (nothing glides), with flashing states inside
+  `prefers-reduced-motion: no-preference`.

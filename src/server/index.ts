@@ -10,10 +10,11 @@ import { renderPage } from "./render.js";
 
 const app = Fastify({ logger: { level: "warn" } });
 
-// Self-hosted fonts. Hand-rolled instead of @fastify/static because it's exactly two files —
-// the allowlist doubles as the path-traversal guard.
+// Self-hosted fonts. Hand-rolled instead of @fastify/static because it's exactly one file —
+// the allowlist doubles as the path-traversal guard. (national-park.woff2 retired with the
+// Dispatch Board world, 2026-08-28.)
 const FONT_DIR = join(dirname(fileURLToPath(import.meta.url)), "public", "fonts");
-const FONTS = new Set(["national-park.woff2", "chivo-mono.woff2"]);
+const FONTS = new Set(["chivo-mono.woff2"]);
 app.get<{ Params: { file: string } }>("/fonts/:file", async (req, reply) => {
   if (!FONTS.has(req.params.file)) return reply.code(404).send();
   reply

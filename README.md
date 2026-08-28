@@ -25,8 +25,9 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run discover` | Common Crawl board discovery — finds and validates ATS board tokens, upserts them into `crawl_targets` |
 | `npm run discover -- --limit 20` | Discovery capped to 20 candidates (smoke test) |
 | `npm run discover -- --crawl CC-MAIN-2026-25` | Discovery against a specific Common Crawl snapshot instead of the latest |
-| `npm run refresh` | Full ingestion pipeline over every active `crawl_target`: fetch → normalize → delist-stale → dedup → filter → classify → extract → persist. Listings absent from a board's successful crawl are delisted (`is_listed=false`, kept in DB; see DECISIONS.md Decision 22) — failed crawls never delist. Requires `ollama serve` running. |
+| `npm run refresh` | Full ingestion pipeline over every active `crawl_target`: fetch → normalize → delist-stale → dedup → filter → classify → extract → persist. Listings absent from a board's successful crawl are delisted (`is_listed=false`, kept in DB; see DECISIONS.md Decision 22) — failed crawls never delist. Unchanged boards are skipped cheaply via ETag/304 revalidation (Decision 23). Requires `ollama serve` running. |
 | `npm run refresh -- --limit 5` | Refresh capped to 5 boards per source (smoke test) |
+| `npm run refresh -- --full` | Ignore stored ETags and re-download every board — use after fixing a normalize bug, when stored rows must be rebuilt from bodies a 304 would skip |
 | `npm run reclassify -- --dry-run` | Preview re-running the current classify prompt against all active listings (no writes). Run after any prompt change. Requires `ollama serve`. |
 | `npm run reclassify` | Apply it: still-keeps get `opportunity_type`/`cs_field` updated and their location facets (`loc_countries`/`loc_us_states`) recomputed; new-rejects are delisted (kept in DB, `is_listed=false`) and remembered in `seen_listings` |
 | `npm run reclassify -- --extract --limit 20` | Also re-run the extraction pass (grad dates / citizenship); `--limit` caps rows for a smoke run |

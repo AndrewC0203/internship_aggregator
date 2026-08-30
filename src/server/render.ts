@@ -25,6 +25,14 @@ const CITIZEN_LABEL: Record<string, string> = {
   us_citizen_required: "USC REQ", no_sponsorship: "NO SPON", sponsorship_available: "SPON OK",
 };
 
+// Only completed_required gets a badge (Decision 24): it's the one degree status that
+// contradicts an "internship" label and should warn the reader. pursuing/unknown/null are
+// the expected state for student-facing roles — badging them would be noise on every row.
+const degreeBadge = (s: string | null): string =>
+  s === "completed_required"
+    ? `<span class="cit" title="posting requires an already-completed degree">DEG REQ</span>`
+    : "";
+
 // --- querystring helpers ------------------------------------------------------------------
 
 // Serialize params back to a querystring, with overrides. `null` removes a key.
@@ -124,11 +132,11 @@ function row(r: SearchResult["rows"][number]): string {
 <td class="c-st">${statusCell(r.status, r.isNew)}</td>
 <td class="c-co"><span class="co" title="${esc(r.company)}">${esc(r.company)}</span></td>
 <td class="c-title"><a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.title.trim())} — opens at ${esc(r.company)}">${esc(r.title.trim())}</a>
-  <span class="m-meta">${meta.join("")}${r.location ? `<span class="loc">${esc(r.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}</span></td>
+  <span class="m-meta">${meta.join("")}${r.location ? `<span class="loc">${esc(r.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(r.degreeStatus)}</span></td>
 <td class="c-field">${r.csField ? `<span class="code">${FIELD_LABEL[r.csField] ?? r.csField}</span>` : ""}</td>
 <td class="c-loc" title="${esc(r.location ?? "")}">${esc((r.location ?? "").length > 26 ? (r.location ?? "").slice(0, 25) + "…" : (r.location ?? ""))}</td>
 <td class="c-grad">${grad}</td>
-<td class="c-cit">${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="cit">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}</td>
+<td class="c-cit">${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="cit">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(r.degreeStatus)}</td>
 <td class="c-seen">${r.applicationDeadline ? `<span class="deadline${deadlineSoon ? " soon" : ""}${deadlinePassed ? " past" : ""}" title="application deadline">${deadlinePassed ? "CLOSED" : "DUE"} ${fmtDate(r.applicationDeadline)}</span>` : fmtDate(r.firstSeenAt)}</td>
 <td class="c-set">${setControl(r.id, r.status)}</td>
 </tr>`;

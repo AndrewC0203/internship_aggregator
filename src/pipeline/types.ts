@@ -4,6 +4,7 @@ import type {
   WorkplaceType,
   CompInterval,
   CitizenshipStatus,
+  DegreeStatus,
   OpportunityType,
   CsField,
 } from "@prisma/client";
@@ -91,4 +92,6 @@ export interface EnrichedListing extends ClassifiedListing {
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;
+  // Degree-completion posture (Decision 24) — stored + surfaced, never a write-time drop.
+  degreeStatus: DegreeStatus | null;
 }

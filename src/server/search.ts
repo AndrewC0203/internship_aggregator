@@ -115,6 +115,7 @@ export interface SearchResult {
     gradYearMin: number | null;
     gradYearMax: number | null;
     citizenshipStatus: string | null;
+    degreeStatus: string | null;
     url: string;
     firstSeenAt: Date;
     publishedAt: Date | null;
@@ -155,7 +156,7 @@ export async function search(prisma: PrismaClient, p: SearchParams): Promise<Sea
           id: true, company: true, title: true, location: true,
           locUsStates: true, locCountries: true,
           opportunityType: true, csField: true,
-          gradYearMin: true, gradYearMax: true, citizenshipStatus: true,
+          gradYearMin: true, gradYearMax: true, citizenshipStatus: true, degreeStatus: true,
           url: true, firstSeenAt: true, publishedAt: true, applicationDeadline: true,
           application: { select: { status: true, note: true } },
         },
@@ -188,6 +189,7 @@ export async function search(prisma: PrismaClient, p: SearchParams): Promise<Sea
       opportunityType: r.opportunityType, csField: r.csField,
       gradYearMin: r.gradYearMin, gradYearMax: r.gradYearMax,
       citizenshipStatus: r.citizenshipStatus,
+      degreeStatus: r.degreeStatus,
       url: r.url, firstSeenAt: r.firstSeenAt, publishedAt: r.publishedAt,
       applicationDeadline: r.applicationDeadline,
       isNew: r.firstSeenAt >= cutoff,

@@ -132,6 +132,7 @@ async function main(): Promise<void> {
               gradYearMin: extracted.gradYearMin,
               gradYearMax: extracted.gradYearMax,
               citizenshipStatus: extracted.citizenshipStatus,
+              degreeStatus: extracted.degreeStatus,
               applicationDeadline: row.applicationDeadline ?? extracted.applicationDeadline,
             }),
           },

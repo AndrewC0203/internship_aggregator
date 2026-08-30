@@ -1,4 +1,4 @@
-import type { OpportunityType, CitizenshipStatus, CsField } from "@prisma/client";
+import type { OpportunityType, CitizenshipStatus, CsField, DegreeStatus } from "@prisma/client";
 import type { NormalizedListing } from "../pipeline/types.js";
 import { chatJson } from "./ollama.js";
 import { parseGradDate, classYear } from "./grad-date.js";
@@ -35,6 +35,18 @@ const CITIZENSHIP = [
   "sponsorship_available",
   "unknown",
 ] as const;
+
+const DEGREE_STATUS = ["pursuing", "completed_required", "unknown"] as const;
+
+// Boundary guard for degree_status (Decision 24), same seam as gradField/parseDate below:
+// Ollama's structured-output enum enforcement is an external guarantee we don't own, so
+// anything that isn't exactly one of our values normalizes to null rather than leaking into
+// a row. Exported for tests.
+export function normalizeDegreeStatus(raw: string | null): DegreeStatus | null {
+  return (DEGREE_STATUS as readonly string[]).includes(raw ?? "")
+    ? (raw as DegreeStatus)
+    : null;
+}
 
 // Bound the description we send so a pathologically long posting can't blow up the context /
 // latency. 6000 chars is comfortably enough for grad-year / visa / deadline signals.
@@ -136,6 +148,7 @@ export interface ExtractResult {
   gradYearMin: number | null;
   gradYearMax: number | null;
   citizenshipStatus: CitizenshipStatus | null;
+  degreeStatus: DegreeStatus | null;
   applicationDeadline: Date | null;
 }
 
@@ -148,12 +161,22 @@ const EXTRACT_SCHEMA = {
     grad_date_min: { type: ["string", "null"] },
     grad_date_max: { type: ["string", "null"] },
     citizenship_status: { type: ["string", "null"], enum: [...CITIZENSHIP, null] },
+    // degree_evidence comes BEFORE degree_status on purpose: Ollama's grammar makes the model
+    // emit fields in schema order, so it must quote the degree sentence before classifying it.
+    // Measured on the audit cases (research/degree-status-audit.md): without the quote step the
+    // 7B anchored on "Intern" in the title and answered "pursuing" for every posting; with it,
+    // the WhiteWater false-internship correctly came back completed_required. The evidence
+    // string is discarded after the call — it exists to steer generation, not to be stored.
+    degree_evidence: { type: ["string", "null"] },
+    degree_status: { type: ["string", "null"], enum: [...DEGREE_STATUS, null] },
     application_deadline: { type: ["string", "null"] },
   },
   required: [
     "grad_date_min",
     "grad_date_max",
     "citizenship_status",
+    "degree_evidence",
+    "degree_status",
     "application_deadline",
   ],
 } as const;
@@ -164,6 +187,8 @@ const EXTRACT_SYSTEM = `You extract structured fields from a job description. Re
 
 - grad_date_min / grad_date_max: the graduation window the role targets, copied EXACTLY as stated. Use "YYYY-MM" when the posting gives a month ("graduating between September 2027 and June 2028" -> min "2027-09", max "2028-06") and bare "YYYY" when it only gives years ("graduating in 2026 or 2027" -> min "2026", max "2027"). A single stated date -> both fields equal it. Do NOT convert months to years or seasons — copy what is written. Null if not stated. NEVER infer a year from a salary figure, a zip code, or any unrelated number.
 - citizenship_status: one of "us_citizen_required", "no_sponsorship", "sponsorship_available", "unknown". Use "unknown" only when the posting explicitly discusses work authorization but is ambiguous. Use null when the posting says nothing about it — absence of a statement is NOT permission.
+- degree_evidence: the single sentence from the description that best states its degree requirement, copied verbatim. Null if the description never mentions degrees. The job title is NOT evidence — only description text counts.
+- degree_status: classify the degree_evidence sentence you just copied. "pursuing": it says the candidate is currently pursuing / enrolled in / working toward a degree, or states an expected graduation date or class-year requirement. "completed_required": it requires an already-finished degree ("Bachelor's degree required", "must hold a PhD") and the description nowhere says pursuing/enrolled — if both kinds of statement appear, "pursuing" wins. "unknown": degrees are mentioned but neither reading is stated. Null: degree_evidence is null.
 - application_deadline: the APPLICATION deadline as an ISO date "YYYY-MM-DD". Null if not stated or if applications are rolling. Do NOT mistake a program start/end date ("program runs June 1 - Aug 15") for an application deadline.`;
 
 // A JSON schema guarantees SHAPE (it's a string / an integer), never SEMANTICS (it's a real
@@ -217,6 +242,8 @@ export async function extract(listing: ExtractInput): Promise<ExtractResult> {
     grad_date_min: string | null;
     grad_date_max: string | null;
     citizenship_status: CitizenshipStatus | null;
+    degree_evidence: string | null;
+    degree_status: string | null;
     application_deadline: string | null;
   }>({ system: EXTRACT_SYSTEM, user, schema: EXTRACT_SCHEMA });
 
@@ -229,6 +256,7 @@ export async function extract(listing: ExtractInput): Promise<ExtractResult> {
     gradYearMin: min.year,
     gradYearMax: max.year,
     citizenshipStatus: out.citizenship_status,
+    degreeStatus: normalizeDegreeStatus(out.degree_status),
     applicationDeadline: out.application_deadline ? parseDate(out.application_deadline) : null,
   };
 }

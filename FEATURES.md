@@ -426,3 +426,19 @@
   (no per-listing time series exists to plot); the NEW figure never shrinks at any
   breakpoint; all motion is `steps()` (nothing glides), with flashing states inside
   `prefers-reduced-motion: no-preference`.
+
+## Degree-status extraction (Decision 24, 2026-08-28)
+
+- New `degree_status` column (pursuing / completed_required / unknown / null), extracted in
+  the Pass-2 model call from the description — catches "internships" that require an
+  already-completed degree (the WhiteWater case from research/degree-status-audit.md).
+- Quote-first grounding: `degree_evidence` precedes `degree_status` in the schema so the 7B
+  must quote the degree sentence before classifying; without it the model title-anchored to
+  "pursuing" on every posting. Evidence is discarded, not stored.
+- Store + surface, never a write-time drop: search API returns the field; UI shows a
+  "DEG REQ" badge only when completed_required (the state that contradicts an internship
+  label). Backfill for existing rows: `npm run reclassify -- --extract` (long; operator-run).
+- Boundary guard `normalizeDegreeStatus()` unit-tested (junk model output → null).
+- Decisions to remember: pursuing/unknown/null intentionally show no badge — badging the
+  expected state would be row noise. Ambiguous "advanced degree preferred" postings may
+  resolve to pursuing; only completed_required is treated as a warning signal.

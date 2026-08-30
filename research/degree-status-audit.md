@@ -49,7 +49,14 @@ the model invented it, violating EXTRACT_SYSTEM's own "do NOT guess" instruction
 degree-status issue, but it weakens confidence in `gradYear` as a filter signal generally and
 is worth a follow-up look independent of this work.
 
-## Recommendation (not yet implemented — pending decision)
+> **Status update (2026-08-28, same day):** implemented as Decision 24 — `degree_status` on
+> the extract pass with quote-first grounding (`degree_evidence` emitted before the enum in
+> schema order). Measured on the cases below: plain prompt = 0/3 correct (title-anchored to
+> "pursuing" every time, across two phrasings); quote-first = WhiteWater →
+> completed_required, DRW → pursuing, no-degree-mention control (#1237) → null. See
+> DECISIONS.md Decision 24.
+
+## Recommendation (implemented — see status update above)
 
 Do not add a pre-model regex tier for this (unlike YOE's tight "N+ years" numeric pattern,
 "pursuing" vs "already has" spans too much phrasing variance, and the DRW evidence shows a bare

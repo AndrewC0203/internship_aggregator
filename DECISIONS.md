@@ -1272,3 +1272,59 @@ support must be verified per-source when implemented.
 Date: 2026-08-28
 
 ---
+## Decision 24: Degree-status extraction — model field with quote-first grounding, store + surface, no write-time drop
+
+Problem: Listings titled "Intern" were surfacing with student-facing grad years while their
+bodies demand an already-completed degree — the audit (research/degree-status-audit.md) found
+WhiteWater's "Data Science Intern - Summer 2027" stored as internship/class-of-2028 when its
+text says "Bachelor's degree required" and literally describes itself as the next step *after*
+their internship. Nothing in the pipeline modeled degree-completion status, and the worst
+case never even reached the classify model: its title regex-fast-tracked it past Pass 1, so
+only the extract pass ever sees 100% of keeps.
+
+Options considered:
+
+1. Cheap regex tier (like the YOE filter) matching "pursuing" vs "degree required" —
+   rejected: unlike "N+ years" the phrasing space is wide open, and the audit showed the
+   dominant *legitimate* pattern at quant shops ("Are pursuing a Bachelor's, Master's, or
+   PhD...") shares its keywords with the violation pattern; a keyword regex false-rejects
+   the best listings on the board.
+2. New `degreeStatus` field on the extract pass (chosen) — same call, same
+   abstain-when-unsure contract as citizenshipStatus, and extract is the only stage that
+   runs on every keep including router-accepted ones.
+3. Write-time drop when completed_required meets internship — rejected: 1 confirmed
+   violation in 663 internships doesn't justify an invisible, unauditable reject; every
+   other filter in the repo already follows "false rejects are invisible, keep-biased wins."
+
+Decision: Option 2. `DegreeStatus` enum (pursuing / completed_required / unknown), nullable
+`degree_status` column (migration `20260828192021`), extracted in Pass 2 and stored +
+surfaced (search API field; "DEG REQ" badge in the UI only for completed_required — the one
+state that contradicts an internship label). Boundary-guarded by `normalizeDegreeStatus()`
+(junk → null, unit-tested) at the same seam as the grad-date validators.
+
+The load-bearing implementation detail: a `degree_evidence` field sits BEFORE
+`degree_status` in the extract schema, forcing the 7B to quote the description's degree
+sentence before classifying it. Measured on the audit cases: without it the model anchored
+on "Intern" in the title and returned "pursuing" for every posting (including WhiteWater,
+twice, across two prompt phrasings); with it, WhiteWater → completed_required, DRW →
+pursuing, no-degree-mention → null, and grad-date extraction unaffected. The evidence string
+is discarded after the call — it steers generation, it is not stored. This is the same
+title-anchoring failure Decision 14 hit with YOE, solved in-prompt instead of with a regex
+because here the signal has no tight lexical shape.
+
+Reason: extract-pass placement is the only spot that sees every keep; store-and-surface
+keeps the mistake visible and reversible while write-time drops are neither; the
+quote-first schema was the difference between 0/3 and 3/3 on the real cases, at zero extra
+model calls.
+
+Tradeoffs accepted: existing rows have null degree_status until an operator runs
+`npm run reclassify -- --extract` (hours-long local model sweep — deliberately not run
+unattended; it monopolizes Ollama on a 24GB machine). "unknown"/ambiguous postings (e.g.
+Virtu's "advanced degree (preferably PhD)" alongside "graduate students") resolve by the
+model's reading and may land pursuing — accepted, since only completed_required drives UI
+warnings. One extra generated field per extract call (~a sentence of tokens) buys the
+grounding.
+
+Date: 2026-08-28
+
+---

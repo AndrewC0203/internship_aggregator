@@ -46,6 +46,17 @@ enum CitizenshipStatus {
   unknown
 }
 
+// Degree-completion posture the posting states (Decision 24). "pursuing" = open to enrolled
+// students ("currently pursuing a Bachelor's..."); "completed_required" = demands an
+// already-finished degree ("Bachelor's degree required", no enrollment language) — the
+// mislabeled-internship signal research/degree-status-audit.md found; "unknown" = degrees
+// discussed but ambiguous. NULL = posting says nothing (absence is not a statement).
+enum DegreeStatus {
+  pursuing
+  completed_required
+  unknown
+}
+
 // Our CS-hub classification of the opportunity kind (Decision 10). Distinct from
 // employment_type (the raw ATS value); overlap on intern/part_time is intentional —
 // employment_type = "what the ATS said", opportunity_type = "what we classified it as".
@@ -117,6 +128,9 @@ model Listing {
   gradDateMin       String?            @map("grad_date_min")
   gradDateMax       String?            @map("grad_date_max")
   citizenshipStatus CitizenshipStatus? @map("citizenship_status")
+  // Extracted like citizenshipStatus (Decision 24): stored + surfaced, never a write-time
+  // drop — one confirmed violation in 663 internships didn't justify an invisible reject.
+  degreeStatus      DegreeStatus?      @map("degree_status")
   opportunityType   OpportunityType?   @map("opportunity_type")
   csField           CsField?           @map("cs_field")
 

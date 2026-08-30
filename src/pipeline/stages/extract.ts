@@ -29,6 +29,7 @@ export async function extract(
         gradYearMin: fields.gradYearMin,
         gradYearMax: fields.gradYearMax,
         citizenshipStatus: fields.citizenshipStatus,
+        degreeStatus: fields.degreeStatus,
         applicationDeadline: listing.applicationDeadline ?? fields.applicationDeadline,
       });
     } catch (err) {
@@ -43,6 +44,7 @@ export async function extract(
         gradYearMin: null,
         gradYearMax: null,
         citizenshipStatus: null,
+        degreeStatus: null,
       });
     }
   }

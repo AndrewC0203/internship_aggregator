@@ -68,6 +68,10 @@ async function main(): Promise<void> {
   for (const [i, row] of listings.entries()) {
     const label = `[reclassify ${i + 1}/${listings.length}] ${row.company} :: "${row.title}"`;
     try {
+      // Progress BEFORE the model call, same rule as filter.ts/extract.ts: the call takes
+      // seconds and unchanged keeps print no verdict line, so without this a healthy sweep
+      // is minutes of silence that reads as "hung".
+      console.log(`${label} -> classifying...`);
       const verdict = await classify(row);
       const stillKeep = verdict.csRelevant && verdict.opportunityType !== null;
 

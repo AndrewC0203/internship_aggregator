@@ -71,3 +71,21 @@ Open policy question, not yet decided: what happens when `degreeStatus=completed
 meets `opportunityType=internship`. Leaning toward store + surface rather than auto-drop, given
 only one confirmed violation in 663 sampled internships and the codebase's existing
 false-reject-is-invisible-and-permanent principle (reject-router.ts, experience.ts).
+
+## Backfill results (2026-08-31, 7B sweep of 1,623 active rows)
+
+Coverage: 931/1,623 (57%) got a degree_status — 570 pursuing, 193 completed_required,
+168 unknown, 692 null; non-nulls evenly spread across id deciles (sweep completed).
+Classify pass delisted 0 rows (consistent with the 7B's keep-everything bias measured in
+research/model-rebenchmark-m5max.md).
+
+Badge precision on the 13 completed_required internships (spot-checked against text):
+both audit flagships correct (WhiteWater #1629, Astranis #139/141/146 "already received a
+bachelor's"), Schonfeld #1426 / Seven Research #1429/1432 faithful to stated text. Two
+clear false positives, both over-warning legit student roles: Zipline #673/674 ("must have
+completed the second year of your undergraduate studies" misread as a completed degree)
+and IMC #585 ("penultimate year of study" pursuing language present; should have won per
+the prompt rule). Precision ≈ 8-10/13; both failure modes are visible-and-reversible, per
+the store-don't-drop design.
+
+Still open: SpaceX #1065/1066 hallucinated grad year (2025) reproduced on re-extract.

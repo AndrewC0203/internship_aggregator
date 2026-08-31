@@ -78,7 +78,10 @@ window; the text actually says "students who have already received a bachelor's 
 The 14B converted a season into a grad requirement against the prompt's explicit
 instruction. 7B's null was correct there.
 
-## Recommendation (not yet decided — GATED, amends Decision 13's model choice)
+> **Status (2026-08-31):** option 1 chosen and implemented as Decision 25 — 14B classify /
+> 7B extract via `passModel()`, global `OLLAMA_MODEL` still forces one model everywhere.
+
+## Recommendation (decided — see status above)
 
 1. **Switch classify to 14B, keep extract on 7B** — captures the unambiguous win (CS
    relevance) at +0.33s/call (~+9 min on a full sweep vs today), avoids the 14B's

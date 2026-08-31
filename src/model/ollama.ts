@@ -4,15 +4,13 @@
 //
 // Config via env, with defaults matching the decision:
 //   OLLAMA_URL        — server base URL (default http://localhost:11434)
-//   OLLAMA_MODEL      — model tag; default is the 7B. This was the 14B originally, with 7B
-//                       named as "the throughput fallback"; benchmarking made that swap.
-//                       Measured on this machine (M4 Pro, 24 GB): a classify call is ~7.4s
-//                       on the 14B and 87% of that is PREFILL, not generation — we send
-//                       ~1,450 tokens and get back ~21. Prefill scales with parameter count,
-//                       so the 7B roughly halves it, and drops resident memory 9.5 GB → ~5 GB
-//                       (the 14B alone pushed this machine into swap).
-//                       Set OLLAMA_MODEL=qwen2.5:14b-instruct to go back.
-//                       See research/local-model-performance.md.
+//   OLLAMA_MODEL      — GLOBAL model override + default for callers that don't pass one.
+//                       Since Decision 25 the two pipeline passes run different models by
+//                       default (classify 14B / extract 7B — see passModel() in classifier.ts
+//                       and research/model-rebenchmark-m5max.md); setting OLLAMA_MODEL forces
+//                       ONE model everywhere, which is what bench scripts and A/B reclassify
+//                       runs want. History: the 24GB M4 Pro forced a 7B-everywhere era
+//                       (research/local-model-performance.md); the M5 Max/128GB removed it.
 //   OLLAMA_TIMEOUT_MS — per-request timeout (default 120s). Local inference is legitimately
 //                       slow, so this is generous — it exists to kill a truly HUNG request
 //                       (a pathological input that never returns), not a slow-but-progressing
@@ -40,6 +38,9 @@ interface ChatJsonOptions {
   // guarantees the reply is parseable JSON of the right shape — we never free-text-parse
   // a model response, which is the classic small-local-model failure mode.
   schema: Record<string, unknown>;
+  // Per-call model tag (Decision 25: classify and extract run different models). Falls back
+  // to the global OLLAMA_MODEL default so other callers are unaffected.
+  model?: string;
 }
 
 // Thrown for a chat request that reached (or tried to reach) the Ollama server — network error,
@@ -94,7 +95,8 @@ export async function chatJson<T>(opts: ChatJsonOptions): Promise<T> {
   return withOllamaRetry(() => chatJsonOnce<T>(opts));
 }
 
-async function chatJsonOnce<T>({ system, user, schema }: ChatJsonOptions): Promise<T> {
+async function chatJsonOnce<T>({ system, user, schema, model }: ChatJsonOptions): Promise<T> {
+  const modelTag = model ?? OLLAMA_MODEL;
   // Mirror the fetch-timeout pattern from greenhouse/fetch.ts: the LOCAL model call is far
   // more likely to stall than the remote HTTP GET, so it deserves the same guard.
   const controller = new AbortController();
@@ -107,7 +109,7 @@ async function chatJsonOnce<T>({ system, user, schema }: ChatJsonOptions): Promi
       headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
+        model: modelTag,
         stream: false,
         format: schema, // structured-output grammar; response is constrained to this schema
         // temperature 0: classification/extraction want determinism, not creativity. (This is
@@ -122,7 +124,7 @@ async function chatJsonOnce<T>({ system, user, schema }: ChatJsonOptions): Promi
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new OllamaError(
-        `Ollama request timed out after ${TIMEOUT_MS}ms (model "${OLLAMA_MODEL}")`,
+        `Ollama request timed out after ${TIMEOUT_MS}ms (model "${modelTag}")`,
       );
     }
     // A network error (ECONNREFUSED — Ollama not running/restarting) has no status, so it's

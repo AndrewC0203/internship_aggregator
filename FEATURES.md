@@ -52,6 +52,9 @@
   (Decision 15) — unblocked the same day Decision 15 landed. See `src/pipeline/orchestrator.ts`
   for why chunking doesn't break dedup (the DB-lookup branch catches cross-chunk duplicates
   that the in-batch branch would have caught in a single-batch run).
+- Lever adapter (`fetchLever`/`normalizeLever`, 2026-08-31) — second ATS source live in the
+  `SOURCES` array (`src/pipeline/orchestrator.ts`), `supportsFreshness: false` pending
+  discovery. See the dated section below for the field-mapping specifics.
 - Retry with backoff for Ollama calls (2026-08-25) — `chatJson()` (classify + extract, since
   both share this one call site) now retries a TRANSIENT failure (network error, timeout, 429,
   5xx) up to `OLLAMA_MAX_RETRIES` times (default 3) with exponential backoff
@@ -442,3 +445,57 @@
 - Decisions to remember: pursuing/unknown/null intentionally show no badge — badging the
   expected state would be row noise. Ambiguous "advanced degree preferred" postings may
   resolve to pursuing; only completed_required is treated as a warning signal.
+
+## Lever adapter (2026-08-31)
+
+- `fetchLever` paginates `skip`/`limit` (max 100/page) to completion and returns the combined
+  board as one `{kind:"ok", jobs, etag:null}` — always `etag:null` on purpose, see below.
+  `normalizeLever` maps the posting to `NormalizedListing` or drops it (`null`) if `ctx.company`
+  is unresolvable.
+- CORRECTED RESEARCH: `research/ats-field-reference.md`'s Lever pagination section was wrong —
+  live capture (Palantir board) showed a bare JSON array response with `skip` (not `offset`)
+  and no `total`/`hasNext` field anywhere, contradicting what was previously documented there.
+  Termination is "stop when a page returns fewer than `limit` items," with a `MAX_PAGES=500`
+  hard safety cap against a misbehaving server that never returns a short page.
+- Company is NEVER in the payload — Lever boards are one-company-per-slug. `ctx.company` (now
+  populated by the orchestrator as `target.company ?? target.token`) carries either Decision
+  22's learned name or the raw slug on a board's first crawl; `prettifyCompanySlug()`
+  (`src/sources/company-slug.ts`, new — shared with the future Ashby adapter, which has the
+  identical gap) turns it into a display name and is deliberately idempotent against an
+  already-prettified learned name.
+- `categories.commitment` and `workplaceType` are free text the posting company chooses in
+  their own Lever admin, not a closed enum — Palantir's live board used `"Fixed-Term"` and
+  `"Scholarship"` (for a role literally titled "American Tech Fellowship") for values no Lever
+  doc mentions. Both mappers fall through to `null` on anything unrecognized rather than
+  throwing — `employmentType` is enrichment, not a gate; `opportunityType` still gets
+  classified downstream from title/description regardless.
+- `createdAt` is epoch MILLISECONDS (verified live) — `publishedAt: new Date(job.createdAt)`
+  directly, no `* 1000`.
+- `descriptionPlain` is Lever-provided pre-stripped, unlike Greenhouse's entity-double-encoded
+  `content` — no `decodeHtmlEntities`/`htmlToPlain` round-trip needed for this source.
+- Live capture ALSO found Lever sends a real, working weak `ETag` (undocumented) and genuinely
+  304s on a matching `If-None-Match` — but scoped to one exact `skip`/`limit` request, not the
+  whole board. A multi-page board has no single request representing "the whole board is
+  unchanged," so `fetchLever` never sends `priorEtag` and always returns `etag:null` rather
+  than caching a page-scoped signal that would be actively wrong once reused. `supportsFreshness`
+  stays `false` for Lever until a real whole-board freshness signal exists for paginated sources.
+- Decisions to remember: `url` is `hostedUrl` (posting page), not `applyUrl` (the application
+  form) — matches `normalizeGreenhouse`'s `absolute_url` semantic so "view listing" behaves
+  the same across sources. `applicationDeadline` is always `null` for Lever — not present on
+  the public postings object at all (unlike Greenhouse's structured field), so it's AI-extracted
+  only for this source, same as it already is for Greenhouse posts lacking the field.
+- STILL BLOCKED, separately: no `CrawlTarget` rows exist for Lever yet — board discovery
+  (`src/discovery/`) is Common-Crawl-Greenhouse-hostname-specific today, so this adapter has
+  nothing to crawl in a real refresh until a Lever discovery mechanism is decided. Testable now
+  only via a manually-seeded `CrawlTarget` row.
+
+## Per-pass model split (Decision 25, 2026-08-31)
+
+- Classify runs `qwen2.5:14b-instruct`, extract runs `qwen2.5:7b-instruct` by default;
+  `chatJson` gained a per-call `model` param, resolution via `passModel()` (unit-tested).
+- Env precedence: `OLLAMA_CLASSIFY_MODEL`/`OLLAMA_EXTRACT_MODEL` > `OLLAMA_MODEL` (forces
+  one model everywhere — the bench/A-B escape hatch) > defaults.
+- Requires both models pulled (README prerequisites updated). ~22GB resident together.
+- Decisions to remember: enabled by the M5 Max/128GB upgrade — Decision 13's 7B-everywhere
+  choice was RAM-gated, not accuracy-driven. Next 14B reclassify sweep will delist measured
+  junk keeps; always dry-run it first.

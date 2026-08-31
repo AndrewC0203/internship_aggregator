@@ -11,7 +11,11 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 
 - PostgreSQL running locally, `DATABASE_URL` set (see `.env`)
 - [Ollama](https://ollama.com) running locally for classification/extraction:
-  `ollama serve`, with the model pulled (`ollama pull qwen2.5:7b-instruct`)
+  `ollama serve`, with BOTH models pulled — classify and extract run different models by
+  default (Decision 25): `ollama pull qwen2.5:14b-instruct` (classify) and
+  `ollama pull qwen2.5:7b-instruct` (extract). Override with `OLLAMA_CLASSIFY_MODEL` /
+  `OLLAMA_EXTRACT_MODEL` per pass, or `OLLAMA_MODEL` to force one model everywhere
+  (e.g. for A/B reclassify runs).
 - Node + npm
 
 ## Commands

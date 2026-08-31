@@ -136,10 +136,15 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
           }
         } else {
           const boardListings: NormalizedListing[] = [];
+          // company: target.company ?? target.token — Greenhouse's normalize ignores this
+          // (its payload carries company_name directly); Lever/Ashby's payloads never state a
+          // company at all (one board = one company), so they read it from here: the learned
+          // name from a prior crawl if resolved (Decision 22's cache), else the raw slug on a
+          // board's first-ever crawl.
           for (const job of result.jobs) {
             // normalize() returns null for a job it can't safely map (e.g. missing
             // company_name) — drop just that job, not the whole board.
-            const listing = src.normalize(job, {});
+            const listing = src.normalize(job, { company: target.company ?? target.token });
             if (listing) {
               batch.push(listing);
               boardListings.push(listing);

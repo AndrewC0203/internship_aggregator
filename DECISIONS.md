@@ -1328,3 +1328,45 @@ grounding.
 Date: 2026-08-28
 
 ---
+## Decision 25: Per-pass model split — 14B classify, 7B extract
+
+Problem: The 7B-everywhere default (Decision 13) was forced by the 24GB M4 Pro's RAM
+ceiling, which the M5 Max/128GB upgrade removed. Re-benchmarking on the new machine
+(research/model-rebenchmark-m5max.md, 35 listings, both passes, both models, disagreements
+adjudicated against posting text) showed the 7B keeping non-CS junk at scale: 8/35 classify
+disagreements, 14B right on essentially all, every 7B error a false keep (~15-20% of active
+hub rows extrapolated). Meanwhile the 14B's extract pass was 2.3× slower and produced the
+benchmark's only hallucination (a grad window invented from a "Fall 2026" start term).
+
+Options considered:
+
+1. Split: 14B classify + 7B extract (chosen) — captures the decisive classify win at
+   ~+0.33s/call (classify is prefill-bound, emits ~20 tokens; the M5 Max mostly erased the
+   14B's prefill penalty), keeps extract on the model that didn't hallucinate.
+2. 14B everywhere — simplest, better degree/grad sensitivity, but 1.7× sweeps (~3.4h) and
+   accepts the #139-style grad-date hallucination risk on every extract.
+3. Stay 7B everywhere — indefensible after the benchmark: confirmed false keeps (CSIS
+   policy research, BVP VC analyst, help-desk IT, marketing internship) are hub-quality
+   damage the reject-router can't catch.
+
+Decision: Option 1. `chatJson` takes a per-call `model`; `passModel(pass)` in classifier.ts
+resolves precedence per-pass env (`OLLAMA_CLASSIFY_MODEL`/`OLLAMA_EXTRACT_MODEL`) > global
+`OLLAMA_MODEL` > defaults (14B/7B). The global override is preserved deliberately — bench
+scripts and A/B reclassify runs need to force ONE model everywhere. Both models resident
+together measured at ~22GB, fine on 128GB (impossible on the old machine — this decision
+was hardware-gated, which is why it reverses Decision 13 without contradicting it).
+
+Reason: the classify delta is decisive and nearly free; the extract delta was mixed on the
+same sample. Splitting takes the win where it's proven and defers the extract-model
+question until the degree-status backfill produces more ground truth.
+
+Tradeoffs accepted: two models must be pulled (README updated); ~+9 min per full sweep;
+per-pass envs add one more knob. The known 7B extract weaknesses stay for now (Zipline
+"completed the second year" misread, IMC penultimate-year miss — see
+research/degree-status-audit.md backfill results); revisit extract's model with more data.
+A 14B reclassify sweep to purge the measured false keeps is the natural follow-up and is an
+operator action (it delists — dry-run first).
+
+Date: 2026-08-31
+
+---

@@ -129,10 +129,25 @@ Single object, no internal/public split.
 | `createdAt` | integer | Epoch **milliseconds** |
 
 ### Pagination / filter query params
-`limit` (max 100), `offset`, `team`, `location`, `commitment` (all exact-match filters). Response includes `total` (offset-based, not cursor).
+**Corrected 2026-08-31 against a live capture (Palantir board)** — the docs (and this file,
+previously) are wrong/incomplete on the response envelope:
+`limit` (max 100), `skip` (NOT `offset` — the public API uses `skip`, unlike the separate
+authenticated v1 API's `offset`), `team`, `location`, `commitment` (all exact-match filters).
+The response is a **bare JSON array of posting objects**, not an object wrapper — there is no
+`total`/`hasNext`/count field anywhere in the response. Paginate by requesting `limit`-sized
+pages and stopping when a page returns fewer than `limit` items.
+
+### Conditional requests
+Undocumented, but real: a live capture showed Lever sending a weak `ETag` per response, and a
+matching `If-None-Match` genuinely 304s. It's scoped to ONE request (one exact `skip`/`limit`
+query), though — likely a generic web-server content hash, not a designed API feature. A
+multi-page board has no single request, and therefore no single ETag, that represents "the
+whole board is unchanged," so this doesn't give paginated sources the same whole-board
+conditional-fetch shortcut Greenhouse's single-response board API has (see Decision 23). See
+`src/sources/lever/fetch.ts` for how the adapter treats this.
 
 ### Known gaps
-No documented custom fields on the public Postings API. No explicit job status field — inactive/archived postings are simply excluded from the response.
+No documented custom fields on the public Postings API. No explicit job status field — inactive/archived postings are simply excluded from the response. `categories.commitment` and `workplaceType` are free text the posting company chooses in their own Lever admin, not a closed enum — a live sample used `"Fixed-Term"` and `"Scholarship"` for non-full-time roles, neither of which is documented anywhere.
 
 ---
 

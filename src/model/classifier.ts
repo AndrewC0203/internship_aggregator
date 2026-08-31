@@ -38,6 +38,25 @@ const CITIZENSHIP = [
 
 const DEGREE_STATUS = ["pursuing", "completed_required", "unknown"] as const;
 
+// Per-pass model split (Decision 25, measured in research/model-rebenchmark-m5max.md):
+// classify runs the 14B — it was right on 7-8 of 8 adjudicated disagreements (all 7B errors
+// were false keeps of non-CS roles) and costs only ~+0.3s/call, since classify is
+// prefill-bound and emits ~20 tokens. Extract stays on the 7B — the 14B is 2.3× slower there
+// (the degree_evidence quote makes extract decode-heavy) and showed the benchmark's only
+// hallucination (inventing a grad window from a "Fall 2026" start term).
+//
+// Precedence: per-pass env > global OLLAMA_MODEL > these defaults. The global keeps forcing
+// ONE model everywhere (bench scripts, A/B reclassify runs). Exported for tests; env is a
+// parameter so tests don't mutate process.env.
+export function passModel(
+  pass: "classify" | "extract",
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const perPass = pass === "classify" ? env.OLLAMA_CLASSIFY_MODEL : env.OLLAMA_EXTRACT_MODEL;
+  const fallback = pass === "classify" ? "qwen2.5:14b-instruct" : "qwen2.5:7b-instruct";
+  return perPass ?? env.OLLAMA_MODEL ?? fallback;
+}
+
 // Boundary guard for degree_status (Decision 24), same seam as gradField/parseDate below:
 // Ollama's structured-output enum enforcement is an external guarantee we don't own, so
 // anything that isn't exactly one of our values normalizes to null rather than leaking into
@@ -127,7 +146,7 @@ export async function classify(listing: ClassifyInput): Promise<ClassifyResult> 
     cs_relevant: boolean;
     opportunity_type: OpportunityType | null;
     cs_field: CsField | null;
-  }>({ system: CLASSIFY_SYSTEM, user, schema: CLASSIFY_SCHEMA });
+  }>({ system: CLASSIFY_SYSTEM, user, schema: CLASSIFY_SCHEMA, model: passModel("classify") });
 
   return {
     csRelevant: out.cs_relevant,
@@ -245,7 +264,7 @@ export async function extract(listing: ExtractInput): Promise<ExtractResult> {
     degree_evidence: string | null;
     degree_status: string | null;
     application_deadline: string | null;
-  }>({ system: EXTRACT_SYSTEM, user, schema: EXTRACT_SCHEMA });
+  }>({ system: EXTRACT_SYSTEM, user, schema: EXTRACT_SCHEMA, model: passModel("extract") });
 
   const min = gradField(out.grad_date_min);
   const max = gradField(out.grad_date_max);

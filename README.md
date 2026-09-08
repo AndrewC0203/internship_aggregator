@@ -26,9 +26,10 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run db:migrate` | Apply Prisma migrations to the local DB |
 | `npm run db:generate` | Regenerate the Prisma client after a schema change |
 | `npm run db:studio` | Open Prisma Studio (browse the DB) |
-| `npm run discover` | Common Crawl board discovery — finds and validates ATS board tokens, upserts them into `crawl_targets` |
-| `npm run discover -- --limit 20` | Discovery capped to 20 candidates (smoke test) |
-| `npm run discover -- --crawl CC-MAIN-2026-25` | Discovery against a specific Common Crawl snapshot instead of the latest |
+| `npm run discover` | Common Crawl board discovery (Greenhouse + Lever) — finds and validates ATS board tokens, upserts them into `crawl_targets`. Lever auto-walks back to the newest crawl with real captures (its host blocks CCBot since Oct 2025 — see DECISIONS.md Decision 26) |
+| `npm run discover -- --source lever` | Discovery for one source only (`greenhouse` \| `lever`) — skips paging the other's index |
+| `npm run discover -- --limit 20` | Discovery capped to 20 candidates per source (smoke test) |
+| `npm run discover -- --crawl CC-MAIN-2026-25` | Discovery against a specific Common Crawl snapshot instead of the latest (for Lever this also bypasses the walk-back) |
 | `npm run refresh` | Full ingestion pipeline over every active `crawl_target`: fetch → normalize → delist-stale → dedup → filter → classify → extract → persist. Listings absent from a board's successful crawl are delisted (`is_listed=false`, kept in DB; see DECISIONS.md Decision 22) — failed crawls never delist. Unchanged boards are skipped cheaply via ETag/304 revalidation (Decision 23). Requires `ollama serve` running. |
 | `npm run refresh -- --limit 5` | Refresh capped to 5 boards per source (smoke test) |
 | `npm run refresh -- --full` | Ignore stored ETags and re-download every board — use after fixing a normalize bug, when stored rows must be rebuilt from bodies a 304 would skip |

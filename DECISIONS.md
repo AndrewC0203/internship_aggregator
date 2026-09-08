@@ -1370,3 +1370,63 @@ operator action (it delists — dry-run first).
 Date: 2026-08-31
 
 ---
+
+## Decision 26: Lever board discovery — Common Crawl mining with crawl walk-back
+
+Problem: The Lever adapter (fetch + normalize) is live-ready but had exactly one manually
+seeded board (Palantir). Decision 11 solved discovery for Greenhouse by mining Common
+Crawl's URL index for board URLs; the open question was whether the same works for
+`jobs.lever.co` — flagged as untested. Measurement (research/lever-discovery-common-crawl.md)
+found a twist: Lever's CDN added a Cloudflare-managed robots.txt block on CCBot in late Oct
+2025, so every crawl from CC-MAIN-2025-47 onward captures ONLY robots.txt. Crawls up to
+CC-MAIN-2025-43 are rich (~1,600 unique board tokens each).
+
+Options considered:
+
+A. Common Crawl mining with a crawl walk-back (chosen) — mirror Decision 11, but instead of
+   "use latest crawl," walk backward through crawls newest-first and use the first that
+   yields real tokens (currently lands on CC-MAIN-2025-43). Reuses the whole existing
+   discovery stack (CDX retry, live-API validation, upsert, CLI); one consistent mechanism
+   across sources. Failure mode: token supply frozen at Oct 2025 — post-block Lever
+   adopters are invisible until the P2 supplementary source fills the gap.
+B. Community GitHub lists (SimplifyJobs-style) as primary — fresh and zero-infra, but
+   inherits external curation/format/continuity, and it's already scoped as a P2
+   SUPPLEMENTARY source (FEATURES.md), which is the right role for it: it patches A's
+   post-Oct-2025 blind spot rather than replacing the defensible primary mechanism.
+C. Manual seeding at scale — what Palantir got; does not scale past tens of boards.
+   Effectively pre-rejected by Decision 11.
+
+Decision: Option A. `src/discovery/lever.ts` implements token extraction plus
+`mineFirstCrawlWithSignal`: iterate crawl ids newest-first (≤24), mine each, accept the
+first yielding ≥25 unique tokens (robots-only crawls yield 0, healthy ones ~1,600 — any
+threshold between works), else fall back to the largest yield seen. Walk-back chosen over
+pinning CC-MAIN-2025-43 in code because a pin goes stale silently, while walk-back
+self-heals if Lever ever unblocks CCBot; a dead crawl costs ~2 tiny CDX requests to rule
+out. `--crawl <id>` bypasses the walk-back (operator knows best). Shared CDX plumbing
+(retry/backoff, paging, collinfo) extracted from greenhouse.ts into `src/discovery/cdx.ts`
+so Lever doesn't import from a sibling source. `--source <name>` added to `npm run
+discover` so mining one ATS doesn't re-page the other's index. `jobs.eu.lever.co` (still
+crawlable, ~74 EU boards) deliberately excluded — fetchLever only speaks api.lever.co, so
+EU tokens would just 404 in validation; needs api.eu.lever.co support end-to-end if ever
+wanted.
+
+Reason: it's the only option that scales AND keeps one explainable discovery story
+("web-scale index mining + live-API validation") across all sources, and measurement showed
+the blocker (CCBot ban) is a freshness cap, not a viability kill: validation already makes
+mined-list staleness safe by design. Smoke run (2026-09-08, --limit 15): walked back 10
+dead crawls, landed on CC-MAIN-2025-43, 15 candidates → 5 valid boards upserted, 10
+dropped, 0 errors; the manually seeded Palantir row was untouched (upsert on
+(source, token)).
+
+Tradeoffs accepted: discovery pool frozen at Oct 2025 (~1,600 candidates; expect several
+hundred live after validation) and it only shrinks as boards die — the P2 GitHub-list
+source is the designated gap-filler, not more CC mining. Each uncapped Lever run spends
+~20 extra CDX requests ruling out dead crawls before finding signal. Politeness posture:
+we never crawl the robots-blocked host — we read Common Crawl's archive from when crawling
+was permitted, and validation hits api.lever.co, the documented public postings API, which
+the block does not cover. Full ~1,600-candidate validation sweep remains GATED behind the
+ATS rate-limit decision, same as Greenhouse's.
+
+Date: 2026-09-08
+
+---

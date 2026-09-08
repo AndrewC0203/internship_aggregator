@@ -1,6 +1,7 @@
 import { prisma } from "../db.js";
 import type { DiscoveryOptions, DiscoverySource } from "./types.js";
 import { greenhouseDiscovery } from "./greenhouse.js";
+import { leverDiscovery } from "./lever.js";
 import { validateToken } from "./validate.js";
 
 export interface DiscoverySummary {
@@ -12,20 +13,30 @@ export interface DiscoverySummary {
   errors: number; // transient failures skipped this run
 }
 
-// Only Greenhouse is implemented; Lever/Ashby discovery stubs exist but aren't wired in
-// until real — mirrors how the ingestion orchestrator leaves their fetch/normalize stubbed.
-const SOURCES: DiscoverySource[] = [greenhouseDiscovery];
+// Ashby's discovery stub isn't wired in until real — mirrors how the ingestion
+// orchestrator leaves its fetch/normalize stubbed.
+const SOURCES: DiscoverySource[] = [greenhouseDiscovery, leverDiscovery];
 
 export interface RunOptions extends DiscoveryOptions {
   // Cap the validation sweep. Until the GATED rate-limiting decision is made, a full
   // multi-thousand-token sweep against the live ATS is intentionally not run unattended.
   limit?: number;
+  // Run only this source (e.g. "lever") instead of all of them. Discovery runs are
+  // independent per source, and mining one ATS shouldn't force re-paging the other's index.
+  source?: string;
 }
 
 export async function runDiscovery(opts: RunOptions = {}): Promise<DiscoverySummary[]> {
   const summaries: DiscoverySummary[] = [];
 
-  for (const src of SOURCES) {
+  const sources = opts.source ? SOURCES.filter((s) => s.source === opts.source) : SOURCES;
+  if (opts.source && sources.length === 0) {
+    throw new Error(
+      `Unknown discovery source "${opts.source}" (implemented: ${SOURCES.map((s) => s.source).join(", ")})`,
+    );
+  }
+
+  for (const src of sources) {
     // targetCount lets discovery stop paging Common Crawl early on a capped run.
     const discovered = await src.discoverCandidates({
       crawlId: opts.crawlId,

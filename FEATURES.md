@@ -9,13 +9,17 @@
   (j/k + s/a/i/o/x/u/Enter), pagination. Apply status lives in the user-owned `applications`
   table (saved/applied/interviewing/offer/rejected; row absence = untouched). Visual world:
   "Dispatch Board" (CTC panel; direction contract in `src/server/render.ts`, DESIGN.md).
-- Greenhouse board discovery via Common Crawl (Decision 11) — a standalone discovery job
-  (`npm run discover`) mines Common Crawl's URL index for `boards.greenhouse.io` /
-  `job-boards.greenhouse.io` tokens, validates each against the live API (200 + non-empty
-  jobs = keep), and upserts survivors into the `crawl_targets` table for the daily refresh
-  to read. Per-source module (`src/discovery/`, Greenhouse real, Lever/Ashby stubbed);
+- Board discovery via Common Crawl (Decisions 11, 26) — a standalone discovery job
+  (`npm run discover`) mines Common Crawl's URL index for board tokens
+  (`boards.greenhouse.io` / `job-boards.greenhouse.io` / `jobs.lever.co`), validates each
+  against the live API (200 + non-empty jobs = keep), and upserts survivors into the
+  `crawl_targets` table for the daily refresh to read. Per-source module
+  (`src/discovery/`, shared CDX client in `cdx.ts`; Greenhouse + Lever real, Ashby
+  stubbed). Lever walks backward through crawls to the newest one with real captures —
+  `jobs.lever.co` has blocked CCBot since ~Oct 2025, so recent crawls are robots.txt-only
+  (Decision 26, research/lever-discovery-common-crawl.md). `--source` runs one ATS;
   `--limit` caps the validation sweep until ATS rate limiting (GATED) is decided. Runs
-  ~monthly (aligned to Common Crawl releases). See DECISIONS.md Decision 11.
+  ~monthly (aligned to Common Crawl releases).
 - Opportunity-type classification & browse — classify each stored listing into an
   `opportunity_type` (internship, co-op, fellowship, new-grad, research, part-time) and let
   users browse/filter the hub by type. Core to the CS-opportunities-hub scope (Decision 10).
@@ -53,8 +57,9 @@
   for why chunking doesn't break dedup (the DB-lookup branch catches cross-chunk duplicates
   that the in-batch branch would have caught in a single-batch run).
 - Lever adapter (`fetchLever`/`normalizeLever`, 2026-08-31) — second ATS source live in the
-  `SOURCES` array (`src/pipeline/orchestrator.ts`), `supportsFreshness: false` pending
-  discovery. See the dated section below for the field-mapping specifics.
+  `SOURCES` array (`src/pipeline/orchestrator.ts`), `supportsFreshness: false` (no
+  whole-board ETag for paginated fetches). Discovery wired 2026-09-08 (Decision 26).
+  See the dated section below for the field-mapping specifics.
 - Retry with backoff for Ollama calls (2026-08-25) — `chatJson()` (classify + extract, since
   both share this one call site) now retries a TRANSIENT failure (network error, timeout, 429,
   5xx) up to `OLLAMA_MAX_RETRIES` times (default 3) with exponential backoff

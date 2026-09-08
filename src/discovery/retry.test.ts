@@ -4,7 +4,7 @@ import {
   isRetryableCdxError,
   withCdxRetry,
   DiscoveryFetchError,
-} from "./greenhouse.js";
+} from "./cdx.js";
 
 // ── isRetryableCdxError: the transient/fatal classification ────────────────────────────────
 

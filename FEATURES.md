@@ -484,10 +484,15 @@
   the same across sources. `applicationDeadline` is always `null` for Lever — not present on
   the public postings object at all (unlike Greenhouse's structured field), so it's AI-extracted
   only for this source, same as it already is for Greenhouse posts lacking the field.
-- STILL BLOCKED, separately: no `CrawlTarget` rows exist for Lever yet — board discovery
-  (`src/discovery/`) is Common-Crawl-Greenhouse-hostname-specific today, so this adapter has
-  nothing to crawl in a real refresh until a Lever discovery mechanism is decided. Testable now
-  only via a manually-seeded `CrawlTarget` row.
+- STILL BLOCKED, separately: no `CrawlTarget` rows exist for Lever in production — board
+  discovery (`src/discovery/`) is Common-Crawl-Greenhouse-hostname-specific today, so this
+  adapter has nothing to crawl in a real refresh until a Lever discovery mechanism is decided.
+  Dev-only smoke-testing is unblocked via `npx tsx src/seed-crawl-target.ts <source> <token>`
+  (new; inserts one `crawl_target` row, does not touch discovery policy).
+- LIVE SMOKE TEST (2026-08-31): `fetchLever`/`normalizeLever` run directly against Palantir's
+  real board (308 postings, 2 pages — confirms the mocked pagination-past-100 test path holds
+  against a real server, not just fixtures) normalized 308/308 with zero drops. One
+  `crawl_target` row seeded (`lever/palantir`, id 6998) for future full-refresh testing.
 
 ## Per-pass model split (Decision 25, 2026-08-31)
 

@@ -39,6 +39,7 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm test` | Run the test suite (`node:test`; no live DB or Ollama needed — all DB-touching stages are unit-tested against fakes) |
 | `npm run build` | Type-check + compile to `dist/` |
 | `npx tsx src/backfill-dedup.ts` | One-time cleanup: collapses pre-existing duplicate rows already in `listings` (see DECISIONS.md Decision 15) |
+| `npx tsx src/seed-crawl-target.ts <source> <token>` | Dev-only: manually inserts one `crawl_target` row (e.g. `lever palantir`) for smoke-testing a source with no real discovery mechanism wired up yet. NOT how boards get discovered in production — `npm run discover` is the real path once a source has one. |
 
 Note: `--limit` and other flags need the `--` separator (`npm run refresh -- --limit 5`), or npm
 consumes the flag itself instead of passing it through.

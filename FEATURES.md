@@ -500,6 +500,8 @@
 - STILL BLOCKED, separately: no `CrawlTarget` rows exist for Lever in production — board
   discovery (`src/discovery/`) is Common-Crawl-Greenhouse-hostname-specific today, so this
   adapter has nothing to crawl in a real refresh until a Lever discovery mechanism is decided.
+  (RESOLVED 2026-09-08: Lever discovery is live — Decision 26, crawl walk-back. Kept for the
+  dated record; see the top-level discovery bullet for current state.)
   Dev-only smoke-testing is unblocked via `npx tsx src/seed-crawl-target.ts <source> <token>`
   (new; inserts one `crawl_target` row, does not touch discovery policy).
 - LIVE SMOKE TEST (2026-08-31): `fetchLever`/`normalizeLever` run directly against Palantir's
@@ -549,3 +551,34 @@
 - Decisions to remember: enabled by the M5 Max/128GB upgrade — Decision 13's 7B-everywhere
   choice was RAM-gated, not accuracy-driven. Next 14B reclassify sweep will delist measured
   junk keeps; always dry-run it first.
+
+## Location filter: state ∪ country union (2026-09-09)
+
+- State and country selections now form ONE location dimension: NY + India = listed in
+  either (previously the two facets AND-ed, so NY + India returned 0 — unsatisfiable).
+  Other facets still intersect. Verified: NY 197 + IN 42 → 239 combined.
+- Country chips display names ("INDIA 42"), not ISO codes: raw alpha-2 collides with USPS
+  state codes one rail group up (CA/IN/MA all mean two different places). Stored data stays
+  ISO alpha-2 — audited all 61 distinct codes in corpus, all valid, no display-only change
+  to the data.
+- Decisions to remember: omitting either location facet for chip counts drops the WHOLE
+  location group, so a state chip's count answers "what if this were my location filter"
+  unconstrained by selected countries (and vice versa).
+
+## Location filter audit + orphaned-chip fix (2026-09-09)
+
+- Audited the state∪country union fix (previous entry) against ground-truth SQL across 12
+  combinations (multi-value both facets, code-collision case CA-state vs CA-country,
+  nonexistent codes, empty selections, heavy-overlap case) — all matched exactly.
+- Found and fixed a real bug surfaced by the audit, pre-existing and NOT specific to the
+  union change: state/country rail chips render from `Object.entries(res.facets.X)` (the
+  live SQL group-by), unlike TYPE/FIELD/STATUS which iterate a fixed label vocabulary. If a
+  selected state/country drops to 0 matches under another filter (e.g. field=security &
+  state=WY), its chip vanished from the rail entirely — filter stayed active with no visible
+  way to remove it short of "CLEAR FILTERS" (which also wipes unrelated filters).
+- Fix: `withSelected()` in render.ts pins any currently-selected state/country into its rail
+  list at count 0 if absent from the facet map, sorted first so the 12/8-item visible-slice
+  cutoff can't hide it. Render-layer only — the JSON API's `facets.state`/`facets.country`
+  stay unfabricated, real SQL counts.
+- Decisions to remember: any future facet rendered from live query results (not a fixed
+  vocabulary) needs this same guard, or it inherits the same orphaned-filter failure mode.

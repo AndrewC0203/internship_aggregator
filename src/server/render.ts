@@ -24,6 +24,23 @@ const STATUS_LABEL: Record<string, string> = {
 const CITIZEN_LABEL: Record<string, string> = {
   us_citizen_required: "USC REQ", no_sponsorship: "NO SPON", sponsorship_available: "SPON OK",
 };
+// Country chips display names, not ISO codes: raw alpha-2 collides with USPS state codes in
+// the rail one group up (CA Canada/California, IN India/Indiana, MA Morocco/Massachusetts).
+// The stored data stays ISO alpha-2; unmapped codes fall back to the code itself.
+const COUNTRY_LABEL: Record<string, string> = {
+  US: "USA", GB: "UK", CA: "CANADA", BR: "BRAZIL", SG: "SINGAPORE", IN: "INDIA",
+  NL: "NETHERLANDS", HK: "HONG KONG", KR: "S. KOREA", DE: "GERMANY", FR: "FRANCE",
+  CN: "CHINA", ES: "SPAIN", NZ: "NEW ZEALAND", AU: "AUSTRALIA", IE: "IRELAND",
+  MX: "MEXICO", TW: "TAIWAN", JP: "JAPAN", PL: "POLAND", CO: "COLOMBIA", AE: "UAE",
+  DK: "DENMARK", HU: "HUNGARY", SE: "SWEDEN", IL: "ISRAEL", CH: "SWITZERLAND",
+  VN: "VIETNAM", PE: "PERU", RS: "SERBIA", CZ: "CZECHIA", BG: "BULGARIA",
+  AR: "ARGENTINA", TH: "THAILAND", IT: "ITALY", ID: "INDONESIA", PT: "PORTUGAL",
+  ZA: "S. AFRICA", MY: "MALAYSIA", TR: "TÜRKIYE", NG: "NIGERIA", GR: "GREECE",
+  CL: "CHILE", PH: "PHILIPPINES", NO: "NORWAY", BE: "BELGIUM", UA: "UKRAINE",
+  PK: "PAKISTAN", RO: "ROMANIA", SI: "SLOVENIA", AT: "AUSTRIA", CR: "COSTA RICA",
+  PA: "PANAMA", FI: "FINLAND", LT: "LITHUANIA", NP: "NEPAL", BD: "BANGLADESH",
+  MA: "MOROCCO", EG: "EGYPT", HR: "CROATIA", LK: "SRI LANKA", GE: "GEORGIA",
+};
 
 // Only completed_required gets a badge (Decision 24): it's the one degree status that
 // contradicts an "internship" label and should warn the reader. pursuing/unknown/null are
@@ -153,6 +170,19 @@ function frow(href: string, label: string, count: number | undefined, on: boolea
 
 const CHEV = `<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// State/country facets are rendered from live SQL group-by results, unlike TYPE/FIELD/
+// STATUS (fixed label vocabularies), so a selected value can drop out of the facet map
+// entirely once another filter narrows it to zero matches — the chip would then vanish
+// with no way to deselect it short of "CLEAR FILTERS". Pin selected values into the list
+// (count 0 if absent) and sort them first so the visible-slice cutoff never hides them.
+function withSelected(entries: Array<[string, number]>, selected: string[] | undefined): Array<[string, number]> {
+  if (!selected?.length) return entries;
+  const have = new Map(entries);
+  const selectedFirst: Array<[string, number]> = selected.map((v) => [v, have.get(v) ?? 0]);
+  const rest = entries.filter(([v]) => !selected.includes(v));
+  return [...selectedFirst, ...rest];
+}
+
 function railGroup(title: string, body: string, open = true): string {
   return `<details class="grp"${open ? " open" : ""}><summary>${CHEV}${title}</summary>${body}</details>`;
 }
@@ -184,7 +214,7 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
       frow(qs(p, { field: toggled(p.field, val) }), label, res.facets.field[val], p.field?.includes(val) ?? false),
     )
     .join("");
-  const stateEntries = Object.entries(res.facets.state);
+  const stateEntries = withSelected(Object.entries(res.facets.state), p.state);
   const stateRows = stateEntries
     .slice(0, 12)
     .map(([val, count]) =>
@@ -197,10 +227,11 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
       frow(qs(p, { state: toggled(p.state, val) }), val, count, p.state?.includes(val) ?? false),
     )
     .join("");
-  const countryRows = Object.entries(res.facets.country)
+  const countryEntries = withSelected(Object.entries(res.facets.country), p.country);
+  const countryRows = countryEntries
     .slice(0, 8)
     .map(([val, count]) =>
-      frow(qs(p, { country: toggled(p.country, val) }), val, count, p.country?.includes(val) ?? false),
+      frow(qs(p, { country: toggled(p.country, val) }), COUNTRY_LABEL[val] ?? val, count, p.country?.includes(val) ?? false),
     )
     .join("");
   const statusRows = Object.entries(STATUS_LABEL)

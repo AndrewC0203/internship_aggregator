@@ -73,8 +73,16 @@ export function buildWhere(p: SearchParams, omit?: "type" | "field" | "country" 
   }
   if (p.type && omit !== "type") and.push({ opportunityType: { in: p.type as never[] } });
   if (p.field && omit !== "field") and.push({ csField: { in: p.field as never[] } });
-  if (p.country && omit !== "country") and.push({ locCountries: { hasSome: p.country } });
-  if (p.state && omit !== "state") and.push({ locUsStates: { hasSome: p.state } });
+  // Location is ONE dimension across two facets: state and country selections union
+  // (NY + India = listed in either), while other facets still intersect. Omitting either
+  // location facet drops the whole group, so state/country chip counts answer "what would
+  // I get if this were my location filter" unconstrained by the other location picks.
+  if (omit !== "state" && omit !== "country") {
+    const loc: Prisma.ListingWhereInput[] = [];
+    if (p.state) loc.push({ locUsStates: { hasSome: p.state } });
+    if (p.country) loc.push({ locCountries: { hasSome: p.country } });
+    if (loc.length) and.push(loc.length === 1 ? loc[0] : { OR: loc });
+  }
   if (p.gradYear) {
     // Class-year compatibility (Decision 17 semantics): a listing matches when its stated
     // window includes the year OR it states no window at all. Excluding the unknowns would

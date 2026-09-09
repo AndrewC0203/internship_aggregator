@@ -18,8 +18,8 @@
   Lever, Ashby). Lever walks backward through crawls to the newest one with real captures —
   `jobs.lever.co` has blocked CCBot since ~Oct 2025, so recent crawls are robots.txt-only
   (Decision 26, research/lever-discovery-common-crawl.md). `--source` runs one ATS;
-  `--limit` caps the validation sweep until ATS rate limiting (GATED) is decided. Runs
-  ~monthly (aligned to Common Crawl releases).
+  `--limit` caps the validation sweep (smoke-test knob; full sweeps unblocked by
+  Decision 27 pacing). Runs ~monthly (aligned to Common Crawl releases).
 - Opportunity-type classification & browse — classify each stored listing into an
   `opportunity_type` (internship, co-op, fellowship, new-grad, research, part-time) and let
   users browse/filter the hub by type. Core to the CS-opportunities-hub scope (Decision 10).
@@ -68,6 +68,13 @@
   Greenhouse. Discovery mines the LATEST Common Crawl snapshot (Ashby doesn't block CCBot,
   unlike Lever/legacy-Greenhouse hosts): 926 unique candidate boards in CC-MAIN-2026-34.
   See the dated section below + research/ashby-source.md.
+- ATS request pacing (Decision 27, 2026-09-09) — fixed per-host delay between board-level
+  requests (`createRateGate` in `src/pipeline/rate-limit.ts`; `ATS_MIN_INTERVAL_MS`
+  default 500ms, one gate per source since each source speaks to one API host), wired into
+  both the discovery validation loop and the refresh fetch loop. A 429 skips that board,
+  surfaces as a distinct `rate_limited` validation outcome, and pauses the whole source's
+  loop for `ATS_429_PAUSE_MS` (default 60s). Unblocks the full discovery sweeps
+  (~2,700 candidates ≈ 23 min at default pacing).
 - Retry with backoff for Ollama calls (2026-08-25) — `chatJson()` (classify + extract, since
   both share this one call site) now retries a TRANSIENT failure (network error, timeout, 429,
   5xx) up to `OLLAMA_MAX_RETRIES` times (default 3) with exponential backoff

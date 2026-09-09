@@ -1437,3 +1437,49 @@ ATS rate-limit decision, same as Greenhouse's.
 Date: 2026-09-08
 
 ---
+
+## Decision 27: ATS rate-limit posture — fixed per-host delay (visible politeness)
+
+Problem: Discovery validation and refresh hit three third-party posting APIs
+(boards-api.greenhouse.io, api.lever.co, api.ashbyhq.com) with no throttling — only
+`--limit` caps kept runs polite, which capped discovery at 163 Greenhouse boards and
+gated Lever's ~1,600- and Ashby's 926-candidate sweeps (the project's top volume blocker).
+All three APIs are public, unauthenticated, Cloudflare-fronted, and publish no rate
+limits; the real failure mode of crawling too fast is not a 429 but silent IP-reputation
+damage — an effectively irreversible posture toward hosts this project depends on.
+
+Options considered:
+
+1. Fixed per-host delay — constant minimum gap between requests to one host (default
+   500ms = 2 req/s), sources parallel to each other, honor 429 by pausing that host.
+   Simple, self-documenting politeness; no burst absorption; "slow" if board counts 10x
+   (but slow costs nothing here).
+2. Token bucket per host — sustained rate + burst allowance. Tunable and faster in
+   spurts, but more machinery, and with no published limits the tuning is guesswork.
+3. Adaptive (fast until 429, back off hard) — max throughput, but deliberately provokes
+   rate-limit responses from Cloudflare-fronted hosts; exactly the reputation-risk
+   posture to avoid. Ruled out.
+
+Decision: Option 1 (user-chosen, matching my recommendation). `createRateGate` in
+`src/pipeline/rate-limit.ts`, one gate per source (each source speaks to exactly one
+host), wired into both the discovery validation loop and the refresh fetch loop.
+`ATS_MIN_INTERVAL_MS` (default 500) and `ATS_429_PAUSE_MS` (default 60s) env-tunable.
+A 429 skips that board/token and pauses the whole source's loop; discovery surfaces it
+as a distinct `rate_limited` validation outcome so the pause is per-source, not per-token.
+
+Reason: every crawl is a background job (monthly discovery, daily refresh), so throughput
+buys nothing — measured: a full ~2,700-board discovery sweep at 500ms spacing is ~23 min,
+and the AI classify/extract tail dominates any refresh that ingests new content by 1–2
+orders of magnitude (hours of model time vs. minutes of paced fetches). The steady-state
+daily refresh is ~15 min of fetches (Greenhouse/Ashby mostly 304 for ~free; Lever's full
+re-download is its pagination's structural cost, not the throttle's). A constant delay is
+also the easiest posture to defend: visibly polite to free APIs the project depends on.
+
+Tradeoffs accepted: no burst capacity, and Lever's intra-board page requests (≤ a handful,
+back-to-back) are NOT paced — the gate spaces board-level calls only; accepted since a
+board is a short burst followed by a paced gap. The flat 60s pause stands in for
+Retry-After (fetch errors don't carry headers; none of these APIs has been observed
+sending it). If interactive re-crawls ever matter, the fix is raising one constant or
+upgrading this gate to a token bucket behind the same `wait()` interface — not a redesign.
+
+Date: 2026-09-09

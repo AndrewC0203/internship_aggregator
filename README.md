@@ -45,6 +45,10 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 Note: `--limit` and other flags need the `--` separator (`npm run refresh -- --limit 5`), or npm
 consumes the flag itself instead of passing it through.
 
+Request pacing (Decision 27): discovery validation and refresh space board-level requests
+to each ATS host by `ATS_MIN_INTERVAL_MS` (default 500ms); on a 429 the source pauses for
+`ATS_429_PAUSE_MS` (default 60s). Both are env vars — no flags.
+
 ## Architecture
 
 Per-source `fetch` + `normalize`, then a shared staged pipeline: `dedup` → `partitionBySeen` →

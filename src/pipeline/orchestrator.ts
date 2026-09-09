@@ -24,14 +24,14 @@ const SOURCES: Array<{
   fetch: (token: string, priorEtag?: string | null) => Promise<FetchResult>;
   normalize: (raw: RawJob, ctx: NormalizeContext) => NormalizedListing | null;
   // Delisting (Decision 22) trusts a successful fetch to mean "the WHOLE board," not a page of
-  // it — true today only for Greenhouse's fetch (single-response, no pagination; see
-  // src/sources/greenhouse/fetch.ts). Lever/Ashby are unimplemented stubs; flip this once their
-  // fetchers are confirmed to paginate to completion, not on the day they merely stop throwing.
+  // it — true for Greenhouse AND Ashby (both single-response, no pagination; Ashby verified
+  // live 2026-09-08, see src/sources/ashby/fetch.ts). Lever stays false: its fetch paginates,
+  // and its per-page ETag can't represent the whole board (see src/sources/lever/fetch.ts).
   supportsFreshness: boolean;
 }> = [
   { source: "greenhouse", fetch: fetchGreenhouse, normalize: normalizeGreenhouse, supportsFreshness: true },
   { source: "lever", fetch: fetchLever, normalize: normalizeLever, supportsFreshness: false },
-  { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby, supportsFreshness: false },
+  { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby, supportsFreshness: true },
 ];
 
 // Boards per flush of the shared tail (FEATURES.md P1 "incremental persist for the AI tail",

@@ -14,8 +14,8 @@
   (`boards.greenhouse.io` / `job-boards.greenhouse.io` / `jobs.lever.co`), validates each
   against the live API (200 + non-empty jobs = keep), and upserts survivors into the
   `crawl_targets` table for the daily refresh to read. Per-source module
-  (`src/discovery/`, shared CDX client in `cdx.ts`; Greenhouse + Lever real, Ashby
-  stubbed). Lever walks backward through crawls to the newest one with real captures —
+  (`src/discovery/`, shared CDX client in `cdx.ts`; all three sources real — Greenhouse,
+  Lever, Ashby). Lever walks backward through crawls to the newest one with real captures —
   `jobs.lever.co` has blocked CCBot since ~Oct 2025, so recent crawls are robots.txt-only
   (Decision 26, research/lever-discovery-common-crawl.md). `--source` runs one ATS;
   `--limit` caps the validation sweep until ATS rate limiting (GATED) is decided. Runs
@@ -60,6 +60,14 @@
   `SOURCES` array (`src/pipeline/orchestrator.ts`), `supportsFreshness: false` (no
   whole-board ETag for paginated fetches). Discovery wired 2026-09-08 (Decision 26).
   See the dated section below for the field-mapping specifics.
+- Ashby adapter + discovery (`fetchAshby`/`normalizeAshby`/`ashbyDiscovery`, 2026-09-08) —
+  third and final Phase-1 ATS source, live end-to-end (discovery → fetch → normalize →
+  shared tail). `supportsFreshness: true`: the posting-api returns the whole board in ONE
+  unpaginated response and sends a whole-board weak ETag that honors If-None-Match with a
+  real 304 (verified live) — the second genuine Decision 23 conditional-fetch source after
+  Greenhouse. Discovery mines the LATEST Common Crawl snapshot (Ashby doesn't block CCBot,
+  unlike Lever/legacy-Greenhouse hosts): 926 unique candidate boards in CC-MAIN-2026-34.
+  See the dated section below + research/ashby-source.md.
 - Retry with backoff for Ollama calls (2026-08-25) — `chatJson()` (classify + extract, since
   both share this one call site) now retries a TRANSIENT failure (network error, timeout, 429,
   5xx) up to `OLLAMA_MAX_RETRIES` times (default 3) with exponential backoff
@@ -498,6 +506,38 @@
   real board (308 postings, 2 pages — confirms the mocked pagination-past-100 test path holds
   against a real server, not just fixtures) normalized 308/308 with zero drops. One
   `crawl_target` row seeded (`lever/palantir`, id 6998) for future full-refresh testing.
+
+## Ashby adapter + discovery (2026-09-08)
+
+- `fetchAshby` GETs `api.ashbyhq.com/posting-api/job-board/{name}?includeCompensation=true` —
+  the WHOLE board arrives in one `{ jobs, apiVersion }` envelope (no pagination; verified
+  live against OpenAI's 780-job board). The old stub's `jobPosting.list` note described
+  Ashby's authenticated API; the public one is a plain unauthenticated GET.
+- Conditional fetch is REAL for this source: Ashby sends a weak whole-board ETag
+  (`W/"job-board:<hash>"`) and honors `If-None-Match` with a genuine 304 (verified live).
+  `fetchAshby` sends `priorEtag`, and `supportsFreshness: true` in the orchestrator —
+  Ashby gets the full Decision 22/23 treatment (delist-stale + 304 skip) from day one.
+- `normalizeAshby` mirrors Lever's company posture (payload never states a company; comes
+  from `ctx.company`). `employmentType` is a real enum (`FullTime|PartTime|Intern|Contract|
+  Temporary`) unlike Lever's free-text commitment; unknown values still fall to `null`.
+  `workplaceType` maps `OnSite|Remote|Hybrid`, falling back to `isRemote` (true → remote,
+  false → `null`, since not-remote can't distinguish onsite from hybrid).
+- Compensation: selected from `compensation.summaryComponents[]` by
+  `compensationType === "Salary"` — NEVER by interval, because equity components also carry
+  `interval: "1 YEAR"` with null values. Observed intervals `"1 YEAR"` → yearly,
+  `"1 HOUR"` → hourly (float values, fits `Decimal(12,2)`). Boards that didn't opt into
+  public comp return a hollow object → all-null comp.
+- Decisions to remember: `publishedAt` is ISO-8601 (Lever's is epoch ms — don't copy that
+  handling). `url` is `jobUrl` (posting page), not `applyUrl` — same semantic as the other
+  two sources. `applicationDeadline` always `null` (AI-extract only). `isListed:false` drops
+  the job in normalize, which routes it through delist as "absent" — correct retirement.
+- Discovery (`src/discovery/ashby.ts`): mines the LATEST Common Crawl snapshot — CCBot is
+  not blocked (robots.txt disallows only `/meeting/`, `/b/`, `/api/`), so no Lever-style
+  walk-back; the file notes to switch to `mineFirstCrawlWithSignal` if that ever changes.
+  CC-MAIN-2026-34: 6,139 captured URLs → 926 unique candidate tokens. Capped live run:
+  8 candidates validated → 7 kept, 1 dropped, 0 errors.
+- Full sweep of the 926 candidates stays gated on the rate-limit decision, same as the
+  other sources.
 
 ## Per-pass model split (Decision 25, 2026-08-31)
 

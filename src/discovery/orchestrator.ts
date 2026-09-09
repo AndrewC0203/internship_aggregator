@@ -2,6 +2,7 @@ import { prisma } from "../db.js";
 import type { DiscoveryOptions, DiscoverySource } from "./types.js";
 import { greenhouseDiscovery } from "./greenhouse.js";
 import { leverDiscovery } from "./lever.js";
+import { ashbyDiscovery } from "./ashby.js";
 import { validateToken } from "./validate.js";
 
 export interface DiscoverySummary {
@@ -13,9 +14,7 @@ export interface DiscoverySummary {
   errors: number; // transient failures skipped this run
 }
 
-// Ashby's discovery stub isn't wired in until real — mirrors how the ingestion
-// orchestrator leaves its fetch/normalize stubbed.
-const SOURCES: DiscoverySource[] = [greenhouseDiscovery, leverDiscovery];
+const SOURCES: DiscoverySource[] = [greenhouseDiscovery, leverDiscovery, ashbyDiscovery];
 
 export interface RunOptions extends DiscoveryOptions {
   // Cap the validation sweep. Until the GATED rate-limiting decision is made, a full

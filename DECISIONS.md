@@ -1161,6 +1161,9 @@ wait for a flush and survives an AI-tail crash. Gated per-source by a `supportsF
 flag — true only for Greenhouse today, because the flag means "a successful fetch is the
 WHOLE board"; Lever/Ashby must not get it until their (unimplemented) fetchers are confirmed
 to paginate to completion.
+(2026-09-08 update: Ashby implemented and flipped true — its posting-api returns the whole
+board in one unpaginated response, verified live against a 780-job board; research/
+ashby-source.md. Lever stays false: paginated, no whole-board ETag.)
 
 Board→listings scoping: `Listing` has no FK to `CrawlTarget`, so the delist query is scoped
 by `(source, company)`, with company derived fresh from the board's own normalized payload
@@ -1268,6 +1271,10 @@ as a LOWER bound on last sighting, not an exact one — documented in the orches
 = nothing to sync) but means the etag must be trusted for content freshness too, same bounded
 exposure as above. Lever/Ashby fetch stubs accept-and-ignore `priorEtag`; their validator
 support must be verified per-source when implemented.
+(2026-09-08 update: Ashby verified — it sends a weak whole-board ETag (`W/"job-board:…"`)
+and honors If-None-Match with a real 304, so `fetchAshby` sends `priorEtag` and Ashby is
+the second live conditional-fetch source. Lever verified the other way in late Aug: its
+ETag is page-scoped, so it stays out; see src/sources/lever/fetch.ts.)
 
 Date: 2026-08-28
 

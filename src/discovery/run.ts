@@ -3,7 +3,7 @@ import { prisma } from "../db.js";
 
 // CLI entrypoint for the board discovery job:
 //   `npm run discover -- [--source <name>] [--crawl <id>] [--limit <n>]`
-//   --source <name>  run only this source (greenhouse | lever); default = all
+//   --source <name>  run only this source (greenhouse | lever | ashby); default = all
 //   --crawl <id>     specific Common Crawl crawl (e.g. CC-MAIN-2026-25); default = latest
 //                    (lever: latest-with-signal — it walks back past CCBot-blocked crawls)
 //   --limit <n>      cap the validation sweep to n candidates (default: uncapped)

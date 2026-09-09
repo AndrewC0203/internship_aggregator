@@ -51,6 +51,13 @@ test("empty: 404 via a plain status-carrying object", async () => {
   assert.equal(await validateToken("ghost", rejectsWith({ status: 404 })), "empty");
 });
 
+// ── Outcome: rate_limited (Decision 27 — orchestrator pauses the whole source) ──────────────
+
+test("rate_limited: 429 is its own outcome, not a generic error", async () => {
+  const err = new GreenhouseFetchError("too many requests", "busy", 429);
+  assert.equal(await validateToken("busy", rejectsWith(err)), "rate_limited");
+});
+
 // ── Outcome: error (transient / unexpected — skip this run, no retry) ───────────────────────
 
 test("error: 500 from the board API", async () => {

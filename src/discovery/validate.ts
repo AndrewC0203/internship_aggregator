@@ -1,7 +1,10 @@
 import type { BoardFetcher } from "./types.js";
 
-// Three outcomes so the orchestrator can act + log distinctly.
-export type ValidationOutcome = "valid" | "empty" | "error";
+// Four outcomes so the orchestrator can act + log distinctly. "rate_limited" is separated
+// from "error" because the orchestrator's response differs: an error skips one token, a
+// 429 pauses the WHOLE source's loop (Decision 27) — collapsing them would hide the one
+// signal the pacing posture must react to.
+export type ValidationOutcome = "valid" | "empty" | "error" | "rate_limited";
 
 // Confirm a candidate token is a live board (Decision 11: 200 + non-empty jobs = keep).
 //  - "valid": board resolves with >=1 job -> becomes a crawl target
@@ -26,6 +29,7 @@ export async function validateToken(
     // source-agnostic as Lever/Ashby discovery is added.
     const status = (err as { status?: number })?.status;
     if (status === 404) return "empty";
+    if (status === 429) return "rate_limited";
     return "error";
   }
 }

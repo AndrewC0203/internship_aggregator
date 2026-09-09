@@ -4,6 +4,7 @@ import { greenhouseDiscovery } from "./greenhouse.js";
 import { leverDiscovery } from "./lever.js";
 import { ashbyDiscovery } from "./ashby.js";
 import { validateToken } from "./validate.js";
+import { ATS_MIN_INTERVAL_MS, createRateGate, pauseAfter429 } from "../pipeline/rate-limit.js";
 
 export interface DiscoverySummary {
   source: string;
@@ -17,8 +18,8 @@ export interface DiscoverySummary {
 const SOURCES: DiscoverySource[] = [greenhouseDiscovery, leverDiscovery, ashbyDiscovery];
 
 export interface RunOptions extends DiscoveryOptions {
-  // Cap the validation sweep. Until the GATED rate-limiting decision is made, a full
-  // multi-thousand-token sweep against the live ATS is intentionally not run unattended.
+  // Cap the validation sweep — smoke-test knob. Full sweeps are unblocked now that pacing
+  // exists (Decision 27); a ~2,700-token sweep at the default 500ms gap takes ~23 min.
   limit?: number;
   // Run only this source (e.g. "lever") instead of all of them. Discovery runs are
   // independent per source, and mining one ATS shouldn't force re-paging the other's index.
@@ -45,8 +46,7 @@ export async function runDiscovery(opts: RunOptions = {}): Promise<DiscoverySumm
     const processed = opts.limit ? discovered.slice(0, opts.limit) : discovered;
     if (opts.limit && discovered.length > opts.limit) {
       console.error(
-        `  [${src.source}] capping validation at ${opts.limit}/${discovered.length} candidates ` +
-          `(--limit; a full sweep needs the GATED rate-limit decision first)`,
+        `  [${src.source}] capping validation at ${opts.limit}/${discovered.length} candidates (--limit)`,
       );
     }
 
@@ -59,7 +59,12 @@ export async function runDiscovery(opts: RunOptions = {}): Promise<DiscoverySumm
       errors: 0,
     };
 
+    // One gate per source = one per API host (each source speaks to exactly one host).
+    // Fresh per run/source on purpose: pacing is about request spacing, not global state.
+    const gate = createRateGate(ATS_MIN_INTERVAL_MS);
+
     for (const token of processed) {
+      await gate.wait();
       const outcome = await validateToken(token, src.fetchBoard);
       if (outcome === "valid") {
         // Upsert on the (source, token) natural key: a re-run refreshes the discovery
@@ -73,6 +78,12 @@ export async function runDiscovery(opts: RunOptions = {}): Promise<DiscoverySumm
         summary.kept++;
       } else if (outcome === "empty") {
         summary.dropped++;
+      } else if (outcome === "rate_limited") {
+        // The host pushed back: this token is skipped this run (counted as an error, same
+        // as any transient failure), and the whole source's loop pauses before continuing
+        // (Decision 27) — the point is to yield, not to power through.
+        summary.errors++;
+        await pauseAfter429(src.source);
       } else {
         summary.errors++;
         console.error(`  [${src.source}] transient error validating "${token}" — skipped this run`);

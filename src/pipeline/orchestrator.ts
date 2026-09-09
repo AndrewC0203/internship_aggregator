@@ -18,6 +18,7 @@ import { filterInternships } from "./stages/filter.js";
 import { extract } from "./stages/extract.js";
 import { persist } from "./stages/persist.js";
 import { delistStaleForBoard } from "./stages/delist.js";
+import { ATS_MIN_INTERVAL_MS, createRateGate, pauseAfter429 } from "./rate-limit.js";
 
 const SOURCES: Array<{
   source: Source;
@@ -105,10 +106,15 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
       take: opts.limit, // undefined = no cap
     });
 
+    // Request pacing (Decision 27): one gate per source = one per API host. Paces board
+    // fetches only — a 304 revalidation is still a request to the host, so it's paced too.
+    const gate = createRateGate(ATS_MIN_INTERVAL_MS);
+
     for (const target of targets) {
       // One board's fetch/normalize failure shouldn't abort every other board in the
       // run — log and skip it. This is error isolation, not retry: no re-attempt happens.
       try {
+        await gate.wait();
         // Conditional fetch (Decision 23): hand back the stored validator; `--full` forces a
         // re-download by withholding it (e.g. after a normalize bug fix, when the stored rows
         // need rebuilding from bodies the etag would otherwise skip).
@@ -191,6 +197,12 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
           where: { id: target.id },
           data: { lastError: reason },
         });
+        // 429 = the host pushed back: skip this board like any other error, but also pause
+        // the whole source's loop before continuing (Decision 27) — yield, don't power
+        // through. Duck-typed status, same as validate.ts.
+        if ((err as { status?: number })?.status === 429) {
+          await pauseAfter429(src.source);
+        }
       }
 
       // Counts boards processed (attempted), not boards that yielded listings — a run of

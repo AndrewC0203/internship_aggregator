@@ -604,3 +604,24 @@
   seenKeeps never re-evaluate — so every location.ts change strands persisted rows until
   the backfill is re-run. Run it after any resolver/dictionary edit. Dup-residue policy
   (key unchanged, render-time card grouping) is Decision 28; card grouping not yet built.
+
+## Role cards: render-time variant grouping (Decision 28) (2026-09-11)
+
+- The search result unit is now a CARD — one role per trimmed (company, title) — not a
+  listing row. Lead row = newest posting; each further geographic variant renders as a
+  slim indented `pos var` row beneath it with its own link, status marks, and SET keys
+  (real listing ids, so existing client JS works untouched). Meridial's 6-country spam:
+  one card, "6 LOCATIONS", five sub-rows. Board went 1,817 listings → 1,599 roles.
+- Everything user-facing counts cards: total ("N ROLES"), NEW figure, pagination
+  (group-level, so a role's variants can never straddle a page boundary), and ALL facet
+  chip counts (distinct trimmed roles — verified chip count == click-through total).
+- Filters narrow variants within a card: state=NY shows Palantir's NY posting on the
+  card, not its CA sibling — the card matched because of NY.
+- JSON API shape changed: `rows` → `cards[{company, title, opportunityType, csField,
+  isNew, variants[...]}]`; variants newest-first, `variants[0]` is the representative.
+- Decisions to remember: the card key TRIMS like Decision 15's dedupKey — SQL groupBy is
+  exact-match, so `mergeGroups()` folds whitespace twins (measured: 7 cards, Graphcore
+  trailing-space titles) and keeps every raw spelling in `rawKeys` for the row fetch. A
+  role whose variants hold different application statuses counts once under EACH status
+  chip — chip count matches what clicking renders. Storage rows and the write-time dedup
+  key are completely untouched.

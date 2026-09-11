@@ -134,29 +134,66 @@ function setControl(id: number, current: string | null): string {
   return `<span class="keys" role="group" aria-label="application status">${btns}</span>`;
 }
 
-function row(r: SearchResult["rows"][number]): string {
-  const deadlineDelta = r.applicationDeadline
-    ? r.applicationDeadline.getTime() - Date.now()
-    : null;
-  // Urgency is weight, not hue: a live deadline inside 14 days sets bold white; a passed
-  // deadline drops to tertiary ink. The monochrome law leaves red no job on this page.
-  const deadlineSoon = deadlineDelta !== null && deadlineDelta > 0 && deadlineDelta < 14 * 86400_000;
-  const deadlinePassed = deadlineDelta !== null && deadlineDelta <= 0;
+// Deadline urgency is weight, not hue: a live deadline inside 14 days sets bold white; a
+// passed deadline drops to tertiary ink. The monochrome law leaves red no job on this page.
+function seenCell(v: SearchResult["cards"][number]["variants"][number]): string {
+  const delta = v.applicationDeadline ? v.applicationDeadline.getTime() - Date.now() : null;
+  const soon = delta !== null && delta > 0 && delta < 14 * 86400_000;
+  const passed = delta !== null && delta <= 0;
+  return v.applicationDeadline
+    ? `<span class="deadline${soon ? " soon" : ""}${passed ? " past" : ""}" title="application deadline">${passed ? "CLOSED" : "DUE"} ${fmtDate(v.applicationDeadline)}</span>`
+    : fmtDate(v.firstSeenAt);
+}
+
+function citCell(v: SearchResult["cards"][number]["variants"][number]): string {
+  return `${v.citizenshipStatus && v.citizenshipStatus !== "unknown" ? `<span class="cit">${CITIZEN_LABEL[v.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(v.degreeStatus)}`;
+}
+
+// One CARD per role (Decision 28): the lead row is the newest posting of the role; each
+// further geographic variant renders as its own slim `pos var` row directly beneath —
+// same 9 cells, so columns stay ruled and the client JS (j/k, status keys, enter-to-open)
+// works on variants for free, since every variant row carries its own real listing id.
+function card(c: SearchResult["cards"][number]): string {
+  const [rep, ...rest] = c.variants;
+  const multi = rest.length > 0;
+  const allLocs = c.variants.map((v) => v.location ?? "?").join(" · ");
   const meta: string[] = [];
-  if (r.csField) meta.push(`<span class="code">${FIELD_LABEL[r.csField] ?? r.csField}</span>`);
-  const grad = gradWindow(r.gradYearMin, r.gradYearMax);
-  return `<tr class="pos${r.status === "rejected" ? " rej-row" : ""}" data-id="${r.id}"${r.isNew ? " data-new" : ""} tabindex="0">
-<td class="c-st">${statusCell(r.status, r.isNew)}</td>
-<td class="c-co"><span class="co" title="${esc(r.company)}">${esc(r.company)}</span></td>
-<td class="c-title"><a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.title.trim())} — opens at ${esc(r.company)}">${esc(r.title.trim())}</a>
-  <span class="m-meta">${meta.join("")}${r.location ? `<span class="loc">${esc(r.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(r.degreeStatus)}</span></td>
-<td class="c-field">${r.csField ? `<span class="code">${FIELD_LABEL[r.csField] ?? r.csField}</span>` : ""}</td>
-<td class="c-loc" title="${esc(r.location ?? "")}">${esc((r.location ?? "").length > 26 ? (r.location ?? "").slice(0, 25) + "…" : (r.location ?? ""))}</td>
+  if (c.csField) meta.push(`<span class="code">${FIELD_LABEL[c.csField] ?? c.csField}</span>`);
+  const grad = gradWindow(rep.gradYearMin, rep.gradYearMax);
+  const locCell = multi
+    ? `<span class="nloc">${c.variants.length} LOCATIONS</span>`
+    : esc((rep.location ?? "").length > 26 ? (rep.location ?? "").slice(0, 25) + "…" : (rep.location ?? ""));
+  const parts = [
+    `<tr class="pos${rep.status === "rejected" ? " rej-row" : ""}" data-id="${rep.id}"${c.isNew ? " data-new" : ""} tabindex="0">
+<td class="c-st">${statusCell(rep.status, rep.isNew)}</td>
+<td class="c-co"><span class="co" title="${esc(c.company)}">${esc(c.company)}</span></td>
+<td class="c-title"><a href="${esc(rep.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — opens at ${esc(c.company)}">${esc(c.title.trim())}</a>
+  <span class="m-meta">${meta.join("")}${rep.location ? `<span class="loc">${esc(rep.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${rep.citizenshipStatus && rep.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[rep.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(rep.degreeStatus)}</span></td>
+<td class="c-field">${c.csField ? `<span class="code">${FIELD_LABEL[c.csField] ?? c.csField}</span>` : ""}</td>
+<td class="c-loc" title="${esc(multi ? allLocs : (rep.location ?? ""))}">${locCell}</td>
 <td class="c-grad">${grad}</td>
-<td class="c-cit">${r.citizenshipStatus && r.citizenshipStatus !== "unknown" ? `<span class="cit">${CITIZEN_LABEL[r.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(r.degreeStatus)}</td>
-<td class="c-seen">${r.applicationDeadline ? `<span class="deadline${deadlineSoon ? " soon" : ""}${deadlinePassed ? " past" : ""}" title="application deadline">${deadlinePassed ? "CLOSED" : "DUE"} ${fmtDate(r.applicationDeadline)}</span>` : fmtDate(r.firstSeenAt)}</td>
-<td class="c-set">${setControl(r.id, r.status)}</td>
-</tr>`;
+<td class="c-cit">${citCell(rep)}</td>
+<td class="c-seen">${seenCell(rep)}</td>
+<td class="c-set">${setControl(rep.id, rep.status)}</td>
+</tr>`,
+  ];
+  for (const v of rest) {
+    const loc = v.location ?? "location unstated";
+    const vGrad = gradWindow(v.gradYearMin, v.gradYearMax);
+    parts.push(`<tr class="pos var${v.status === "rejected" ? " rej-row" : ""}" data-id="${v.id}"${v.isNew ? " data-new" : ""} tabindex="0">
+<td class="c-st">${statusCell(v.status, v.isNew)}</td>
+<td class="c-co"></td>
+<td class="c-title"><a href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — ${esc(loc)}"><span class="var-arm" aria-hidden="true">↳</span> ${esc(loc)}</a>
+  <span class="m-meta">${vGrad ? `<span class="loc">${vGrad}</span>` : ""}${v.citizenshipStatus && v.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[v.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(v.degreeStatus)}</span></td>
+<td class="c-field"></td>
+<td class="c-loc" title="${esc(v.location ?? "")}">${esc((v.location ?? "").length > 26 ? (v.location ?? "").slice(0, 25) + "…" : (v.location ?? ""))}</td>
+<td class="c-grad">${vGrad}</td>
+<td class="c-cit">${citCell(v)}</td>
+<td class="c-seen">${seenCell(v)}</td>
+<td class="c-set">${setControl(v.id, v.status)}</td>
+</tr>`);
+  }
+  return parts.join("\n");
 }
 
 // --- screener fragments -------------------------------------------------------------------
@@ -256,9 +293,11 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
     })
     .join("");
 
-  // Board rows with NEW / EARLIER dividers (only meaningful on the freshness sort).
+  // Board cards with NEW / EARLIER dividers (only meaningful on the freshness sort).
+  // A card is NEW when any variant is — same predicate the card sort orders by, so the
+  // divider still falls at a clean boundary.
   let rowsHtml = "";
-  if (res.rows.length === 0) {
+  if (res.cards.length === 0) {
     rowsHtml = `<tr class="empty-row"><td colspan="9">
 <div class="empty"><p class="empty-head">NO MATCHES</p>
 <p class="empty-sub">Nothing on the board matches these filters.</p>
@@ -268,17 +307,17 @@ ${anyFilter ? `<a class="clear-btn" href="/">CLEAR FILTERS</a>` : ""}</div></td>
     let inNew = false;
     let openedEarlier = false;
     const parts: string[] = [];
-    for (let i = 0; i < res.rows.length; i++) {
-      const r = res.rows[i];
-      if (showDividers && i === 0 && r.isNew) {
+    for (let i = 0; i < res.cards.length; i++) {
+      const c = res.cards[i];
+      if (showDividers && i === 0 && c.isNew) {
         parts.push(`<tr class="divider new-div"><td colspan="9"><span>NEW</span><span class="div-detail">${res.newCount} IN ${NEW_WINDOW_DAYS} DAYS</span></td></tr>`);
         inNew = true;
       }
-      if (showDividers && inNew && !r.isNew && !openedEarlier) {
+      if (showDividers && inNew && !c.isNew && !openedEarlier) {
         parts.push(`<tr class="divider"><td colspan="9"><span>EARLIER</span></td></tr>`);
         openedEarlier = true;
       }
-      parts.push(row(r));
+      parts.push(card(c));
     }
     rowsHtml = parts.join("\n");
   }
@@ -351,7 +390,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 </aside>
 <main class="board" id="board">
   <div class="board-head">
-    <span class="bh-total"><b>${res.total}</b> LISTINGS</span>
+    <span class="bh-total"><b>${res.total}</b> ROLES</span>
     <span class="bh-sheet">PAGE ${res.page} / ${totalSheets}</span>
   </div>
   <table class="grid">
@@ -492,6 +531,12 @@ tr.pos.cur{box-shadow:2px 0 0 var(--ink) inset}
 tr.pos:focus-visible{outline:none;background:var(--bg2);box-shadow:2px 0 0 var(--ink) inset}
 tr.rej-row td{opacity:.4}
 tr.rej-row .c-title a{text-decoration:line-through;text-decoration-color:var(--ink-3)}
+/* Variant rows (Decision 28): further locations of the role above. Slimmer, word-voice
+   location as the link, no repeated company/title — the lead row already said them. */
+tr.pos.var td{height:32px;border-bottom-style:dashed}
+tr.pos.var .c-title a{font-size:12px;font-weight:400;color:var(--ink-2)}
+tr.pos.var .var-arm{color:var(--ink-3);margin:0 4px 0 10px}
+.nloc{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--ink)}
 /* Company is a word, so it speaks the word voice (sans, normal case) — Two Voices rule */
 .co{font-size:12px;font-weight:500;color:var(--ink-2);
   display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}

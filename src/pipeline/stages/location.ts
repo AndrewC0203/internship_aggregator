@@ -179,6 +179,16 @@ export function resolveLocation(location: string | null): ResolvedLocation {
     }
 
     let matchedAny = false;
+    // "Washington, D.C." — comma-tokenizing shreds this one city name into "washington"
+    // (which then matches Washington STATE) + "d.c." (which matches nothing), filing D.C.
+    // listings under WA. Resolve the phrase before the token loop ever sees it and cut it
+    // out of the segment; "Seattle, Washington" never matches (no trailing d/c tokens).
+    seg = seg.replace(/washington[\s,]+d\.?\s*c\.?/gi, () => {
+      countries.add("US");
+      usStates.add("DC");
+      matchedAny = true;
+      return "";
+    });
     // Tokens split on comma, slash, and dash. Dash-splitting is what turns "VA-Arlington"
     // and "Remote - US" into matchable tokens; it also shreds prose like "Remote-Friendly",
     // whose fragments simply match nothing (harmless).

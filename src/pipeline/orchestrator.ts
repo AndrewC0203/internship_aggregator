@@ -59,13 +59,33 @@ const BOARD_BATCH_SIZE = Number(process.env.BOARD_BATCH_SIZE ?? 10);
 // non-durable — hours of classify calls lost to one late failure.
 export async function runPipeline(opts: { limit?: number; full?: boolean } = {}): Promise<void> {
   let batch: NormalizedListing[] = [];
+  // ETags whose listings ride in `batch`, held back until that batch is durably persisted.
+  // INVARIANT (crash-window fix, 2026-09-09): an etag may only be persisted AFTER every
+  // listing from the response it validates is in the DB. Written eagerly (the old way), a
+  // crash between a board's fetch and its flush left the etag stored with its listings
+  // lost — and the next run's 304 would skip right past them until the board's content
+  // happened to change. Failure directions are asymmetric: losing an etag costs one
+  // re-download; storing one early can silently lose listings. `lastCrawledAt`/`lastError`
+  // still write eagerly — crawl health doesn't gate future ingestion, so it has no window.
+  let pendingEtags: Array<{ targetId: number; etag: string | null }> = [];
   let boardsSinceFlush = 0;
   let totalKept = 0;
   let totalRejected = 0;
 
   async function flush(): Promise<void> {
+    // Etags pending with an EMPTY batch are safe to store now: their boards contributed
+    // zero normalized listings, so there's nothing unpersisted for a 304 to skip past.
+    async function persistPendingEtags(): Promise<void> {
+      const toWrite = pendingEtags;
+      pendingEtags = [];
+      for (const { targetId, etag } of toWrite) {
+        await prisma.crawlTarget.update({ where: { id: targetId }, data: { etag } });
+      }
+    }
+
     if (batch.length === 0) {
       boardsSinceFlush = 0;
+      await persistPendingEtags();
       return;
     }
     const normalized = batch;
@@ -90,6 +110,10 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
     );
     const enriched = await extract(keeps);
     await persist({ keeps: enriched, newRejects, seenKeeps, seenRejects });
+    // Only now — with this batch's listings durable — do the batch's etags get stored.
+    // If persist() had thrown, the etags stay unwritten and the next run re-downloads:
+    // the safe direction.
+    await persistPendingEtags();
     totalKept += enriched.length;
     totalRejected += newRejects.length;
     console.log(
@@ -156,10 +180,14 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
               boardListings.push(listing);
             }
           }
+          // Crawl health writes eagerly; the etag is QUEUED and only persisted after the
+          // flush that contains this board's listings (see pendingEtags above). Queued even
+          // when null so a source that stops sending validators has its stale one cleared.
           await prisma.crawlTarget.update({
             where: { id: target.id },
-            data: { lastCrawledAt: new Date(), lastError: null, etag: result.etag },
+            data: { lastCrawledAt: new Date(), lastError: null },
           });
+          pendingEtags.push({ targetId: target.id, etag: result.etag });
 
           // Staleness/delisting (Decision 22): runs HERE, right after a confirmed-successful
           // fetch, independent of the batch/flush cycle below — it only needs this board's raw

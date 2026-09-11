@@ -1275,6 +1275,14 @@ support must be verified per-source when implemented.
 and honors If-None-Match with a real 304, so `fetchAshby` sends `priorEtag` and Ashby is
 the second live conditional-fetch source. Lever verified the other way in late Aug: its
 ETag is page-scoped, so it stays out; see src/sources/lever/fetch.ts.)
+(2026-09-09 crash-window fix: etags are now persisted only AFTER the flush containing that
+board's listings, not eagerly at fetch time. The eager write had a window — crash between
+a board's fetch and its chunk's flush stored the etag while its listings died unpersisted,
+and the next run's 304 skipped past them until the board's content changed. Invariant: an
+etag may only be stored once every listing it validates is durable; losing an etag costs
+one re-download, storing it early can silently lose listings. `lastCrawledAt`/`lastError`
+still write eagerly — crawl health doesn't gate ingestion. See pendingEtags in
+src/pipeline/orchestrator.ts.)
 
 Date: 2026-08-28
 
@@ -1483,3 +1491,46 @@ sending it). If interactive re-crawls ever matter, the fix is raising one consta
 upgrading this gate to a token bucket behind the same `wait()` interface — not a redesign.
 
 Date: 2026-09-09
+
+## Decision 28: Dup residue policy — keep the exact dedup key, group variants at render time
+
+Problem: 12.0% of active listings (218 rows in 137 clusters) share a (company, title) but
+differ in location, vs the <5% dup target. The open question from Decision 15: is this
+residue duplicates the key is missing (needing location normalization in the key), or
+legitimate variants the key is correctly preserving?
+
+Options considered:
+1. Fold location normalization into the dedup key — (company, title, country+state facet)
+   instead of raw string. Simulated dup rate: 0.8%. But measured cluster-by-cluster
+   (research/dedup-key-simulation.md), it merges only 12 clusters, and ~8 of them are FALSE
+   merges: SpaceX Hawthorne vs Palo Alto, Graphcore London vs Bristol vs Cambridge —
+   different offices sharing a facet because facets stop at country/state granularity.
+   Write-time suppression would silently destroy real city-level signal.
+2. Collapse to (company, title) in the key. 0% dup by construction, but write-time drops
+   Palantir NY vs CA as if they were one posting — worst version of option 1's flaw.
+3. Keep the storage key exactly as is; group by (company, title) at RENDER time — one
+   search-result card per role, N location chips, each variant row intact underneath.
+   Location filtering still works on the stored facet arrays; the dup metric is redefined
+   to what the user sees (cards), which is the thing the <5% target was a proxy for.
+
+Decision: Option 3. Dedup key unchanged; presentation-layer grouping; dup metric measured
+at card level.
+
+Reason: The simulation reframed the problem — the residue is 11.7 points of true
+geographic variants (131 clusters whose facets genuinely differ; Meridial's 6-country spam
+facets to 6 different countries, so NO location normalization ever collapses it) and only
+0.8 points of location aliasing (12 clusters, majority of which are false merges at facet
+granularity). The assumed fix — normalization in the key — addresses almost none of the
+problem and pays for it in silent data destruction, the exact failure mode Decision 9/15
+were designed to avoid. Render grouping solves 100% of what the user experiences (one card
+per role) while keeping every row queryable and reversible.
+
+Tradeoffs accepted: (a) The listings TABLE keeps a 12% row-level "dup rate" — the metric
+moves to the API/UI layer, so the README metric needs its definition stated to stay
+honest. (b) Two same-titled postings that are genuinely different jobs (different teams,
+same generic title) would group into one card; the card links out to each posting, so the
+information survives one click away. (c) Cross-source company aliasing (Greenhouse
+"Affirm, Inc." vs a prettified Lever slug) stays unsolved — measured at ONE cluster today,
+deferred until it isn't negligible.
+
+Date: 2026-09-11

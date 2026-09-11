@@ -401,3 +401,20 @@ Embedded Systems" (likely false delist) and ThreatLocker "Jr Cyber Hero Intern" 
 correct; product-support branding). All 7 previously-documented router-saved canaries (DRW,
 Epic ×3, Truveta, Zscaler) survived. At 1/194 error rate, no structural guard added —
 accepted; revisit if future sweeps show more.
+
+---
+
+## Post-dedup-v1 duplicate re-measurement (2026-09-09)
+
+The 42% figure above predates dedup v1 (Decision 15). Current state, measured on 1,817
+active listings: 0 clusters under the live `(company, title, location)` exact key; 34
+suppressed keys carried on canonicals. Residue under a case-folded `(company, title)` key:
+138 clusters / 219 extra rows = 12.1%, decomposing into (1) same-role-many-regions spam
+(Meridial 6x country-level), (2) location aliasing ("India" vs "Bangalore", "Remote
+(Canada)" vs "Toronto, ON, Saskatoon, SK"), and (3) genuine geographic variants (Palantir
+NY vs Palo Alto) that are arguably NOT duplicates for a location-filtering user. The
+dedup-key decision must draw the collapse-vs-variant boundary and settle location
+normalization; whether the <5% target is already met depends on how case (3) is counted.
+Cross-source note: Greenhouse company names come from payload `company_name` while
+Lever/Ashby come from prettified slugs, so same-company-two-ATSes would never collapse
+today.

@@ -53,6 +53,16 @@ test("hub cities resolve without an explicit state/country", () => {
   assert.deepEqual(resolveLocation("Bogotá, Colombia"), { countries: ["CO"], usStates: [] });
 });
 
+test("Washington D.C. resolves to DC, never Washington state", () => {
+  assert.deepEqual(resolveLocation("Washington, D.C."), { countries: ["US"], usStates: ["DC"] });
+  assert.deepEqual(resolveLocation("Washington, DC"), { countries: ["US"], usStates: ["DC"] });
+  assert.deepEqual(resolveLocation("Washington, D.C., United States"), {
+    countries: ["US"],
+    usStates: ["DC"],
+  });
+  assert.deepEqual(resolveLocation("Seattle, Washington"), { countries: ["US"], usStates: ["WA"] });
+});
+
 test("remote-with-country resolves; bare remote and regions stay UNRESOLVED, never guessed", () => {
   assert.deepEqual(resolveLocation("Remote - US"), { countries: ["US"], usStates: [] });
   assert.deepEqual(resolveLocation("Remote within the U.S."), { countries: ["US"], usStates: [] });

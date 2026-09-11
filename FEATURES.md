@@ -589,3 +589,18 @@
   stay unfabricated, real SQL counts.
 - Decisions to remember: any future facet rendered from live query results (not a fixed
   vocabulary) needs this same guard, or it inherits the same orphaned-filter failure mode.
+
+## Washington D.C. resolver fix + re-runnable facet backfill (2026-09-11)
+
+- Fixed `resolveLocation("Washington, D.C.")` → `{US, WA}`: comma-tokenizing shredded the
+  city name into "washington" (Washington STATE dictionary hit) before the city dictionary
+  could see the phrase. Now resolved pre-tokenization; "Seattle, Washington" unaffected.
+  Regression tests added (location.test.ts), 229/229 passing.
+- New `npx tsx src/backfill-locations.ts`: idempotent re-derive of stored
+  `loc_countries`/`loc_us_states` for ALL rows with the current resolver. First run
+  updated 241 rows (24 mis-faceted D.C. rows + ~217 stranded on facets computed before
+  earlier dictionary widening, e.g. "Mexico City" → nothing).
+- Decisions to remember: location facets are computed at persist time and FROZEN —
+  seenKeeps never re-evaluate — so every location.ts change strands persisted rows until
+  the backfill is re-run. Run it after any resolver/dictionary edit. Dup-residue policy
+  (key unchanged, render-time card grouping) is Decision 28; card grouping not yet built.

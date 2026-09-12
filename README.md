@@ -16,6 +16,15 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
   `ollama pull qwen2.5:7b-instruct` (extract). Override with `OLLAMA_CLASSIFY_MODEL` /
   `OLLAMA_EXTRACT_MODEL` per pass, or `OLLAMA_MODEL` to force one model everywhere
   (e.g. for A/B reclassify runs).
+- For recommendations (Decisions 29–32): the embedding model —
+  `ollama pull nomic-embed-text` (default; `ollama pull mxbai-embed-large` too if running
+  the eval bake-off; override with `OLLAMA_EMBED_MODEL`) — and the **pgvector** Postgres
+  extension. Homebrew's `pgvector` formula only builds against postgresql@17/18, so on
+  postgresql@14 build from source (no sudo needed on Apple Silicon):
+  `git clone --branch v0.8.6 https://github.com/pgvector/pgvector && cd pgvector &&
+  make PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config && make install
+  PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config` — the migration runs
+  `CREATE EXTENSION` itself.
 - Node + npm
 
 ## Commands
@@ -36,7 +45,12 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run reclassify -- --dry-run` | Preview re-running the current classify prompt against all active listings (no writes). Run after any prompt change. Requires `ollama serve`. |
 | `npm run reclassify` | Apply it: still-keeps get `opportunity_type`/`cs_field` updated and their location facets (`loc_countries`/`loc_us_states`) recomputed; new-rejects are delisted (kept in DB, `is_listed=false`) and remembered in `seen_listings` |
 | `npm run reclassify -- --extract --limit 20` | Also re-run the extraction pass (grad dates / citizenship); `--limit` caps rows for a smoke run |
-| `npm run serve` | Start the hub server on `http://127.0.0.1:3000` (or `PORT=…`): the search page (`/`), the JSON search API (`/api/search`), and apply-status writes (`PUT /api/applications/:id`). Requires PostgreSQL; Ollama not needed. |
+| `npm run serve` | Start the hub server on `http://127.0.0.1:3000` (or `PORT=…`): the search page (`/`), the JSON search API (`/api/search`), apply-status writes (`PUT /api/applications/:id`), the profile setup page (`/profile`), the For You view (`/foryou`), and the recommendation API (`POST /api/profile/resume`, `GET/PUT /api/profile`, `PUT /api/profile/questionnaire`, `GET /api/recommendations`). Requires PostgreSQL; Ollama only needed for profile extraction/publish — browsing and ranking are pure math and work with Ollama down. |
+| `npm run enrich` | Recommendation enrichment pass over stale active listings: 7B role-signature distillation + embedding under the current config. Fingerprint-driven, resumable, safe to interrupt/re-run; also runs automatically (non-fatally) at the end of `npm run refresh`. Requires `ollama serve`. |
+| `npm run enrich -- --limit 10` | Enrichment capped to 10 rows per sub-pass (smoke test) |
+| `npm run eval:recommend -- sample` | Eval gate step 1 (Decision 31): draw the stratified ~200-listing sample into `research/embedding-eval/` |
+| `npm run eval:recommend -- pool` | Eval gate step 2: distill + embed the sample under 5 approaches (2 embed models × signature/raw + skill-overlap), write rankings + the pooled labeling sheet `research/embedding-eval/labels.csv`. Requires `ollama serve`; ~30 min. |
+| `npm run eval:recommend -- score` | Eval gate step 3, after YOU label `labels.csv`: pre-registered P@10 (strict primary), held-out final check, freshness-blend sanity, clustering + soft-preference diagnostics. Results feed `research/embedding-model-bakeoff.md`. |
 | `npm test` | Run the test suite (`node:test`; no live DB or Ollama needed — all DB-touching stages are unit-tested against fakes) |
 | `npm run build` | Type-check + compile to `dist/` |
 | `npx tsx src/backfill-dedup.ts` | One-time cleanup: collapses pre-existing duplicate rows already in `listings` (see DECISIONS.md Decision 15) |

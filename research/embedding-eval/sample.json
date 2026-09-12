@@ -1,0 +1,2199 @@
+{
+  "target": 200,
+  "cells": [
+    [
+      "data|co_op",
+      1
+    ],
+    [
+      "data|fellowship",
+      1
+    ],
+    [
+      "data|internship",
+      7
+    ],
+    [
+      "data|new_grad",
+      11
+    ],
+    [
+      "data|part_time",
+      1
+    ],
+    [
+      "devops_infra|internship",
+      3
+    ],
+    [
+      "devops_infra|new_grad",
+      10
+    ],
+    [
+      "devops_infra|part_time",
+      1
+    ],
+    [
+      "hardware_embedded|co_op",
+      1
+    ],
+    [
+      "hardware_embedded|internship",
+      7
+    ],
+    [
+      "hardware_embedded|new_grad",
+      5
+    ],
+    [
+      "hardware_embedded|part_time",
+      1
+    ],
+    [
+      "it|co_op",
+      1
+    ],
+    [
+      "it|internship",
+      1
+    ],
+    [
+      "it|new_grad",
+      1
+    ],
+    [
+      "ml_ai|co_op",
+      1
+    ],
+    [
+      "ml_ai|fellowship",
+      1
+    ],
+    [
+      "ml_ai|internship",
+      9
+    ],
+    [
+      "ml_ai|new_grad",
+      12
+    ],
+    [
+      "ml_ai|part_time",
+      1
+    ],
+    [
+      "ml_ai|research",
+      2
+    ],
+    [
+      "null|co_op",
+      1
+    ],
+    [
+      "null|internship",
+      3
+    ],
+    [
+      "null|new_grad",
+      1
+    ],
+    [
+      "null|part_time",
+      3
+    ],
+    [
+      "null|research",
+      1
+    ],
+    [
+      "other|co_op",
+      1
+    ],
+    [
+      "other|fellowship",
+      1
+    ],
+    [
+      "other|internship",
+      5
+    ],
+    [
+      "other|new_grad",
+      3
+    ],
+    [
+      "other|part_time",
+      1
+    ],
+    [
+      "other|research",
+      1
+    ],
+    [
+      "product|co_op",
+      1
+    ],
+    [
+      "product|internship",
+      1
+    ],
+    [
+      "product|new_grad",
+      1
+    ],
+    [
+      "quant|fellowship",
+      1
+    ],
+    [
+      "quant|internship",
+      9
+    ],
+    [
+      "quant|new_grad",
+      7
+    ],
+    [
+      "quant|research",
+      1
+    ],
+    [
+      "security|fellowship",
+      1
+    ],
+    [
+      "security|internship",
+      2
+    ],
+    [
+      "security|new_grad",
+      3
+    ],
+    [
+      "security|part_time",
+      1
+    ],
+    [
+      "security|research",
+      1
+    ],
+    [
+      "swe|co_op",
+      1
+    ],
+    [
+      "swe|fellowship",
+      1
+    ],
+    [
+      "swe|internship",
+      24
+    ],
+    [
+      "swe|new_grad",
+      46
+    ]
+  ],
+  "sample": [
+    {
+      "id": 6,
+      "company": "2K",
+      "title": "Junior Engineer",
+      "url": "https://job-boards.greenhouse.io/2k/jobs/7740629003",
+      "publishedAt": "2026-05-19T18:51:44.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.891Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 8,
+      "company": "Accenture Federal Services",
+      "title": "Jr. DevOps Engineer",
+      "url": "https://boards.greenhouse.io/accenturefederalservices/jobs/4689020006?gh_jid=4689020006",
+      "publishedAt": "2026-07-13T22:19:23.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.899Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 10,
+      "company": "Accenture Federal Services",
+      "title": "Jr. Software Engineer ",
+      "url": "https://boards.greenhouse.io/accenturefederalservices/jobs/4689025006?gh_jid=4689025006",
+      "publishedAt": "2026-07-13T22:43:31.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.907Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 11,
+      "company": "Accenture Federal Services",
+      "title": "Jr. Systems Engineer",
+      "url": "https://boards.greenhouse.io/accenturefederalservices/jobs/4689034006?gh_jid=4689034006",
+      "publishedAt": "2026-07-13T23:07:52.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.911Z",
+      "csField": "it",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 15,
+      "company": "Affirm",
+      "title": "Software Engineer I, Backend (Collections)",
+      "url": "https://job-boards.greenhouse.io/affirm/jobs/7807506003",
+      "publishedAt": "2026-07-22T12:51:32.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.926Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 16,
+      "company": "Affirm",
+      "title": "Software Engineer I, Backend (Collections)",
+      "url": "https://job-boards.greenhouse.io/affirm/jobs/7807508003",
+      "publishedAt": "2026-07-22T12:51:35.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.929Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 17,
+      "company": "Affirm",
+      "title": "Software Engineer I, Fullstack (Servicing International)",
+      "url": "https://job-boards.greenhouse.io/affirm/jobs/7809761003",
+      "publishedAt": "2026-08-05T10:20:40.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.932Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 18,
+      "company": "Affirm",
+      "title": "Software Engineer I, Fullstack (Servicing International)",
+      "url": "https://job-boards.greenhouse.io/affirm/jobs/7809763003",
+      "publishedAt": "2026-08-05T10:20:42.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.935Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 19,
+      "company": "Meridial",
+      "title": "AI Generalist (No Experience Required)",
+      "url": "https://job-boards.eu.greenhouse.io/agency/jobs/4758627101",
+      "publishedAt": "2026-01-16T22:43:29.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.938Z",
+      "csField": "ml_ai",
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 29,
+      "company": "Meridial",
+      "title": "Social Media Annotation - Freelance AI Trainer Project",
+      "url": "https://job-boards.eu.greenhouse.io/agency/jobs/4816105101",
+      "publishedAt": "2026-03-19T03:01:02.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.960Z",
+      "csField": null,
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 30,
+      "company": "Meridial",
+      "title": "Social Media Annotation - Freelance AI Trainer Project",
+      "url": "https://job-boards.eu.greenhouse.io/agency/jobs/4816107101",
+      "publishedAt": "2026-03-19T03:01:02.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.961Z",
+      "csField": null,
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 31,
+      "company": "Meridial",
+      "title": "Social Media Annotation - Freelance AI Trainer Project",
+      "url": "https://job-boards.eu.greenhouse.io/agency/jobs/4816106101",
+      "publishedAt": "2026-03-19T03:01:03.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.963Z",
+      "csField": null,
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 40,
+      "company": "AIRCO",
+      "title": "Engineer I",
+      "url": "https://job-boards.greenhouse.io/aircompany/jobs/4704114005",
+      "publishedAt": "2026-06-08T23:39:01.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.986Z",
+      "csField": "other",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 41,
+      "company": "10a Labs",
+      "title": "Engineering Fellowship",
+      "url": "https://job-boards.greenhouse.io/10alabs/jobs/4203095009",
+      "publishedAt": "2026-03-27T18:16:06.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.989Z",
+      "csField": "swe",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 42,
+      "company": "10a Labs",
+      "title": "Red Teaming Fellowship",
+      "url": "https://job-boards.greenhouse.io/10alabs/jobs/4273684009",
+      "publishedAt": "2026-06-04T16:42:53.000Z",
+      "firstSeenAt": "2026-08-10T00:51:50.992Z",
+      "csField": "security",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 45,
+      "company": "AB InBev  | Growth Group",
+      "title": "Junior Java Developer",
+      "url": "https://job-boards.greenhouse.io/abinbev/jobs/8624078002",
+      "publishedAt": "2026-07-08T16:26:00.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.086Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 46,
+      "company": "Ably (UK)",
+      "title": "Software Engineer, Pub/Sub",
+      "url": "https://job-boards.eu.greenhouse.io/ably30/jobs/4880791101",
+      "publishedAt": "2026-06-02T14:25:13.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.089Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 48,
+      "company": "Advanced Technology Services",
+      "title": "Practicante de ingeniería ",
+      "url": "https://job-boards.greenhouse.io/advancedtechnologyservices/jobs/4702504006",
+      "publishedAt": "2026-08-06T18:18:36.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.094Z",
+      "csField": null,
+      "opportunityType": "internship"
+    },
+    {
+      "id": 51,
+      "company": "AIFT",
+      "title": "AI Data Curation Intern, Vulcan",
+      "url": "https://job-boards.greenhouse.io/aift/jobs/5816148004",
+      "publishedAt": "2026-03-02T10:02:40.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.103Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 52,
+      "company": "AIFT",
+      "title": "Web3 Internship- Security Consultant Intern, OneInfinity",
+      "url": "https://job-boards.greenhouse.io/aift/jobs/5984306004",
+      "publishedAt": "2026-04-29T09:13:55.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.106Z",
+      "csField": "security",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 53,
+      "company": "AIFT",
+      "title": "Web3 Internship- Software Engineering Intern, OneSavieLab",
+      "url": "https://job-boards.greenhouse.io/aift/jobs/5034882004",
+      "publishedAt": "2023-12-07T01:40:30.000Z",
+      "firstSeenAt": "2026-08-19T04:09:02.110Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 55,
+      "company": "Aegis Ventures",
+      "title": "Venture Fellow",
+      "url": "https://job-boards.greenhouse.io/aegisventures/jobs/4704367006",
+      "publishedAt": "2026-08-21T22:18:46.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.938Z",
+      "csField": "other",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 56,
+      "company": "7shifts",
+      "title": "AI Automation Engineer",
+      "url": "https://job-boards.greenhouse.io/7shifts/jobs/6148185004",
+      "publishedAt": "2026-08-20T13:42:16.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.939Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 57,
+      "company": "7shifts",
+      "title": "AI Automation Engineer",
+      "url": "https://job-boards.greenhouse.io/7shifts/jobs/6148180004",
+      "publishedAt": "2026-08-20T13:42:15.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.941Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 59,
+      "company": "Agoda",
+      "title": "Application Security Analyst, Security Team (Bangkok-based, 10-month Contract) ",
+      "url": "https://job-boards.greenhouse.io/agoda/jobs/8156173",
+      "publishedAt": "2026-08-25T11:21:00.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.947Z",
+      "csField": "security",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 60,
+      "company": "Alarm.com",
+      "title": "Device Engineer I",
+      "url": "https://job-boards.greenhouse.io/alarmcom/jobs/8485073002",
+      "publishedAt": "2026-04-23T17:13:50.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.949Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 62,
+      "company": "Alarm.com",
+      "title": "Quality Engineer I",
+      "url": "https://job-boards.greenhouse.io/alarmcom/jobs/8394361002",
+      "publishedAt": "2026-02-11T15:58:59.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.952Z",
+      "csField": "other",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 63,
+      "company": "Alarm.com",
+      "title": "System Test Engineer",
+      "url": "https://job-boards.greenhouse.io/alarmcom/jobs/8389794002",
+      "publishedAt": "2026-01-23T20:51:40.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.954Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 64,
+      "company": "Algolia",
+      "title": "Software Engineer, Growth",
+      "url": "https://job-boards.greenhouse.io/algolia/jobs/6112860004",
+      "publishedAt": "2026-07-13T15:33:10.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.956Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 67,
+      "company": "Alumni Ventures",
+      "title": "AI Associate",
+      "url": "https://job-boards.greenhouse.io/alumniventures/jobs/4299342009",
+      "publishedAt": "2026-06-26T13:15:15.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.963Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 68,
+      "company": "ALX Africa",
+      "title": "LLMOps Engineer",
+      "url": "https://job-boards.greenhouse.io/alxafrica/jobs/8083207",
+      "publishedAt": "2026-08-03T18:56:46.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.965Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 71,
+      "company": "Amtech Software",
+      "title": "Associate Site Reliability Engineer",
+      "url": "https://job-boards.greenhouse.io/amtechsoftware/jobs/4361524009",
+      "publishedAt": "2026-08-10T14:37:39.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.972Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 72,
+      "company": "Amtech Software",
+      "title": "Associate Software Engineer",
+      "url": "https://job-boards.greenhouse.io/amtechsoftware/jobs/4339915009",
+      "publishedAt": "2026-08-11T10:48:24.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.973Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 74,
+      "company": "Anaplan",
+      "title": "Data Scientist",
+      "url": "https://job-boards.greenhouse.io/anaplan/jobs/8654662002",
+      "publishedAt": "2026-08-07T15:04:35.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.977Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 75,
+      "company": "Anaplan",
+      "title": "ML Ops Engineer",
+      "url": "https://job-boards.greenhouse.io/anaplan/jobs/8650324002",
+      "publishedAt": "2026-08-13T09:42:30.000Z",
+      "firstSeenAt": "2026-08-25T12:50:47.979Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 76,
+      "company": "Alarm.com",
+      "title": "Embedded Software Engineer I ",
+      "url": "https://job-boards.greenhouse.io/alarmcom/jobs/8622530002",
+      "publishedAt": "2026-08-25T14:05:03.000Z",
+      "firstSeenAt": "2026-08-25T18:24:02.438Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 78,
+      "company": "Anduril Industries",
+      "title": "2027 Early Career Electrical Engineer",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5136925007?gh_jid=5136925007",
+      "publishedAt": "2026-05-13T18:47:36.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.923Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 79,
+      "company": "Anduril Industries",
+      "title": "2027 Early Career Manufacturing Engineer",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5136970007?gh_jid=5136970007",
+      "publishedAt": "2026-05-13T18:47:56.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.926Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 80,
+      "company": "Anduril Industries",
+      "title": "2027 Early Career Software Engineer ",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5162263007?gh_jid=5162263007",
+      "publishedAt": "2026-06-11T16:31:23.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.928Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 81,
+      "company": "Anduril Industries",
+      "title": "2027 Electrical Engineer Intern",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5148101007?gh_jid=5148101007",
+      "publishedAt": "2026-06-11T17:00:56.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.931Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 82,
+      "company": "Anduril Industries",
+      "title": "2027 Software Engineer Intern",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5148079007?gh_jid=5148079007",
+      "publishedAt": "2026-06-10T23:33:06.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.933Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 85,
+      "company": "Anduril Industries",
+      "title": "Mission Software Engineer - Undersea Reconnaissance & Strike",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5221253007?gh_jid=5221253007",
+      "publishedAt": "2026-08-25T15:01:09.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.940Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 86,
+      "company": "Anduril Industries",
+      "title": "Mission Software Engineer, Vehicle Software, Frontend",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/4672911007?gh_jid=4672911007",
+      "publishedAt": "2026-04-15T16:17:41.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.942Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 93,
+      "company": "Anduril Industries",
+      "title": "Software Engineer, AI Platform",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5210930007?gh_jid=5210930007",
+      "publishedAt": "2026-08-12T21:51:37.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.957Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 96,
+      "company": "Anduril Industries",
+      "title": "Software Engineer - Modeling & Simulation",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5062357007?gh_jid=5062357007",
+      "publishedAt": "2026-04-16T21:09:24.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.964Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 97,
+      "company": "Anduril Industries",
+      "title": "Software Engineer, Space Systems Test",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/4992181007?gh_jid=4992181007",
+      "publishedAt": "2025-12-02T02:44:41.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.967Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 98,
+      "company": "Anduril Industries",
+      "title": "Software Engineer, Tracking",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5215629007?gh_jid=5215629007",
+      "publishedAt": "2026-08-18T22:55:45.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.970Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 99,
+      "company": "Anduril Industries",
+      "title": "Software Engineer - Undersea Dominance",
+      "url": "https://boards.greenhouse.io/andurilindustries/jobs/5171114007?gh_jid=5171114007",
+      "publishedAt": "2026-06-23T19:27:34.000Z",
+      "firstSeenAt": "2026-08-25T18:25:58.972Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 101,
+      "company": "Anthropic",
+      "title": "Anthropic Fellows Program, AI Safety & Security",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5183044008",
+      "publishedAt": "2026-04-10T00:28:23.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.450Z",
+      "csField": "ml_ai",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 103,
+      "company": "Anthropic",
+      "title": "[Expression of Interest] Research Engineer / Scientist, Alignment - London",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/4610158008",
+      "publishedAt": "2025-03-31T18:08:49.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.457Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 104,
+      "company": "Anthropic",
+      "title": "Full-Stack Software Engineer, Reinforcement Learning",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5186067008",
+      "publishedAt": "2026-04-14T10:00:34.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.459Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 105,
+      "company": "Anthropic",
+      "title": "Machine Learning Infrastructure Engineer, Safeguards Research",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5364804008",
+      "publishedAt": "2026-07-21T21:13:51.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.462Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 106,
+      "company": "Anthropic",
+      "title": "Research Engineer, Code RL (Reinforcement Learning)",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5254364008",
+      "publishedAt": "2026-06-11T21:47:04.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.464Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 107,
+      "company": "Anthropic",
+      "title": "Research Engineer, Computer Use",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5285246008",
+      "publishedAt": "2026-06-30T17:39:33.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.466Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 108,
+      "company": "Anthropic",
+      "title": "Research Engineer, Cybersecurity RL (Reinforcement Learning)",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5025624008",
+      "publishedAt": "2025-12-09T22:20:34.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.468Z",
+      "csField": "security",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 109,
+      "company": "Anthropic",
+      "title": "Research Engineer, Domain Scaling",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5271380008",
+      "publishedAt": "2026-06-19T18:36:38.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.470Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 114,
+      "company": "Anthropic",
+      "title": "Research Engineer, Model Evaluations",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5198255008",
+      "publishedAt": "2026-04-28T07:53:55.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.478Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 115,
+      "company": "Anthropic",
+      "title": "Research Engineer, Performance RL (Reinforcement Learning) ",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5160330008",
+      "publishedAt": "2026-03-23T16:27:59.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.480Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 116,
+      "company": "Anthropic",
+      "title": "Research Engineer, Pretraining",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5119713008",
+      "publishedAt": "2026-02-17T00:22:51.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.482Z",
+      "csField": "ml_ai",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 124,
+      "company": "Anthropic",
+      "title": "Software Engineer, Research Data Platform",
+      "url": "https://job-boards.greenhouse.io/anthropic/jobs/5191226008",
+      "publishedAt": "2026-04-16T21:35:47.000Z",
+      "firstSeenAt": "2026-08-25T18:27:21.500Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 126,
+      "company": "AlayaCare",
+      "title": "Junior Fullstack Developer (Python) ",
+      "url": "https://alayacare.com/open-positions?gh_jid=8653380002",
+      "publishedAt": "2026-07-28T20:18:49.000Z",
+      "firstSeenAt": "2026-08-25T18:27:36.182Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 128,
+      "company": "Albedo",
+      "title": "Electrical Engineer Internship (Fall Term 2026)",
+      "url": "https://job-boards.greenhouse.io/albedo/jobs/4379497009",
+      "publishedAt": "2026-08-21T22:14:33.000Z",
+      "firstSeenAt": "2026-08-25T18:27:36.185Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 129,
+      "company": "AppLovin",
+      "title": "Measurement Data Scientist",
+      "url": "https://boards.greenhouse.io/applovin/jobs/4705264006?gh_jid=4705264006",
+      "publishedAt": "2026-08-14T00:34:46.000Z",
+      "firstSeenAt": "2026-08-25T18:27:57.058Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 130,
+      "company": "AppLovin",
+      "title": "ML Infrastructure Engineer ",
+      "url": "https://boards.greenhouse.io/applovin/jobs/4655740006?gh_jid=4655740006",
+      "publishedAt": "2026-02-18T22:12:33.000Z",
+      "firstSeenAt": "2026-08-25T18:27:57.064Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 131,
+      "company": "Apptronik",
+      "title": "Robotics Software Intern – Real-Time Controls",
+      "url": "https://boards.greenhouse.io/apptronik/jobs/5985132004?gh_jid=5985132004",
+      "publishedAt": "2026-04-29T23:16:13.000Z",
+      "firstSeenAt": "2026-08-25T18:40:27.514Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 134,
+      "company": "Ascend",
+      "title": "Solutions Engineer ",
+      "url": "https://job-boards.greenhouse.io/ascend21/jobs/5215133008",
+      "publishedAt": "2026-05-08T23:17:15.000Z",
+      "firstSeenAt": "2026-08-25T18:40:41.202Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 139,
+      "company": "Astranis",
+      "title": "Electrical Reliability Associate (Fall 2026)",
+      "url": "https://job-boards.greenhouse.io/astranis/jobs/4681416006",
+      "publishedAt": "2026-06-22T20:49:22.000Z",
+      "firstSeenAt": "2026-08-25T18:41:12.012Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 140,
+      "company": "Astranis",
+      "title": "Electrical Reliability Intern (Fall 2026)",
+      "url": "https://job-boards.greenhouse.io/astranis/jobs/4681472006",
+      "publishedAt": "2026-06-22T20:49:10.000Z",
+      "firstSeenAt": "2026-08-25T18:41:12.014Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 146,
+      "company": "Astranis",
+      "title": "Radiation Effects Associate Engineer (Fall 2026)",
+      "url": "https://job-boards.greenhouse.io/astranis/jobs/4694883006",
+      "publishedAt": "2026-07-06T23:12:06.000Z",
+      "firstSeenAt": "2026-08-25T18:41:12.022Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 147,
+      "company": "Astranis",
+      "title": "Radiation Effects Engineer Intern (Fall 2026)",
+      "url": "https://job-boards.greenhouse.io/astranis/jobs/4694853006",
+      "publishedAt": "2026-07-06T22:09:00.000Z",
+      "firstSeenAt": "2026-08-25T18:41:12.024Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 153,
+      "company": "Bitmovin",
+      "title": "Technical Graduate (Engineering/CX/Solutions)",
+      "url": "https://bitmovin.com/careers/8660599002?gh_jid=8660599002",
+      "publishedAt": "2026-07-31T13:07:35.000Z",
+      "firstSeenAt": "2026-08-25T18:43:06.285Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 156,
+      "company": "Bitpanda",
+      "title": "Intern, QA Engineering",
+      "url": "https://job-boards.eu.greenhouse.io/bitpanda/jobs/4940716101",
+      "publishedAt": "2026-08-03T15:16:31.000Z",
+      "firstSeenAt": "2026-08-25T18:43:06.294Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 157,
+      "company": "Block",
+      "title": "Applied Research Intern, Proactive Intelligence & Customer World Models (PhD / Graduate Co-op)",
+      "url": "http://block.xyz/careers/jobs/5108009008?gh_jid=5108009008",
+      "publishedAt": "2026-06-09T19:48:59.000Z",
+      "firstSeenAt": "2026-08-25T18:43:36.605Z",
+      "csField": "ml_ai",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 159,
+      "company": "Blockchain.com",
+      "title": "Back-End Engineer, Trading",
+      "url": "https://job-boards.greenhouse.io/blockchain/jobs/8066832",
+      "publishedAt": "2026-07-15T12:56:57.000Z",
+      "firstSeenAt": "2026-08-25T18:43:36.613Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 160,
+      "company": "Blockchain.com",
+      "title": "Site Reliability Engineer - Core",
+      "url": "https://job-boards.greenhouse.io/blockchain/jobs/5946660",
+      "publishedAt": "2024-05-03T19:23:44.000Z",
+      "firstSeenAt": "2026-08-25T18:43:36.615Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 161,
+      "company": "Blockchain.com",
+      "title": "Site Reliability Engineer - Core",
+      "url": "https://job-boards.greenhouse.io/blockchain/jobs/6597903",
+      "publishedAt": "2025-02-03T15:11:15.000Z",
+      "firstSeenAt": "2026-08-25T18:43:36.617Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 162,
+      "company": "BlueCrest Capital Management",
+      "title": "DevOps Engineer (FTC)",
+      "url": "https://job-boards.greenhouse.io/bluecrestcapitalmanagement/jobs/7972620003",
+      "publishedAt": "2026-08-25T11:12:50.000Z",
+      "firstSeenAt": "2026-08-25T18:43:41.338Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 166,
+      "company": "Canonical",
+      "title": "Distributed Systems Engineer",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/4581200",
+      "publishedAt": "2023-07-19T20:46:09.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.915Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 167,
+      "company": "Canonical",
+      "title": "Distributed Systems Testing Software Engineer, Python / Go",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2969042",
+      "publishedAt": "2021-03-18T16:52:37.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.919Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 171,
+      "company": "Canonical",
+      "title": "Go (Golang) Software Engineer, Developer Tooling and Containers",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/4857458",
+      "publishedAt": "2023-08-21T16:57:05.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.929Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 172,
+      "company": "Canonical",
+      "title": "Golang System Software Engineer - Containers / Virtualisation",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/4960407",
+      "publishedAt": "2023-03-29T19:52:38.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.931Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 173,
+      "company": "Canonical",
+      "title": "Graduate Software Engineer, Open Source and Linux, Canonical Ubuntu",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/8142329",
+      "publishedAt": "2026-08-24T09:14:46.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.933Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 175,
+      "company": "Canonical",
+      "title": "Junior Linux Kernel Engineer - Ubuntu",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/5370815",
+      "publishedAt": "2024-02-26T03:35:49.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.937Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 176,
+      "company": "Canonical",
+      "title": "Junior Ubuntu Software Engineer",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/6707669",
+      "publishedAt": "2025-11-07T16:35:52.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.938Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 177,
+      "company": "Canonical",
+      "title": "MAAS Systems Engineer - Python (Toronto area)",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/6177794",
+      "publishedAt": "2024-08-14T10:13:39.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.941Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 179,
+      "company": "Canonical",
+      "title": "Python and Kubernetes Software Engineer - Data, Workflows, AI/ML & Analytics",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/5703396",
+      "publishedAt": "2024-04-11T15:09:05.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.945Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 180,
+      "company": "Canonical",
+      "title": "Python Engineer - Data Center Hardware Integration (Taipei)",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/4536726",
+      "publishedAt": "2022-09-06T09:11:29.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.948Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 181,
+      "company": "Canonical",
+      "title": "Python Software Engineer - Ubuntu Hardware Certification Team",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/3658005",
+      "publishedAt": "2022-03-28T15:18:09.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.950Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 182,
+      "company": "Canonical",
+      "title": "Software Developer (Backend SaaS)",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/4647417",
+      "publishedAt": "2022-10-20T18:30:54.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.952Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 183,
+      "company": "Canonical",
+      "title": "Software Developer in Observability",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2166631",
+      "publishedAt": "2020-04-28T12:42:05.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.954Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 184,
+      "company": "Canonical",
+      "title": "Software Engineer - App Stores",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/3159992",
+      "publishedAt": "2021-09-07T20:08:13.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.956Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 185,
+      "company": "Canonical",
+      "title": "Software Engineer - Data Infrastructure - Kafka",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/5218601",
+      "publishedAt": "2023-07-24T13:53:22.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.958Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 186,
+      "company": "Canonical",
+      "title": "Software Engineer - Data Infrastructure - OpenSearch/ElasticSearch",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/5002072",
+      "publishedAt": "2023-04-20T12:20:19.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.960Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 187,
+      "company": "Canonical",
+      "title": "Software Engineer - OpenStack",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2579550",
+      "publishedAt": "2021-01-21T19:01:34.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.962Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 188,
+      "company": "Canonical",
+      "title": "Software Engineer - Python - Cloud - graduate level",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/3257589",
+      "publishedAt": "2021-06-28T13:53:27.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.964Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 189,
+      "company": "Canonical",
+      "title": "Software Engineer - Python/Golang - Kubernetes",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2928962",
+      "publishedAt": "2021-02-19T21:30:40.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.966Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 190,
+      "company": "Canonical",
+      "title": "Software Engineer (Python/Linux/Packaging)",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2413329",
+      "publishedAt": "2020-11-16T17:44:29.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.968Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 191,
+      "company": "Canonical",
+      "title": "System Software Engineer - GCC/LLVM compiler, tooling, and ecosystem",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/7612825",
+      "publishedAt": "2026-02-12T23:17:02.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.970Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 192,
+      "company": "Canonical",
+      "title": "Ubuntu Core Software Engineer",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/3182672",
+      "publishedAt": "2021-06-10T13:05:45.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.973Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 193,
+      "company": "Canonical",
+      "title": "Ubuntu Security Engineer",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2925180",
+      "publishedAt": "2021-03-02T18:26:17.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.975Z",
+      "csField": "security",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 194,
+      "company": "Canonical",
+      "title": "Web Developer",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/2804965",
+      "publishedAt": "2021-03-05T17:03:58.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.977Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 195,
+      "company": "Canonical",
+      "title": "Web Frontend Engineer - JS, CSS, React, Flutter",
+      "url": "https://job-boards.greenhouse.io/canonical/jobs/5150422",
+      "publishedAt": "2023-10-11T17:32:38.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.980Z",
+      "csField": "swe",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 198,
+      "company": "Carbon Direct",
+      "title": "Scientific Project Reviewers",
+      "url": "https://job-boards.greenhouse.io/carbondirect/jobs/4192394007",
+      "publishedAt": "2024-01-08T19:22:31.000Z",
+      "firstSeenAt": "2026-08-25T18:47:24.989Z",
+      "csField": "other",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 200,
+      "company": "Cast AI",
+      "title": "Developer Relations & Experience Engineer | Kimchi",
+      "url": "https://cast.ai/careers/apply/?gh_jid=4238687009",
+      "publishedAt": "2026-05-06T11:01:48.000Z",
+      "firstSeenAt": "2026-08-25T18:47:42.976Z",
+      "csField": "other",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 212,
+      "company": "Clara",
+      "title": "Data Analyst (Analista de Datos) - Hybrid",
+      "url": "https://job-boards.greenhouse.io/clara/jobs/5205085007",
+      "publishedAt": "2026-08-05T22:51:34.000Z",
+      "firstSeenAt": "2026-08-25T18:48:48.806Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 213,
+      "company": "Clarity AI",
+      "title": "Junior Associate - Data Strategy",
+      "url": "https://job-boards.eu.greenhouse.io/clarityai/jobs/4924785101",
+      "publishedAt": "2026-07-10T13:27:19.000Z",
+      "firstSeenAt": "2026-08-25T18:48:48.808Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 215,
+      "company": "CLEAR - Corporate",
+      "title": "Software Engineer, Infrastructure ",
+      "url": "https://job-boards.greenhouse.io/clear/jobs/7901600",
+      "publishedAt": "2026-05-06T20:05:17.000Z",
+      "firstSeenAt": "2026-08-25T18:49:50.681Z",
+      "csField": "devops_infra",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 220,
+      "company": "Cloudflare",
+      "title": "Software Engineer Intern (Fall 2026)",
+      "url": "https://boards.greenhouse.io/cloudflare/jobs/8118845?gh_jid=8118845",
+      "publishedAt": "2026-08-11T02:49:28.000Z",
+      "firstSeenAt": "2026-08-25T18:49:50.696Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 221,
+      "company": "Cloudflare",
+      "title": "Software Engineer Intern (Fall 2026) - Austin, TX",
+      "url": "https://boards.greenhouse.io/cloudflare/jobs/8052785?gh_jid=8052785",
+      "publishedAt": "2026-07-15T02:36:40.000Z",
+      "firstSeenAt": "2026-08-25T18:49:50.698Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 224,
+      "company": "CloudSEK",
+      "title": "DevOps Intern",
+      "url": "https://job-boards.greenhouse.io/cloudsek/jobs/6149788004",
+      "publishedAt": "2026-08-24T09:47:10.000Z",
+      "firstSeenAt": "2026-08-25T18:49:50.705Z",
+      "csField": "devops_infra",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 226,
+      "company": "Coalition, Inc.",
+      "title": "Data Engineer, Security",
+      "url": "https://www.coalitioninc.com/job-posting?gh_jid=4721366005",
+      "publishedAt": "2026-08-05T13:36:46.000Z",
+      "firstSeenAt": "2026-08-25T18:50:01.334Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 227,
+      "company": "Coalition, Inc.",
+      "title": "Data Engineer, Security",
+      "url": "https://www.coalitioninc.com/job-posting?gh_jid=4721367005",
+      "publishedAt": "2026-08-05T13:36:47.000Z",
+      "firstSeenAt": "2026-08-25T18:50:01.337Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 228,
+      "company": "Cobblestone Energy`",
+      "title": "Commercial Graduate Scheme, Junior Data Scientist - Dubai, UAE",
+      "url": "https://job-boards.greenhouse.io/cobblestoneenergy/jobs/7772325003",
+      "publishedAt": "2026-06-12T23:03:20.000Z",
+      "firstSeenAt": "2026-08-25T18:50:01.341Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 229,
+      "company": "Cobblestone Energy",
+      "title": "Commercial Graduate Scheme, Junior Data Scientist - Dubai, UAE",
+      "url": "https://job-boards.greenhouse.io/cobblestoneenergy4/jobs/7772319003",
+      "publishedAt": "2026-06-12T22:46:29.000Z",
+      "firstSeenAt": "2026-08-25T18:50:01.343Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 230,
+      "company": "Cobblestone Energy",
+      "title": "Commercial Graduate Scheme, Junior Market Analyst- Dubai, UAE",
+      "url": "https://job-boards.greenhouse.io/cobblestoneenergy4/jobs/7772321003",
+      "publishedAt": "2026-06-12T22:48:30.000Z",
+      "firstSeenAt": "2026-08-25T18:50:01.345Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 236,
+      "company": "Coupang",
+      "title": "[쿠팡로지스틱스서비스] 물류 수요예측 및 운영기획 담당자",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8127147",
+      "publishedAt": "2026-08-18T02:17:48.000Z",
+      "firstSeenAt": "2026-08-25T18:55:43.977Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 237,
+      "company": "Coupang",
+      "title": "CIC (쿠팡 인텔리전트 클라우드) 프로덕트 직군 인재풀 등록",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8017927",
+      "publishedAt": "2026-06-29T08:59:20.000Z",
+      "firstSeenAt": "2026-08-25T18:55:43.985Z",
+      "csField": "product",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 239,
+      "company": "Coupang",
+      "title": "[쿠팡] CS 기획 및 데이터 분석 담당자",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8129711",
+      "publishedAt": "2026-08-19T04:16:07.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.001Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 240,
+      "company": "Coupang",
+      "title": "[쿠팡] CS Specialist (데이터 분석 & AI)",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8102535",
+      "publishedAt": "2026-08-05T07:29:09.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.008Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 242,
+      "company": "Coupang",
+      "title": "[쿠팡] 카탈로그 데이터 품질 운영 담당자 (Junior,신입 가능)",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8118788",
+      "publishedAt": "2026-08-11T08:59:27.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.021Z",
+      "csField": "data",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 244,
+      "company": "Coupang",
+      "title": "[쿠팡풀필먼트서비스] Rocket Track 차세대 물류 리더",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8093702",
+      "publishedAt": "2026-08-06T00:10:26.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.032Z",
+      "csField": null,
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 245,
+      "company": "Coupang",
+      "title": "Tier1 Security Analyst (계약직)",
+      "url": "https://www.coupang.jobs/en/jobs/?gh_jid=8104442",
+      "publishedAt": "2026-08-05T23:24:56.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.038Z",
+      "csField": "security",
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 246,
+      "company": "Cresta",
+      "title": "AI Quality Assurance Intern",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/5047247008",
+      "publishedAt": "2025-12-24T16:12:13.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.041Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 248,
+      "company": "Cresta",
+      "title": "Data Science Intern (Customer Success)",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/5213417008",
+      "publishedAt": "2026-05-07T18:43:17.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.044Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 249,
+      "company": "Cresta",
+      "title": "Forward Deployed Engineering Intern (AI Agent)",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/5106468008",
+      "publishedAt": "2026-02-03T02:05:19.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.045Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 250,
+      "company": "Cresta",
+      "title": "Machine Learning Engineering Intern",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/4123863008",
+      "publishedAt": "2024-09-11T00:06:59.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.046Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 251,
+      "company": "Cresta",
+      "title": "Product Design Intern for AI and Human Agents Platform",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/4476000008",
+      "publishedAt": "2025-01-02T15:54:20.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.047Z",
+      "csField": "other",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 252,
+      "company": "Cresta",
+      "title": "Software Engineer Intern",
+      "url": "https://job-boards.greenhouse.io/cresta/jobs/4123841008",
+      "publishedAt": "2024-09-10T23:10:58.000Z",
+      "firstSeenAt": "2026-08-25T18:55:44.048Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 257,
+      "company": "CVX Ventures",
+      "title": "Global Talent Intern",
+      "url": "https://job-boards.greenhouse.io/cvx/jobs/7728165003",
+      "publishedAt": "2026-05-08T13:19:27.000Z",
+      "firstSeenAt": "2026-08-25T18:56:41.496Z",
+      "csField": null,
+      "opportunityType": "internship"
+    },
+    {
+      "id": 258,
+      "company": "CVX Ventures",
+      "title": "Startup Intern",
+      "url": "https://job-boards.greenhouse.io/cvx/jobs/7728206003",
+      "publishedAt": "2026-05-08T13:20:11.000Z",
+      "firstSeenAt": "2026-08-25T18:56:41.498Z",
+      "csField": null,
+      "opportunityType": "internship"
+    },
+    {
+      "id": 268,
+      "company": "Databricks",
+      "title": "PhD GenAI Research Scientist Intern",
+      "url": "https://databricks.com/company/careers/open-positions/job?gh_jid=7011263002",
+      "publishedAt": "2023-11-07T21:36:32.000Z",
+      "firstSeenAt": "2026-08-25T18:56:41.516Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 269,
+      "company": "Databricks",
+      "title": "Product Management Intern (Summer 2027)",
+      "url": "https://databricks.com/company/careers/open-positions/job?gh_jid=6883068002",
+      "publishedAt": "2023-08-17T21:27:27.000Z",
+      "firstSeenAt": "2026-08-25T18:56:41.518Z",
+      "csField": "product",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 270,
+      "company": "Databricks",
+      "title": "Software Engineering Intern (2027 Start) - Winter",
+      "url": "https://databricks.com/company/careers/open-positions/job?gh_jid=8732364002",
+      "publishedAt": "2026-08-20T23:40:25.000Z",
+      "firstSeenAt": "2026-08-25T18:56:41.520Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 273,
+      "company": "Debut Biotech",
+      "title": "Debut Internship Talent Pool",
+      "url": "https://job-boards.greenhouse.io/debutbiotech25/jobs/4194351007",
+      "publishedAt": "2024-02-22T00:05:59.000Z",
+      "firstSeenAt": "2026-08-25T18:58:03.870Z",
+      "csField": "other",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 276,
+      "company": "Defense Unicorns",
+      "title": "SkillBridge Intern - Mission Manager",
+      "url": "https://job-boards.greenhouse.io/defenseunicorns/jobs/4761872007",
+      "publishedAt": "2025-06-13T16:31:32.000Z",
+      "firstSeenAt": "2026-08-25T18:58:48.993Z",
+      "csField": "it",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 277,
+      "company": "Defense Unicorns",
+      "title": "SkillBridge Intern - Platform Engineer",
+      "url": "https://job-boards.greenhouse.io/defenseunicorns/jobs/4661526007",
+      "publishedAt": "2025-02-25T16:42:52.000Z",
+      "firstSeenAt": "2026-08-25T18:58:48.998Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 281,
+      "company": "Doctolib",
+      "title": "Research Scientist (x/f/m)",
+      "url": "https://job-boards.greenhouse.io/doctolib/jobs/7832298003",
+      "publishedAt": "2026-08-06T15:21:25.000Z",
+      "firstSeenAt": "2026-08-25T19:00:29.815Z",
+      "csField": "ml_ai",
+      "opportunityType": "research"
+    },
+    {
+      "id": 287,
+      "company": "DRW",
+      "title": "AI/ML Research Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7991171",
+      "publishedAt": "2026-07-13T14:26:10.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.086Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 291,
+      "company": "DRW",
+      "title": "FPGA Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8038923",
+      "publishedAt": "2026-07-13T14:13:31.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.104Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 294,
+      "company": "DRW",
+      "title": "Platform Engineer Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7997729",
+      "publishedAt": "2026-07-30T15:39:31.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.112Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 295,
+      "company": "DRW",
+      "title": "Quantitative Developer",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7985591",
+      "publishedAt": "2026-07-16T20:56:58.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.114Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 297,
+      "company": "DRW",
+      "title": "Quantitative Researcher",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8030406",
+      "publishedAt": "2026-07-13T14:53:44.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.117Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 298,
+      "company": "DRW",
+      "title": "Quantitative Researcher",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8014936",
+      "publishedAt": "2026-07-13T06:30:25.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.118Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 299,
+      "company": "DRW",
+      "title": "Quantitative Research Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7818540",
+      "publishedAt": "2026-07-13T14:32:14.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.120Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 300,
+      "company": "DRW",
+      "title": "Quantitative Research Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7957756",
+      "publishedAt": "2026-07-13T09:11:55.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.121Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 301,
+      "company": "DRW",
+      "title": "Quantitative Research Intern ",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8014915",
+      "publishedAt": "2026-07-13T06:23:01.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.123Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 302,
+      "company": "DRW",
+      "title": "Quantitative Trading Analyst",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8014946",
+      "publishedAt": "2026-07-13T06:32:35.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.125Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 303,
+      "company": "DRW",
+      "title": "Quantitative Trading Analyst Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7668776",
+      "publishedAt": "2026-07-13T14:34:56.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.126Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 304,
+      "company": "DRW",
+      "title": "Quantitative Trading Analyst Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7957243",
+      "publishedAt": "2026-07-13T09:11:25.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.127Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 306,
+      "company": "DRW",
+      "title": "Research Engineer (FICCO)",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7377981",
+      "publishedAt": "2025-11-05T17:24:39.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.130Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 307,
+      "company": "DRW",
+      "title": "Research Engineer (FICCO)",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7377915",
+      "publishedAt": "2025-11-05T17:26:02.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.132Z",
+      "csField": "quant",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 310,
+      "company": "DRW",
+      "title": "Software Developer Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8020364",
+      "publishedAt": "2026-07-13T09:14:33.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.136Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 311,
+      "company": "DRW",
+      "title": "Software Developer Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7991196",
+      "publishedAt": "2026-07-13T15:00:15.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.139Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 312,
+      "company": "DRW",
+      "title": "Software Developer Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7992936",
+      "publishedAt": "2026-07-13T14:09:04.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.141Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 313,
+      "company": "DRW",
+      "title": "Software Developer Intern",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/7942281",
+      "publishedAt": "2026-07-13T09:04:35.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.143Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 314,
+      "company": "DRW",
+      "title": "Software Developer Intern (C++)",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8014910",
+      "publishedAt": "2026-07-13T06:23:22.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.145Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 316,
+      "company": "DRW",
+      "title": "Software Engineer Intern (Data Engineering)",
+      "url": "https://job-boards.greenhouse.io/drweng/jobs/8127242",
+      "publishedAt": "2026-08-13T05:02:11.000Z",
+      "firstSeenAt": "2026-08-25T19:01:41.147Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 326,
+      "company": "UChicago Energy & Environment Lab",
+      "title": "Summer Research Assistant – Energy & Environment Lab (2026)",
+      "url": "https://job-boards.greenhouse.io/energyandenvironmentlab/jobs/6270113003",
+      "publishedAt": "2024-11-12T22:46:52.000Z",
+      "firstSeenAt": "2026-08-25T19:02:06.892Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 327,
+      "company": "Engineers Gate",
+      "title": "Quantitative Research Intern",
+      "url": "https://job-boards.greenhouse.io/engineersgate/jobs/7946542",
+      "publishedAt": "2026-05-20T15:06:17.000Z",
+      "firstSeenAt": "2026-08-25T19:02:06.897Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 328,
+      "company": "Enova International",
+      "title": "Data Analytics Intern (Hybrid)",
+      "url": "https://job-boards.greenhouse.io/enova/jobs/8023514",
+      "publishedAt": "2026-06-23T14:39:27.000Z",
+      "firstSeenAt": "2026-08-25T19:02:06.899Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 331,
+      "company": "Epic Games",
+      "title": "Machine Learning Intern",
+      "url": "https://epicgames.com/careers/jobs/6138134004?gh_jid=6138134004",
+      "publishedAt": "2026-08-07T16:12:54.000Z",
+      "firstSeenAt": "2026-08-25T19:05:35.646Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 332,
+      "company": "Epic Games",
+      "title": "Machine Learning Intern",
+      "url": "https://epicgames.com/careers/jobs/6138140004?gh_jid=6138140004",
+      "publishedAt": "2026-08-07T16:12:53.000Z",
+      "firstSeenAt": "2026-08-25T19:05:35.648Z",
+      "csField": "ml_ai",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 334,
+      "company": "EquipmentShare",
+      "title": "Intern: Uptime Management Center",
+      "url": "https://www.equipmentshare.com/careers/openings/?gh_jid=7623013",
+      "publishedAt": "2026-07-07T17:35:41.000Z",
+      "firstSeenAt": "2026-08-25T19:05:35.651Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 341,
+      "company": "FeverUp",
+      "title": "Becas de Excelencia - Engineering",
+      "url": "https://job-boards.eu.greenhouse.io/feverup/jobs/4942287101",
+      "publishedAt": "2026-07-31T10:55:44.000Z",
+      "firstSeenAt": "2026-08-25T19:07:10.916Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 361,
+      "company": "Truveta",
+      "title": "ML Postdoc Researcher - Healthcare AI Innovation",
+      "url": "https://job-boards.greenhouse.io/truveta/jobs/5978375004",
+      "publishedAt": "2026-04-21T23:18:40.000Z",
+      "firstSeenAt": "2026-08-25T19:08:16.536Z",
+      "csField": "ml_ai",
+      "opportunityType": "research"
+    },
+    {
+      "id": 363,
+      "company": "Truveta",
+      "title": "Software Engineering Intern",
+      "url": "https://job-boards.greenhouse.io/truveta/jobs/5659745004",
+      "publishedAt": "2026-02-25T00:35:35.000Z",
+      "firstSeenAt": "2026-08-25T19:08:16.541Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 364,
+      "company": "Tulip Interfaces",
+      "title": "Ecosystem Engineer Co-op",
+      "url": "https://tulip.co/careers/job-posting/?gh_jid=7763800003",
+      "publishedAt": "2026-08-06T17:17:40.000Z",
+      "firstSeenAt": "2026-08-25T19:08:35.330Z",
+      "csField": "swe",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 365,
+      "company": "Tulip Interfaces",
+      "title": "Ecosystem Engineer Intern",
+      "url": "https://tulip.co/careers/job-posting/?gh_jid=7763805003",
+      "publishedAt": "2026-08-06T18:54:18.000Z",
+      "firstSeenAt": "2026-08-25T19:08:35.334Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 366,
+      "company": "Tulip Interfaces",
+      "title": "Ecosystem Engineer Working Student",
+      "url": "https://tulip.co/careers/job-posting/?gh_jid=7763832003",
+      "publishedAt": "2026-08-06T18:51:50.000Z",
+      "firstSeenAt": "2026-08-25T19:08:35.336Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 372,
+      "company": "Nourish",
+      "title": "Research Associate",
+      "url": "https://job-boards.greenhouse.io/usenourish/jobs/5285736008",
+      "publishedAt": "2026-06-29T19:42:12.000Z",
+      "firstSeenAt": "2026-08-25T19:09:02.696Z",
+      "csField": "other",
+      "opportunityType": "research"
+    },
+    {
+      "id": 373,
+      "company": "Varda Space Industries",
+      "title": "Applications Engineering Internship - Spring 2027",
+      "url": "https://job-boards.greenhouse.io/vardaspace/jobs/7824822003",
+      "publishedAt": "2026-08-07T16:45:59.000Z",
+      "firstSeenAt": "2026-08-25T19:09:46.144Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 375,
+      "company": "Varda Space Industries",
+      "title": "Biologics Formulation Research Internship - Spring 2027",
+      "url": "https://job-boards.greenhouse.io/vardaspace/jobs/7824834003",
+      "publishedAt": "2026-08-07T16:46:45.000Z",
+      "firstSeenAt": "2026-08-25T19:09:46.152Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 377,
+      "company": "Varda Space Industries",
+      "title": "Flight Software Internship - Spring 2027",
+      "url": "https://job-boards.greenhouse.io/vardaspace/jobs/7824815003",
+      "publishedAt": "2026-08-07T16:46:38.000Z",
+      "firstSeenAt": "2026-08-25T19:09:46.158Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 378,
+      "company": "Varda Space Industries",
+      "title": "Guidance, Navigation & Controls (GNC) Internship - Spring 2027",
+      "url": "https://job-boards.greenhouse.io/vardaspace/jobs/7824781003",
+      "publishedAt": "2026-08-07T16:46:54.000Z",
+      "firstSeenAt": "2026-08-25T19:09:46.161Z",
+      "csField": "swe",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 380,
+      "company": "Varda Space Industries",
+      "title": "Site Reliability Internship - Spring 2027",
+      "url": "https://job-boards.greenhouse.io/vardaspace/jobs/7824814003",
+      "publishedAt": "2026-08-07T16:47:25.000Z",
+      "firstSeenAt": "2026-08-25T19:09:46.166Z",
+      "csField": "devops_infra",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 391,
+      "company": "Viking Global Investors",
+      "title": "Execution Research Fellow",
+      "url": "https://job-boards.greenhouse.io/vikingglobalinvestors/jobs/6005845004",
+      "publishedAt": "2026-06-16T16:57:41.000Z",
+      "firstSeenAt": "2026-08-25T19:18:18.440Z",
+      "csField": "quant",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 392,
+      "company": "Virtu Financial",
+      "title": "2027 Internship – Core Operations Engineer ",
+      "url": "https://job-boards.greenhouse.io/virtu/jobs/6329460002",
+      "publishedAt": "2022-08-16T01:50:53.000Z",
+      "firstSeenAt": "2026-08-25T19:18:18.446Z",
+      "csField": "devops_infra",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 396,
+      "company": "Virtu Financial",
+      "title": "2027 Internship - Quantitative Researcher (Master or PhD)",
+      "url": "https://job-boards.greenhouse.io/virtu/jobs/8631180002",
+      "publishedAt": "2026-07-14T13:39:40.000Z",
+      "firstSeenAt": "2026-08-25T19:18:18.453Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 397,
+      "company": "Virtu Financial",
+      "title": "2027 Internship - Quantitative Researcher (PhD)",
+      "url": "https://job-boards.greenhouse.io/virtu/jobs/8624424002",
+      "publishedAt": "2026-07-22T17:26:27.000Z",
+      "firstSeenAt": "2026-08-25T19:18:18.455Z",
+      "csField": "quant",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 445,
+      "company": "Workato",
+      "title": "Intern, Business Technology",
+      "url": "https://www.workato.com/careers?gh_jid=8644024002#open-roles",
+      "publishedAt": "2026-07-28T11:52:51.000Z",
+      "firstSeenAt": "2026-08-25T19:21:01.425Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 566,
+      "company": "HelloFresh",
+      "title": "Growth Strategy Data Analyst - Intern (M/F/N)",
+      "url": "https://careers.hellofresh.com/global/en/job/7704587?gh_jid=7704587",
+      "publishedAt": "2026-03-11T14:07:43.000Z",
+      "firstSeenAt": "2026-08-26T16:00:44.476Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 568,
+      "company": "IMC",
+      "title": "2027 EU Campus Programme Talent Community",
+      "url": "https://job-boards.eu.greenhouse.io/imc/jobs/4940448101",
+      "publishedAt": "2026-07-29T08:39:58.000Z",
+      "firstSeenAt": "2026-08-26T16:00:44.484Z",
+      "csField": "quant",
+      "opportunityType": "research"
+    },
+    {
+      "id": 619,
+      "company": "FourKites",
+      "title": "Product Support - Intern ",
+      "url": "https://job-boards.greenhouse.io/fourkites/jobs/8073933",
+      "publishedAt": "2026-08-05T04:02:22.000Z",
+      "firstSeenAt": "2026-08-26T16:02:47.992Z",
+      "csField": "other",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 621,
+      "company": "Monks",
+      "title": "[Campus Monks] Estágio em CRO",
+      "url": "https://www.monks.com/careers/6146414004/job?gh_jid=6146414004",
+      "publishedAt": "2026-08-20T20:22:00.000Z",
+      "firstSeenAt": "2026-08-26T16:03:48.884Z",
+      "csField": "other",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 630,
+      "company": "Figure",
+      "title": "Data Quality Analyst",
+      "url": "https://job-boards.greenhouse.io/figureai/jobs/4590702006",
+      "publishedAt": "2025-09-05T06:39:21.000Z",
+      "firstSeenAt": "2026-08-26T16:08:09.934Z",
+      "csField": "data",
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 724,
+      "company": "GuidePoint Security",
+      "title": "Vectra Detection Engineer",
+      "url": "https://boards.greenhouse.io/guidepointsecurity/jobs/6141997004?gh_jid=6141997004",
+      "publishedAt": "2026-08-12T14:37:27.000Z",
+      "firstSeenAt": "2026-08-26T16:15:08.814Z",
+      "csField": "security",
+      "opportunityType": "new_grad"
+    },
+    {
+      "id": 734,
+      "company": "Hootsuite",
+      "title": "Co-op/Intern, IT Operations - Fall 2026",
+      "url": "https://job-boards.greenhouse.io/hootsuite/jobs/8112838",
+      "publishedAt": "2026-08-07T13:52:45.000Z",
+      "firstSeenAt": "2026-08-26T16:16:48.903Z",
+      "csField": "it",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 752,
+      "company": "Business Insider",
+      "title": "Data Graphics Fellow (August 2026)",
+      "url": "https://www.businessinsider.com/work-at-business-insider?gh_jid=5837048004",
+      "publishedAt": "2026-03-25T15:40:34.000Z",
+      "firstSeenAt": "2026-08-26T16:19:47.826Z",
+      "csField": "data",
+      "opportunityType": "fellowship"
+    },
+    {
+      "id": 830,
+      "company": "KRAFTON",
+      "title": "[Game Research & Insights Dept.] Jr. 시선 데이터 분석 연구원 (경력무관 / 인턴)",
+      "url": "https://job-boards.greenhouse.io/krafton/jobs/8729078002",
+      "publishedAt": "2026-08-19T03:30:16.000Z",
+      "firstSeenAt": "2026-08-26T16:25:17.091Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 847,
+      "company": "Lila Sciences",
+      "title": "Co-Op, Software Product Management",
+      "url": "https://job-boards.greenhouse.io/lilasciences/jobs/4286512009",
+      "publishedAt": "2026-06-16T13:37:11.000Z",
+      "firstSeenAt": "2026-08-26T16:26:24.413Z",
+      "csField": "product",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 924,
+      "company": "IPSY",
+      "title": "SRE Engineer Contractor",
+      "url": "https://job-boards.greenhouse.io/personalizedbeautydiscoveryincdbaipsy/jobs/5275576008",
+      "publishedAt": "2026-06-29T22:36:59.000Z",
+      "firstSeenAt": "2026-08-26T16:39:06.278Z",
+      "csField": "devops_infra",
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 941,
+      "company": "Point72",
+      "title": "Market Intelligence Emerging Talent Network",
+      "url": "https://boards.greenhouse.io/point72/jobs/6656054002?gh_jid=6656054002",
+      "publishedAt": "2023-03-21T19:23:12.000Z",
+      "firstSeenAt": "2026-08-26T16:40:51.092Z",
+      "csField": "data",
+      "opportunityType": "internship"
+    },
+    {
+      "id": 1112,
+      "company": "The Nuclear Company",
+      "title": "Spring 2027 Data Science Intern",
+      "url": "https://job-boards.greenhouse.io/thenuclearcompany/jobs/5383218008",
+      "publishedAt": "2026-08-07T18:07:10.000Z",
+      "firstSeenAt": "2026-08-26T17:08:29.880Z",
+      "csField": "data",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 1196,
+      "company": "Headlands Research",
+      "title": "Research Assistant",
+      "url": "https://job-boards.greenhouse.io/headlandsresearch/jobs/4369737009",
+      "publishedAt": "2026-08-14T12:18:22.000Z",
+      "firstSeenAt": "2026-08-26T17:27:05.556Z",
+      "csField": null,
+      "opportunityType": "research"
+    },
+    {
+      "id": 1282,
+      "company": "Mesh Optical Technologies",
+      "title": "Associate Electrical Engineer (Intern / Co-Op)",
+      "url": "https://job-boards.greenhouse.io/meshopticaltechnologies/jobs/4134735009",
+      "publishedAt": "2026-02-17T03:45:29.000Z",
+      "firstSeenAt": "2026-08-26T17:55:27.495Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 1302,
+      "company": "Co-Ops at New York ISO",
+      "title": "Research & Engineering Co-Op",
+      "url": "https://job-boards.greenhouse.io/nyisocoops/jobs/5210759007",
+      "publishedAt": "2026-08-12T20:07:22.000Z",
+      "firstSeenAt": "2026-08-26T18:00:40.436Z",
+      "csField": "other",
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 1448,
+      "company": "SharkNinja",
+      "title": "Digital/Sharks, Co-op d'affiliation Marketplace (août à décembre)/Digital/Sharks, Marketplace Affiliates Co-op (August to December)",
+      "url": "https://job-boards.greenhouse.io/sharkninjaoperatingllc/jobs/4703781006",
+      "publishedAt": "2026-08-17T21:05:17.000Z",
+      "firstSeenAt": "2026-08-26T18:47:26.675Z",
+      "csField": null,
+      "opportunityType": "co_op"
+    },
+    {
+      "id": 1858,
+      "company": "Axon",
+      "title": "R&D Werkstudent, Kassel",
+      "url": "https://job-boards.greenhouse.io/axon/jobs/6307547003",
+      "publishedAt": "2024-12-20T23:17:13.000Z",
+      "firstSeenAt": "2026-09-08T17:21:46.518Z",
+      "csField": "other",
+      "opportunityType": "part_time"
+    },
+    {
+      "id": 1867,
+      "company": "Brave",
+      "title": "AI Security Researcher/Research Engineer",
+      "url": "https://job-boards.greenhouse.io/brave/jobs/8165845",
+      "publishedAt": "2026-08-29T16:52:15.000Z",
+      "firstSeenAt": "2026-09-08T17:24:22.432Z",
+      "csField": "security",
+      "opportunityType": "research"
+    },
+    {
+      "id": 2163,
+      "company": "Isar Aerospace SE",
+      "title": "Working Student, Avionics (m/f/d)",
+      "url": "https://job-boards.eu.greenhouse.io/isaraerospace/jobs/4953179101",
+      "publishedAt": "2026-08-14T13:26:10.000Z",
+      "firstSeenAt": "2026-09-12T20:11:21.512Z",
+      "csField": "hardware_embedded",
+      "opportunityType": "part_time"
+    }
+  ]
+}

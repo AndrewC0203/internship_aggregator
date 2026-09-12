@@ -85,6 +85,23 @@
   per-listing try/catch in `filter.ts`/`extract.ts` is unchanged: it now only sees an error
   after retries are exhausted, so a listing is skipped (and retried next run, per Decision 12)
   strictly LESS often than before.
+- Recommendations: resume + questionnaire "For You" ranking (Decisions 29–32, 2026-09-12) —
+  the Phase 3 differentiator. Architecture in one sentence: facts filter (SQL), vectors rank
+  (pgvector cosine, exact search, no ANN index), labels inform (deterministic chips); model
+  calls at write time only — `/foryou` is pure math and works with Ollama down. Pieces:
+  pgvector migration (`listings.signature/signature_fingerprint/embedding/embedding_model/
+  template_version`, single-row `user_profile` with `revision` guard); 7B role-signature
+  distillation (`src/model/signature.ts`, separate prompt from extract on purpose);
+  fingerprint-driven enrichment pass (`npm run enrich`, auto-runs non-fatally after refresh);
+  quote-grounded 14B resume extraction (model writes `extracted_profile`, human approves into
+  `profile` — the only column ranking reads); questionnaire with three separate work-auth
+  booleans and hard/soft split (hard = SQL conditions, soft = merged into the embedded
+  Seeking: text); one-query ranking over ALL eligible rows (usability gate: embedding present
+  AND model+template match current config) blended 0.85 similarity / 0.15 freshness
+  (30-day half-life); alignment chip from extracted facts + hand-curated selectivity badge
+  (`data/company-tiers.json`); `/profile` + `/foryou` SSR pages in the terminal world.
+  GATED: full backfill + final model choice wait on the labeled evaluation
+  (`npm run eval:recommend`, spec: finalized_decisions/recommendations.md).
 
 # Priority 1
 
@@ -113,6 +130,16 @@
 
 # Decisions to remember
 
+- Recommendations invariants (Decisions 29–32): (a) saving a changed signature CLEARS the
+  row's embedding in the SAME statement — the dangerous failure is an old vector that still
+  matches current config, not a missing one; (b) the vector-usability gate is TWO fields
+  (`embedding_model` + `template_version` both match) — `signature IS NOT NULL` is never
+  sufficient; (c) profile publish is optimistic-concurrency (`WHERE revision = read_revision`,
+  embed OUTSIDE the transaction; 0 rows = conflict, never overwrite); (d) every hard
+  questionnaire filter keeps NULLs and badges them — filters exclude only explicit
+  contradictions; (e) labels annotate, never filter, and cosine is never rendered as a
+  percentage; (f) band thresholds in `score.ts` are PROVISIONAL until the eval gate
+  calibrates them.
 - Deadlines have two confidence tiers: Greenhouse's structured field is authoritative;
   AI-extracted deadlines (from `description_plain`) are lower confidence. For now they are
   treated identically in filtering — revisit if false-positive rate is high.

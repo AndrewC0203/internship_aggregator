@@ -1,0 +1,24 @@
+{
+  "_README": "EVAL PROFILE FIXTURE (spec prerequisite 0). The evaluation gate never runs against an unapproved profile — EDIT THIS TO DESCRIBE YOURSELF, then treat your edit as the approval. The shapes below are exactly what the /profile UI produces. resumeText feeds the no-distillation baseline (b); profile+questionnaire feed the signature approaches (a) and the skill-overlap scorer (c). If this still says PLACEHOLDER when you label, your labels are judging a fake persona — fix it first.",
+  "resumeText": "PLACEHOLDER — paste your real resume as plain text. Andrew Choi. CS student. Built an internship aggregator: TypeScript, Fastify, PostgreSQL, Prisma, local LLM pipeline (Ollama), pgvector ranking. Coursework: data structures, algorithms, databases.",
+  "profile": {
+    "skills": ["typescript", "postgresql", "fastify", "prisma", "node", "sql", "git"],
+    "focus": "Built a full-stack job aggregation platform with TypeScript, Fastify, and PostgreSQL, including a local-LLM ingestion pipeline."
+  },
+  "questionnaire": {
+    "gradYearMin": 2027,
+    "gradYearMax": 2028,
+    "usCitizen": true,
+    "workAuthorized": true,
+    "needsSponsorship": false,
+    "locStates": [],
+    "locCountries": [],
+    "remoteOk": true,
+    "types": ["internship", "co_op"],
+    "targetFields": [
+      { "field": "swe", "mustHave": false },
+      { "field": "devops_infra", "mustHave": false }
+    ],
+    "interests": "backend systems, data pipelines, developer tools"
+  }
+}

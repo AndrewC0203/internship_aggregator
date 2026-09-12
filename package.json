@@ -13,6 +13,8 @@
     "discover": "tsx src/discovery/run.ts",
     "refresh": "tsx src/refresh.ts",
     "reclassify": "tsx src/reclassify.ts",
+    "enrich": "tsx src/enrich.ts",
+    "eval:recommend": "tsx src/eval-recommend.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "serve": "tsx src/server/index.ts"
   },

@@ -1,5 +1,6 @@
 import { runPipeline } from "./pipeline/orchestrator.js";
 import { prisma } from "./db.js";
+import { enrichListings, formatEnrichSummary } from "./recommend/enrich.js";
 
 // CLI entrypoint for the ingestion refresh: `npm run refresh -- [--limit <n>] [--full]`
 //   --limit <n>   cap boards per source (use a small n for a first smoke-test run;
@@ -47,6 +48,17 @@ async function main(): Promise<void> {
   );
 
   await runPipeline({ limit, full });
+
+  // Recommendation enrichment (Decisions 29-31): non-fatal BY CONTRACT — a failed
+  // enrichment never blocks ingest; the listing stays in ordinary search and the
+  // fingerprint-driven pass retries it next run (or via `npm run enrich`).
+  try {
+    const summary = await enrichListings();
+    console.log(`[enrich] ${formatEnrichSummary(summary)}`);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[enrich] pass failed (ingest unaffected): ${reason}`);
+  }
 
   console.log("Done.");
 }

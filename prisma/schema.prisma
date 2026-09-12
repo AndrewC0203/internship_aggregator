@@ -162,6 +162,21 @@ model Listing {
   // pattern. Default empty array so every row (not just ones with duplicates) has a value.
   duplicateKeys Json @default("[]") @map("duplicate_keys")
 
+  // Recommendations (Decisions 29-32; spec: finalized_decisions/recommendations.md).
+  // signature: distilled role signature (skills/domains/level/focus). The fingerprint is the
+  // staleness key — written ONLY on a successful signature save, so a crash mid-enrichment
+  // leaves the row stale and it is retried (resumability lives here, not in job state).
+  signature            Json?
+  signatureFingerprint String? @map("signature_fingerprint")
+  // Dimension-less vector on purpose: no ANN index means no fixed-dim requirement
+  // (Decision 30), so the embedding model stays swappable without a migration. Prisma cannot
+  // read/write this type — all vector I/O is $queryRaw/$executeRaw.
+  embedding            Unsupported("vector")?
+  // The config that produced the stored vector. A vector is USABLE only if BOTH match the
+  // current config — enforced in the ranking query (usability gate), never assumed.
+  embeddingModel       String? @map("embedding_model")
+  templateVersion      Int?    @map("template_version")
+
   application Application?
 
   // Natural key: identifies "same listing across refreshes" (upsert target).
@@ -186,6 +201,27 @@ model Application {
   listing   Listing           @relation(fields: [listingId], references: [id])
 
   @@map("applications")
+}
+
+// The single user's recommendation profile (Decisions 29-32). One row, id fixed = 1.
+// Ownership split mirrors `applications`: the model writes extracted_profile, the human owns
+// `profile` — the ONLY column ranking ever reads. Nothing downstream reads unapproved content.
+// `revision` is the optimistic-concurrency guard for publish: embedding is generated OUTSIDE
+// any transaction, then profile + questionnaire + embedding land together in one UPDATE
+// guarded by `WHERE revision = read_revision` — 0 rows updated means a newer edit won.
+model UserProfile {
+  id               Int      @id @default(1)
+  resumeText       String?  @map("resume_text")
+  extractedProfile Json?    @map("extracted_profile")
+  profile          Json?
+  questionnaire    Json?
+  embedding        Unsupported("vector")?
+  embeddingModel   String?  @map("embedding_model")
+  templateVersion  Int?     @map("template_version")
+  revision         Int      @default(0)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_profile")
 }
 
 // A discovered ATS board to crawl (Decision 11). Populated by the Common Crawl discovery

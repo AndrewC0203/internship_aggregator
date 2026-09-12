@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { prisma } from "../db.js";
 import { parseParams, search } from "./search.js";
 import { renderPage } from "./render.js";
+import { registerRecommendRoutes } from "./recommend.js";
 
 const app = Fastify({ logger: { level: "warn" } });
 
@@ -35,6 +36,9 @@ app.get("/api/search", async (req) => {
   const params = parseParams(req.query as Record<string, unknown>);
   return search(prisma, params);
 });
+
+// Recommendations (Decisions 29-32): profile flow + For You ranking.
+registerRecommendRoutes(app);
 
 // Apply-status upsert/clear (Decision 21). PUT with {status: null} deletes the row —
 // "not_applied" is row absence, not a stored value.

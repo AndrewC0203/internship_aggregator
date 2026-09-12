@@ -1534,3 +1534,156 @@ information survives one click away. (c) Cross-source company aliasing (Greenhou
 deferred until it isn't negligible.
 
 Date: 2026-09-11
+
+## Decision 29: Recommendation embeddings — local Ollama model, not a paid API
+
+Problem: The Phase 3 recommender needs an embedding model to place listings and the
+user profile in one vector space. Stored vectors are model-specific: every listing
+(1,832 active today) must be re-embedded on any model change, so the provider choice
+is the sticky one; everything downstream (storage, ranking) is provider-agnostic.
+
+Options considered:
+
+1. Local via the already-running Ollama (nomic-embed-text / mxbai-embed-large class
+   models) — free, private, offline, consistent with the local-first stack
+   (Decision 4). Quality a notch below frontier APIs.
+2. Paid API (OpenAI text-embedding-3 / Voyage) — best retrieval quality, but adds a
+   key, a per-call cost, network dependency, and re-embedding cost on any future
+   provider switch anyway.
+
+Decision: Option 1 (user-chosen, matching my recommendation): local Ollama. The exact
+model within Ollama is an implementation detail, to be picked by a quick bake-off on
+real data (embed the corpus, check that known csField clusters separate) — reversible
+by one batch re-embed, so not gated.
+
+Reason: the corpus is small (low thousands) and homogeneous-by-construction, so
+ranking quality hinges more on WHAT we embed (distilled signatures vs raw text) than
+on marginal model quality. Local keeps the demo self-contained and free; the M5 Max
+embeds the full corpus in minutes. If the project ever ships publicly, swapping to a
+paid API is one config change plus one re-embed job — explicitly deferred, not
+foreclosed.
+
+Tradeoffs accepted: measurably weaker embeddings than frontier APIs; no cross-machine
+reproducibility guarantee if the local model version drifts (mitigated: record model
+name+version alongside vectors so a mismatch is detectable, not silent).
+
+Date: 2026-09-12
+
+## Decision 30: Vector storage — pgvector extension, exact search, no ANN index
+
+Problem: Listing embeddings need to live somewhere queryable. This is the feature's
+only schema migration, and the storage choice shapes how ranking queries compose with
+the existing hard filters (grad year, citizenship, location, opportunity type).
+
+Options considered:
+
+1. pgvector `vector` column, exact (sequential) search via `<=>` cosine operator, NO
+   ANN index — one extension + one column; similarity and SQL WHERE filters compose in
+   one query; exact results.
+2. Same but with an HNSW/IVFFlat ANN index — standard at scale, but approximate, adds
+   index tuning, and buys nothing under ~100k rows.
+3. Plain `Float[]` column + brute-force cosine in Node — zero extensions, but ranking
+   leaves the database: every query ships all candidate vectors to the app, and
+   filter-then-rank composition is hand-rolled.
+
+Decision: Option 1 (user-chosen, matching my recommendation). Enable pgvector, add an
+embedding column to `listings`, rank with the cosine distance operator directly in the
+filtered query. Revisit an ANN index only if corpus growth makes ranking latency
+observable (~100k rows, ~50x today's corpus).
+
+Reason: at 1,832 active rows an exact scan is sub-millisecond-to-milliseconds — an ANN
+index would add approximation error and tuning surface to solve a problem we measurably
+do not have. Doing similarity in Postgres keeps one source of truth for
+"filter by facts, rank by fit": the hard filters (Decision 19 location arrays,
+grad-year columns, citizenship) and the vector ordering are one SQL statement, not two
+systems glued in app code. And "why no ANN index" has a numbers-backed answer, which
+is the defense this repo optimizes for.
+
+Tradeoffs accepted: a required Postgres extension (breaks "vanilla postgres" if the DB
+ever moves; all managed providers support pgvector). Prisma has no native vector type —
+the column rides as `Unsupported("vector")` and similarity queries drop to
+`$queryRaw`, a second query idiom in a codebase that otherwise uses the Prisma client.
+
+Date: 2026-09-12
+
+## Decision 31: Recommendation matching — symmetric distillation, gated by a labeled evaluation
+
+Problem: How to rank listings against a resume + optional questionnaire (the Phase 3
+differentiator). Naive whole-document cosine fails two ways: resumes and postings are
+asymmetric document types (past-tense achievements vs requirements boilerplate), and
+posting boilerplate (soft skills, benefits, EEO) appears everywhere, carrying no ranking
+signal while pulling all scores together.
+
+Options considered:
+
+1. Asymmetric-light — embed raw descriptionPlain per listing; distill only the resume into
+   a pseudo-job-description. Cheapest (no backfill); listing-side boilerplate stays in the
+   vectors; the soft-skill noise problem goes unsolved.
+2. Symmetric distillation — both sides distilled by the local 7B into one shared
+   role-signature schema (technical skills / domains / level / focus, soft skills banned);
+   embed canonical sectioned text (Experience vs Seeking kept distinct so interest in ML
+   never reads as ML experience). Costs one extra 7B call per listing + a one-time
+   backfill.
+3. Field-wise multi-vector — separate embeddings per facet, hand-weighted cosine sum. Most
+   control, but the weights are unprincipled magic numbers. Rejected for v1; the escape
+   hatch if signature scores compress.
+
+Decision: Option 2 (user-chosen, matching my recommendation), AMENDED after external
+audit with an evaluation gate that must run before the full backfill: on a ~200-listing
+stratified sample, compare signature embeddings against (a) a no-distillation baseline
+embedding title + cleaned description and (b) a deterministic skill-overlap scorer, using
+pooled user-labeled judgments and pre-registered Precision@10 (borderline = not relevant;
+held-out slice reserved for a post-tuning final check). Field clustering is diagnostic
+only — csField leaks into the signature text, so clustering would validate the leak, not
+the ranking. If the baseline wins, ship it and amend this entry.
+
+Reason: distillation attacks both failure modes at once (asymmetry + boilerplate noise) and
+reuses the extraction discipline the pipeline already defends; the gate exists because the
+distillation pass is the design's main recurring cost and "looks plausible" is not
+evidence. Architecture invariant: facts filter (SQL), vectors rank (pgvector), labels
+inform — model calls at write time only.
+
+Tradeoffs accepted: one extra 7B call per listing forever; ~30–45 min of one-time human
+labeling; the deterministic baseline (b) shares the signature model's skills, so the eval
+tests embeddings-beyond-extraction, not the whole LLM pipeline; eval conclusions can
+overfit the label set if re-tuned repeatedly (mitigated by the held-out slice, not
+eliminated).
+
+Date: 2026-09-12
+
+## Decision 32: Attainability — alignment chip + curated selectivity badge; no probability banding
+
+Problem: User requirement — "someone with no projects shouldn't be pointed at Google."
+Similarity measures direction of fit, not competitiveness, so this needs its own signal.
+The v1 design (reach/match/safety bands from strengthScore minus role bar) died under
+audit: subtracting a 1–5 rubric from years-of-experience has no common scale, and
+"safety" asserts a hiring probability nothing in the system can estimate.
+
+Options considered:
+
+1. Requirements-alignment chip only (auditor's initial position) — grounded in extracted
+   facts (YOE, degreeStatus), but cannot distinguish Google from a 40-person startup for
+   interns: internship postings state near-zero formal requirements, so it silently drops
+   the user's actual concern.
+2. Alignment chip + hand-curated selectivity badge — (1) plus data/company-tiers.json
+   marking only famously-selective employers. Badge wording carries no hiring claim
+   ("Highly selective employer — manually curated"); unlisted companies are NOT ASSESSED,
+   never implicitly less selective. Annotates, never filters.
+3. Defer selectivity entirely to v2.
+
+Decision: Option 2 (user-approved via audited review; auditor concurred after the pushback
+in option 1's description). Chip wording is "No gaps found in checked requirements" — not
+"meets requirements" — because we only check what we extract. The strength rubric is
+DROPPED from v1: with banding gone it drove nothing, and it was model output + review work
+with no consumer. Flagged: this defers the "rank my resume's strength" half of the original
+ask until there's evidence a strength score changes decisions.
+
+Reason: the honest version of the requirement is editorial, not probabilistic — a small
+inspectable JSON beats a fake number; every label is traceable to shown facts or a curated
+list with stated methodology.
+
+Tradeoffs accepted: tier list is manual and will age; covers only famous names (long tail
+unassessed); no per-user calibration of "reach" — the feature answers "is this company
+famously selective", not "can I get in".
+
+Date: 2026-09-12

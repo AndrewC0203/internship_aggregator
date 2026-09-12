@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "./db.js";
 import { embed } from "./model/ollama.js";
-import { enrichListings } from "./recommend/enrich.js";
+import { enrichListings, embedBatches } from "./recommend/enrich.js";
 import {
   listingCanonicalText,
   profileCanonicalText,
@@ -170,15 +170,20 @@ async function cmdPool(): Promise<void> {
     console.log(`[eval] embedding ${withSig.length} x2 texts with ${model}...`);
     const sigTexts = withSig.map((r) => listingCanonicalText(r.sig!, model));
     const rawTexts = withSig.map((r) => baselineCanonicalText(r.title, r.descriptionPlain, model));
-    const [sigVecs, rawVecs, profVecs] = await Promise.all([
-      embed(sigTexts, model),
-      embed(rawTexts, model),
-      embed(
-        [profileCanonicalText(fixture.profile, fixture.questionnaire, model), baselineProfileText(fixture, model)],
-        model,
-      ),
-    ]);
-    const [profSig, profRaw] = profVecs;
+    // Chunked + sequential, like the enrich pass: 200 raw-baseline texts are ~300k tokens —
+    // as ONE /api/embed request that can outlive the 120s Ollama timeout, and Ollama
+    // serializes on the single model anyway, so concurrency buys nothing here.
+    const embedChunked = async (texts: string[]): Promise<number[][]> => {
+      const out: number[][] = [];
+      for (const batch of embedBatches(texts, 32)) out.push(...(await embed(batch, model)));
+      return out;
+    };
+    const sigVecs = await embedChunked(sigTexts);
+    const rawVecs = await embedChunked(rawTexts);
+    const [profSig, profRaw] = await embed(
+      [profileCanonicalText(fixture.profile, fixture.questionnaire, model), baselineProfileText(fixture, model)],
+      model,
+    );
 
     for (const [variant, vecs, prof] of [
       ["sig", sigVecs, profSig],

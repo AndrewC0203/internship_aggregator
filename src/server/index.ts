@@ -8,6 +8,12 @@ import { prisma } from "../db.js";
 import { parseParams, search } from "./search.js";
 import { renderPage } from "./render.js";
 import { registerRecommendRoutes } from "./recommend.js";
+import { recommend } from "../recommend/rank.js";
+import { renderForYouPage } from "./render-foryou.js";
+import { renderProfilePage } from "./render-profile.js";
+import { ensureProfileRow } from "../recommend/profile.js";
+import { parseQuestionnaire } from "../recommend/questionnaire.js";
+import { EMBED_MODEL, TEMPLATE_VERSION } from "../recommend/config.js";
 
 const app = Fastify({ logger: { level: "warn" } });
 
@@ -29,6 +35,44 @@ app.get("/", async (req, reply) => {
   const params = parseParams(req.query as Record<string, unknown>);
   const result = await search(prisma, params);
   reply.type("text/html; charset=utf-8").send(renderPage(params, result));
+});
+
+// For You + profile pages (Decisions 29-32): SSR from the same modules the JSON API uses.
+app.get<{ Querystring: { page?: string } }>("/foryou", async (req, reply) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const result = await recommend(prisma, { page, per: 25 });
+  reply.type("text/html; charset=utf-8").send(renderForYouPage(result, page));
+});
+
+app.get("/profile", async (_req, reply) => {
+  await ensureProfileRow(prisma);
+  const rows = await prisma.$queryRaw<
+    Array<{
+      resume_text: string | null;
+      extracted_profile: unknown;
+      profile: unknown;
+      questionnaire: unknown;
+      revision: number;
+      embedding_model: string | null;
+      template_version: number | null;
+      has_embedding: boolean;
+    }>
+  >`SELECT resume_text, extracted_profile, profile, questionnaire, revision,
+           embedding_model, template_version, (embedding IS NOT NULL) AS has_embedding
+    FROM user_profile WHERE id = 1`;
+  const r = rows[0];
+  reply.type("text/html; charset=utf-8").send(
+    renderProfilePage({
+      resumeText: r.resume_text,
+      extractedProfile: r.extracted_profile as never,
+      profile: r.profile as never,
+      questionnaire: parseQuestionnaire(r.questionnaire),
+      revision: r.revision,
+      embeddingCurrent: r.has_embedding
+        ? r.embedding_model === EMBED_MODEL && r.template_version === TEMPLATE_VERSION
+        : null,
+    }),
+  );
 });
 
 // Same query, JSON shape — the search API Phase 1 promises.

@@ -4,7 +4,7 @@
 import type { SearchParams, SearchResult } from "./search.js";
 import { NEW_WINDOW_DAYS } from "./search.js";
 
-const esc = (s: string): string =>
+export const esc = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // --- label vocabularies -------------------------------------------------------------------
@@ -361,6 +361,10 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
     <span class="brand-sub">EARLY-CAREER BOARD</span>
   </div>
   <nav class="ticker" aria-label="listings by type">${ticker}</nav>
+  <nav class="views" aria-label="views">
+    <a href="/foryou">FOR YOU</a>
+    <a href="/profile">PROFILE</a>
+  </nav>
   <a class="new-block${p.newOnly ? " on" : ""}" href="${qs(p, { new: p.newOnly ? null : "1" })}" title="show only new listings" aria-current="${p.newOnly ? "true" : "false"}">
     <span class="nb-n">${res.newCount}</span>
     <span class="nb-l">NEW · ${NEW_WINDOW_DAYS}D</span>
@@ -423,7 +427,10 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 
 // --- styles -------------------------------------------------------------------------------
 
-function css(): string {
+// Exported for the profile / For You pages (render-profile.ts, render-foryou.ts): one
+// stylesheet, one world — the new pages extend it with their own small blocks instead of
+// forking the terminal look.
+export function css(): string {
   return `
 @font-face{font-family:'Chivo Mono';src:url('/fonts/chivo-mono.woff2') format('woff2');font-weight:100 900;font-display:swap}
 :root{
@@ -463,6 +470,10 @@ a{color:inherit;text-decoration:none}
 .tick.on .tk-n{color:var(--ink);font-weight:700}
 /* The one shouting figure: the NEW count is the page's single oversized element and never
    shrinks. Blue's only job on this page. */
+.views{display:flex;gap:14px;font-family:var(--mono)}
+.views a{font-size:10px;font-weight:600;letter-spacing:.16em;color:var(--ink-2);text-decoration:none;padding:4px 0;border-bottom:1px solid transparent}
+.views a:hover{color:var(--ink);border-bottom-color:var(--line-2)}
+.views a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink)}
 .new-block{display:flex;align-items:baseline;gap:10px;font-family:var(--mono)}
 .new-block:hover .nb-l{color:var(--ink)}
 .nb-n{font-size:40px;font-weight:600;line-height:56px;color:var(--blue);font-variant-numeric:tabular-nums}

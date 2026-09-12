@@ -95,6 +95,59 @@ export async function chatJson<T>(opts: ChatJsonOptions): Promise<T> {
   return withOllamaRetry(() => chatJsonOnce<T>(opts));
 }
 
+// ─── Embeddings (Decisions 29-30) ──────────────────────────────────────────────────────
+
+// pgvector literal: '[v1,v2,...]' — the only wire format vector params cross into SQL as
+// (always via `$1::vector` casts in $queryRaw/$executeRaw; Prisma can't type the column).
+export const toVectorLiteral = (v: number[]): string => `[${v.join(",")}]`;
+
+// Boundary validation, exported for tests. A malformed 200 (wrong count, missing field,
+// empty vector) means a wrong model tag or Ollama version — a real bug, so plain Error,
+// which withOllamaRetry treats as fatal (same rule as chatJson's JSON-parse failures).
+export function parseEmbedResponse(body: unknown, expected: number): number[][] {
+  const embeddings = (body as { embeddings?: unknown }).embeddings;
+  if (!Array.isArray(embeddings)) throw new Error("Ollama returned no embeddings array");
+  if (embeddings.length !== expected) {
+    throw new Error(`Ollama returned ${embeddings.length} embeddings, expected ${expected}`);
+  }
+  for (const e of embeddings) {
+    if (!Array.isArray(e) || e.length === 0) throw new Error("Ollama returned an empty embedding");
+  }
+  return embeddings as number[][];
+}
+
+// Batch embedding via /api/embed ({model, input: [...]} -> {embeddings: [[...]]}). Same
+// timeout/abort/OllamaError seam as chatJsonOnce, same retry wrapper — an embed call is
+// just a cheaper model call and inherits the whole transient/fatal classification.
+export async function embed(texts: string[], model: string): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  return withOllamaRetry(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(`${OLLAMA_URL}/api/embed`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ model, input: texts }),
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new OllamaError(`Ollama embed timed out after ${TIMEOUT_MS}ms (model "${model}")`);
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new OllamaError(`Ollama network error: ${reason}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!res.ok) {
+      throw new OllamaError(`Ollama ${res.status}: ${await res.text()}`, res.status);
+    }
+    return parseEmbedResponse(await res.json(), texts.length);
+  });
+}
+
 async function chatJsonOnce<T>({ system, user, schema, model }: ChatJsonOptions): Promise<T> {
   const modelTag = model ?? OLLAMA_MODEL;
   // Mirror the fetch-timeout pattern from greenhouse/fetch.ts: the LOCAL model call is far

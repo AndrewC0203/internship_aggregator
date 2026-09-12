@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isRetryableOllamaError, withOllamaRetry, OllamaError } from "./ollama.js";
+import {
+  isRetryableOllamaError,
+  withOllamaRetry,
+  OllamaError,
+  toVectorLiteral,
+  parseEmbedResponse,
+} from "./ollama.js";
 
 // Mirrors src/discovery/retry.test.ts — same shape (classifier + retry-wrapper tests), applied
 // to OllamaError instead of DiscoveryFetchError. See the comment in ollama.ts for why this is a
@@ -110,4 +116,20 @@ test("respects a custom retry count", async () => {
       ),
   );
   assert.equal(calls, 2); // 1 initial + 1 retry
+});
+
+// ── embed() boundary pieces: the literal renderer and the response-shape guard ─────────────
+
+test("toVectorLiteral renders a pgvector-castable literal", () => {
+  assert.equal(toVectorLiteral([0.1, -2, 3e-7]), "[0.1,-2,3e-7]");
+});
+
+test("parseEmbedResponse: shape-validates embeddings against input count", () => {
+  assert.deepEqual(parseEmbedResponse({ embeddings: [[1, 2]] }, 1), [[1, 2]]);
+  // Count mismatch / missing field / empty vector are all FATAL (plain Error, not
+  // OllamaError) — a malformed 200 means a wrong model tag or Ollama version, and
+  // retrying can't fix that, same rule as chatJson's parse failures.
+  assert.throws(() => parseEmbedResponse({ embeddings: [[1]] }, 2), /expected 2/);
+  assert.throws(() => parseEmbedResponse({}, 1), /no embeddings/);
+  assert.throws(() => parseEmbedResponse({ embeddings: [[]] }, 1), /empty/);
 });

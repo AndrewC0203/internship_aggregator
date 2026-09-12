@@ -71,10 +71,14 @@ resumable and crash-safe (fingerprints are written only on successful save):
 - Regenerate SIGNATURE when `signature_fingerprint IS DISTINCT FROM` the hash computed from
   current inputs + prompt version. (Content edits, prompt bumps, and never-processed rows
   all land here.)
-- Regenerate EMBEDDING when the signature was regenerated OR `embedding_model` /
-  `template_version` `IS DISTINCT FROM` current config. (An embedding-model swap re-embeds
-  WITHOUT re-running distillation — the expensive 7B pass is not repeated for a cheap
-  embed-model change.)
+- Regenerate EMBEDDING when `embedding IS NULL` OR `embedding_model` / `template_version`
+  `IS DISTINCT FROM` current config. (An embedding-model swap re-embeds WITHOUT re-running
+  distillation — the expensive 7B pass is not repeated for a cheap embed-model change.)
+- CRASH-WINDOW RULE: saving a changed signature CLEARS the row's embedding (+
+  `embedding_model`, `template_version`) in the same write. Otherwise a signature-save
+  followed by an embed failure leaves an old embedding that still matches current config —
+  eligible for ranking and never retried. With the clear, `embedding IS NULL` is the
+  retry trigger and the usability gate excludes the row until re-embedded.
 
 Distillation is a SEPARATE stage/prompt from `extract` (7B, own prompt): extract is
 quote-first fact copying with measured accuracy; distillation is abstractive. Mixing them
@@ -85,6 +89,9 @@ risks the validated extract contract. Accepted cost: one extra 7B call per listi
 The 7B distillation pass and the embedding model must both EARN their place, measured, on a
 sample — full backfill only after this gate.
 
+0. Prerequisite: an approved profile. The full editing UI comes later in the build order,
+   so the gate uses a manually authored + reviewed profile/questionnaire fixture (same
+   JSON shape the UI will produce) — evaluation never runs against an unapproved profile.
 1. Stratified sample ~200 listings (csField × opportunityType); generate signatures.
 2. Pooled labeling: user labels the UNION of top-K results from every approach below
    (relevant / borderline / irrelevant vs the approved profile) — pooling, so no approach's
@@ -148,7 +155,9 @@ fresh-but-close listings; at ≤1,832 rows the full set is measured-trivial). No
 - `score = W_SIM * similarity + W_FRESH * freshness` (named constants, start 0.85/0.15;
   freshness = exp decay on publishedAt fallback firstSeenAt, ~30-day half-life; weight
   validated on the labeled set — the blend can reorder, that must be a chosen behavior)
-- Node sorts by (score desc, id asc) — stable pagination — and paginates.
+- Node sorts by (score desc, id asc) and paginates — deterministic ordering for a fixed
+  dataset and scoring time; pagination can still shift as freshness decays or listings
+  change between requests.
 - Deadlines displayed with urgency, never scored (too sparse).
 - UI shows qualitative bands only; cosine is never rendered as a percentage.
 
@@ -173,8 +182,10 @@ design (freshness).
   `UPDATE ... WHERE revision = read_revision`, bump revision; 0 rows updated = a newer edit
   won, surface conflict, never overwrite. Approved inputs + matching embedding always land
   together.
-- Ranking hard-errors (loud, not silent) if `user_profile.embedding_model` disagrees with
-  current config → "re-embed profile" remediation.
+- Ranking hard-errors (loud, not silent) if the profile embedding is null OR its
+  `embedding_model` / `template_version` disagree with current config → "re-embed profile"
+  remediation. (Same two-field gate as listings — a template bump must not compare
+  new-template listing vectors against an old-template profile vector.)
 - Listings excluded by the usability gate surface as a visible count in the UI — a
   half-enriched corpus degrades loudly.
 - Ollama down: browse/rank unaffected; profile edits and enrichment fail with 503 +
@@ -200,7 +211,7 @@ by the evaluation gate, not unit tests; skipped: end-to-end UI tests.
 
 1. Migration (pgvector + columns + user_profile)
 2. `embed()` in src/model/ollama.ts (+ retry reuse)
-3. Signature stage + enrichment pass (sample mode)
+3. Signature stage + enrichment pass (sample mode) + approved profile fixture
 4. **Evaluation gate** → research doc → GO/AMEND decision
 5. Full enrichment backfill (background)
 6. Profile flow (extract, edit UI, publish)

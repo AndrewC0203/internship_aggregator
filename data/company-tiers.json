@@ -1,0 +1,31 @@
+{
+  "note": "Hand-curated list of employers famously selective for early-career roles (Decision 32). Inclusion criteria: household-name tech/quant firms with publicly reported single-digit intern acceptance rates or equivalent widely-known reputation. This list annotates, never filters. Unlisted companies are NOT ASSESSED — absence here never means 'less selective'. Edit freely; the badge reads this file at startup.",
+  "companies": [
+    "Google",
+    "Meta",
+    "Apple",
+    "Microsoft",
+    "Amazon",
+    "Netflix",
+    "NVIDIA",
+    "OpenAI",
+    "Anthropic",
+    "Stripe",
+    "Databricks",
+    "Palantir",
+    "Palantir Technologies",
+    "SpaceX",
+    "Tesla",
+    "Jane Street",
+    "Citadel",
+    "Citadel Securities",
+    "Two Sigma",
+    "Hudson River Trading",
+    "Jump Trading",
+    "D. E. Shaw",
+    "DE Shaw",
+    "Optiver",
+    "IMC",
+    "IMC Trading"
+  ]
+}

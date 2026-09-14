@@ -11,6 +11,7 @@ import { registerRecommendRoutes } from "./recommend.js";
 import { recommend } from "../recommend/rank.js";
 import { renderForYouPage } from "./render-foryou.js";
 import { renderProfilePage } from "./render-profile.js";
+import { renderTryoutPage } from "./render-tryout.js";
 import { ensureProfileRow } from "../recommend/profile.js";
 import { parseQuestionnaire } from "../recommend/questionnaire.js";
 import { EMBED_MODEL, TEMPLATE_VERSION } from "../recommend/config.js";
@@ -42,6 +43,10 @@ app.get<{ Querystring: { page?: string } }>("/foryou", async (req, reply) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const result = await recommend(prisma, { page, per: 25 });
   reply.type("text/html; charset=utf-8").send(renderForYouPage(result, page));
+});
+
+app.get("/tryout", async (_req, reply) => {
+  reply.type("text/html; charset=utf-8").send(renderTryoutPage());
 });
 
 app.get("/profile", async (_req, reply) => {

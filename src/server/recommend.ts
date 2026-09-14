@@ -10,9 +10,10 @@ import {
 } from "../recommend/profile.js";
 import { parseQuestionnaire } from "../recommend/questionnaire.js";
 import { canonicalizeSkills } from "../recommend/aliases.js";
-import type { ProfileJson } from "../recommend/canonical.js";
-import { recommend } from "../recommend/rank.js";
+import { profileCanonicalText, type ProfileJson } from "../recommend/canonical.js";
+import { recommend, rankAgainst } from "../recommend/rank.js";
 import { EMBED_MODEL, TEMPLATE_VERSION } from "../recommend/config.js";
+import { embed } from "../model/ollama.js";
 
 // Recommendation API (spec "API + UI"). Thin routes: every rule lives in the recommend/
 // modules; this file only parses, dispatches, and maps outcomes to status codes.
@@ -141,6 +142,45 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
           return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
         }
         throw err;
+      }
+    },
+  );
+
+  // Stateless tryout (manual testing / demo): rank the corpus against a PASTED resume —
+  // extract + embed + rank happen in-memory, NOTHING is persisted (not the resume, not the
+  // profile — someone else's resume is PII and must not land in user_profile or anywhere).
+  // Optional `interests` feeds the Seeking: section so soft steering is testable too.
+  app.post<{ Body: { resumeText?: string; interests?: string; per?: number } }>(
+    "/api/tryout",
+    async (req, reply) => {
+      const resumeText = req.body?.resumeText;
+      if (typeof resumeText !== "string" || resumeText.trim().length < 40) {
+        return reply.code(400).send({ error: "resumeText required (paste the plain text)" });
+      }
+      try {
+        const extracted = await extractProfile(resumeText);
+        const questionnaire = parseQuestionnaire({
+          interests: typeof req.body?.interests === "string" ? req.body.interests : "",
+        });
+        const profile = { skills: extracted.skills, focus: extracted.focus };
+        const [vector] = await embed(
+          [profileCanonicalText(profile, questionnaire, EMBED_MODEL)],
+          EMBED_MODEL,
+        );
+        const ranked = await rankAgainst(prisma, {
+          profile,
+          questionnaire,
+          vector,
+          page: 1,
+          per: Math.min(50, Math.max(5, Number(req.body?.per) || 10)),
+        });
+        return { extracted, ...ranked };
+      } catch (err) {
+        if (ollamaDown(err)) {
+          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+        }
+        const reason = err instanceof Error ? err.message : String(err);
+        return reply.code(422).send({ error: "extraction_failed", reason });
       }
     },
   );

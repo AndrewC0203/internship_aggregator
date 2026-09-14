@@ -104,6 +104,11 @@
   shipped, raw baseline disqualified on the soft-preference MUST; W_FRESH validated down
   to 0.05; bands rank-based (absolute cosine can't separate labeled classes); full
   backfill run under the winning config.
+- Tryout mode (2026-09-14) — `/tryout` + `POST /api/tryout`: rank the enriched corpus
+  against ANY pasted resume (quote-grounded 14B extraction → embed → same ranking core via
+  `rankAgainst()`), fully STATELESS — the pasted resume is PII and never touches
+  `user_profile` or any table; optional free-text interests exercise the soft-steering
+  mechanism. Built for manually testing other people's profiles and live demos.
 
 # Priority 1
 

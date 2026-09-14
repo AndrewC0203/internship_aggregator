@@ -92,7 +92,24 @@ export async function recommend(
 ): Promise<RecResult> {
   const loaded = await loadRankingProfile(prisma);
   if (loaded.state !== "ready") return { state: loaded.state };
-  const { profile, questionnaire, vector } = loaded;
+  return rankAgainst(prisma, { ...loaded, ...opts });
+}
+
+// The ranking core, decoupled from WHERE the profile comes from: recommend() feeds it the
+// stored approved profile; the /tryout flow feeds it an ad-hoc extracted profile + vector
+// that never touches user_profile. Same query, same gate, same scoring either way.
+export async function rankAgainst(
+  prisma: PrismaClient,
+  args: {
+    profile: { skills: string[] };
+    questionnaire: Questionnaire;
+    vector: number[];
+    page?: number;
+    per?: number;
+  },
+): Promise<Extract<RecResult, { state: "ready" }>> {
+  const { profile, questionnaire, vector } = args;
+  const opts = { page: args.page, per: args.per };
 
   const hard = hardConditions(questionnaire);
   const hardSql = hard.length ? Prisma.sql`AND ${Prisma.join(hard, " AND ")}` : Prisma.empty;

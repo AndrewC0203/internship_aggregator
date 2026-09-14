@@ -7,7 +7,7 @@ import { css } from "./render.js";
 
 export function subPage(args: {
   title: string;
-  active: "foryou" | "profile";
+  active: "foryou" | "profile" | "tryout";
   body: string;
   extraCss?: string;
 }): string {
@@ -36,6 +36,7 @@ ${args.extraCss ?? ""}</style>
   <nav class="views" aria-label="views" style="margin-left:auto">
     <a href="/foryou"${args.active === "foryou" ? ` aria-current="page"` : ""}>FOR YOU</a>
     <a href="/profile"${args.active === "profile" ? ` aria-current="page"` : ""}>PROFILE</a>
+    <a href="/tryout"${args.active === "tryout" ? ` aria-current="page"` : ""}>TRYOUT</a>
   </nav>
 </header>
 <main class="sub">

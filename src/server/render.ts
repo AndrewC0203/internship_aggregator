@@ -364,6 +364,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   <nav class="views" aria-label="views">
     <a href="/foryou">FOR YOU</a>
     <a href="/profile">PROFILE</a>
+    <a href="/tryout">TRYOUT</a>
   </nav>
   <a class="new-block${p.newOnly ? " on" : ""}" href="${qs(p, { new: p.newOnly ? null : "1" })}" title="show only new listings" aria-current="${p.newOnly ? "true" : "false"}">
     <span class="nb-n">${res.newCount}</span>

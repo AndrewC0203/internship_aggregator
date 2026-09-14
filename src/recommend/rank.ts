@@ -121,20 +121,22 @@ export async function recommend(
   ]);
 
   const now = new Date();
+  // Global rank survives pagination — bands are rank-relative to the WHOLE eligible set
+  // (see score.ts band()), so page 3's items must know their true position.
   const scored = sortRecs(
     rows.map((r) => ({
       row: r,
       id: r.id,
       score: blendScore(r.similarity, freshness(r.published_at, r.first_seen_at, now)),
     })),
-  );
+  ).map((s, rank) => ({ ...s, rank }));
 
   const page = Math.max(1, opts.page ?? 1);
   const per = Math.min(100, Math.max(10, opts.per ?? 25));
   const hasLocationPrefs =
     questionnaire.locStates.length > 0 || questionnaire.locCountries.length > 0;
 
-  const items: RecItem[] = paginate(scored, page, per).map(({ row, score }) => {
+  const items: RecItem[] = paginate(scored, page, per).map(({ row, score, rank }) => {
     const sig = validateSignature(row.signature);
     const daysLeft = row.application_deadline
       ? Math.ceil((row.application_deadline.getTime() - now.getTime()) / MS_PER_DAY)
@@ -148,7 +150,7 @@ export async function recommend(
       opportunityType: row.opportunity_type,
       csField: row.cs_field,
       score,
-      band: band(score),
+      band: band(rank, scored.length),
       matchedSkills: matchedSkills(profile.skills, sig),
       chip: alignmentChip(
         {

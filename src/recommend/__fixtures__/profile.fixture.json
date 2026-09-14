@@ -1,8 +1,16 @@
 {
   "_README": "EVAL PROFILE FIXTURE (spec prerequisite 0). The evaluation gate never runs against an unapproved profile — EDIT THIS TO DESCRIBE YOURSELF, then treat your edit as the approval. The shapes below are exactly what the /profile UI produces. resumeText feeds the no-distillation baseline (b); profile+questionnaire feed the signature approaches (a) and the skill-overlap scorer (c). If this still says PLACEHOLDER when you label, your labels are judging a fake persona — fix it first.",
-  "resumeText": "PLACEHOLDER — paste your real resume as plain text. Andrew Choi. CS student. Built an internship aggregator: TypeScript, Fastify, PostgreSQL, Prisma, local LLM pipeline (Ollama), pgvector ranking. Coursework: data structures, algorithms, databases.",
+  "resumeText": "Andrew Choi | (917) 969-6546 | agchoi@umass.edu | www.linkedin.com/in/andrew-g-choi | https: //github.com/AndrewC0203 || EDUCATION: University of Massachusetts Amherst, B.S. Computer Science, GPA 4.0, Expected May 2028 — Coursework: Data Structures, Programming Methodology, Computer Science Principles, Discrete Math, Intro to C, Linear Algebra, Multivariable Calculus; Stuyvesant High School, Advanced Regents Diploma w/ Honors, GPA 4.0, June 2025 — Coursework: APCS A, Cybersecurity, Systems level programming, AP Calculus BC — Honors: AP Scholar with Distinction, The Matty Hahn Memorial Award, Senator Brian Kavanagh Certificate of Achievement || PROFESSIONAL EXPERIENCE: Google Mentorship Program, Software Developer, Jan 2024-Jun 2024, New York NY — Developed full-stack AI-powered language learning platform using Django, REST APIs, and React/TypeScript in a team of 4 under mentorship of a Google engineer; integrated feedback on UX and functionality, presented to 10+ Google engineers; coordinated 12+ weekly meetings across a 4-person team, delivering 3 major features on schedule || PROJECTS: FPL Projection Engine (TypeScript, Node.js, PostgreSQL, React), Dec 2025-Present — full-stack app using FPL API data to project fantasy football team performance, includes JWT auth, roster analysis, player projections, and transfer/captain suggestions; Wharton Data Science Competition, AI/ML Developer, Jan 2025-Mar 2025 — developed Graph Attention Network (GATv2) model to predict NCAA women's basketball outcomes, designed multi-layer neural network with 3 GAT layers, batch normalization, trained over 5,000 epochs; BUILD UMass, Software Developer, Feb 2026-Present, Amherst MA — contributing to an AI-powered nonprofit consulting platform automating project intake, student-nonprofit matching, CRM, and website generation for 50+ member organizations across the Northeast; implemented full authentication system using Auth.js v5 with JWT sessions, role-based access control (admin/reviewer/member), and route protection across a Next.js + Fastify monorepo; designed LangGraph pipeline node contracts defining state schemas and data flow for a 7-stage AI agent that autonomously generates and deploys SEO-optimized websites for nonprofit clients || LEADERSHIP: Stuyvesant Varsity Baseball Team, Captain, Sep 2021-Jun 2025, New York NY — led team to 9-5 record as senior captain, hosting 5+ practices/week and mentoring 5+ underclassmen || SKILLS: Languages: Python, Java, C, JS, TS, SQL; Tools/Frameworks: React, Node.js, Express, Git, Prisma, PostgreSQL, Vercel, Django; Libraries: PyTorch, Pandas, TanStack Query, Recharts, REST APIs, JWT",
   "profile": {
-    "skills": ["typescript", "postgresql", "fastify", "prisma", "node", "sql", "git"],
+    "skills": [
+      "typescript",
+      "postgresql",
+      "fastify",
+      "prisma",
+      "node",
+      "sql",
+      "git"
+    ],
     "focus": "Built a full-stack job aggregation platform with TypeScript, Fastify, and PostgreSQL, including a local-LLM ingestion pipeline."
   },
   "questionnaire": {
@@ -14,10 +22,19 @@
     "locStates": [],
     "locCountries": [],
     "remoteOk": true,
-    "types": ["internship", "co_op"],
+    "types": [
+      "internship",
+      "co_op"
+    ],
     "targetFields": [
-      { "field": "swe", "mustHave": false },
-      { "field": "devops_infra", "mustHave": false }
+      {
+        "field": "swe",
+        "mustHave": false
+      },
+      {
+        "field": "devops_infra",
+        "mustHave": false
+      }
     ],
     "interests": "backend systems, data pipelines, developer tools"
   }

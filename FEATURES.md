@@ -100,8 +100,10 @@
   AND model+template match current config) blended 0.85 similarity / 0.15 freshness
   (30-day half-life); alignment chip from extracted facts + hand-curated selectivity badge
   (`data/company-tiers.json`); `/profile` + `/foryou` SSR pages in the terminal world.
-  GATED: full backfill + final model choice wait on the labeled evaluation
-  (`npm run eval:recommend`, spec: finalized_decisions/recommendations.md).
+  Eval gate PASSED 2026-09-14 (research/embedding-model-bakeoff.md): signatures + nomic
+  shipped, raw baseline disqualified on the soft-preference MUST; W_FRESH validated down
+  to 0.05; bands rank-based (absolute cosine can't separate labeled classes); full
+  backfill run under the winning config.
 
 # Priority 1
 
@@ -138,8 +140,9 @@
   embed OUTSIDE the transaction; 0 rows = conflict, never overwrite); (d) every hard
   questionnaire filter keeps NULLs and badges them — filters exclude only explicit
   contradictions; (e) labels annotate, never filter, and cosine is never rendered as a
-  percentage; (f) band thresholds in `score.ts` are PROVISIONAL until the eval gate
-  calibrates them.
+  percentage; (f) bands are RANK-relative ("among today's best matches"), never absolute
+  similarity thresholds — measured 2026-09-14: the labeled classes' cosine distributions
+  overlap almost completely, so an absolute "strong match" claim would be dishonest.
 - Deadlines have two confidence tiers: Greenhouse's structured field is authoritative;
   AI-extracted deadlines (from `description_plain`) are lower confidence. For now they are
   treated identically in filtering — revisit if false-positive rate is high.

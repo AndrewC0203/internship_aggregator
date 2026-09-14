@@ -26,14 +26,15 @@ export function sortRecs<T extends { score: number; id: number }>(rows: T[]): T[
   return [...rows].sort((a, b) => b.score - a.score || a.id - b.id);
 }
 
-// Qualitative bands only — cosine is NEVER rendered as a percentage (spec). Thresholds are
-// PROVISIONAL until the eval gate's labeled set calibrates them (Task 14 of the plan);
-// they gate copy ("strong match"), not filtering, so a miscalibration is cosmetic.
-export const BAND_STRONG = 0.6;
-export const BAND_GOOD = 0.45;
-
-export function band(score: number): "strong" | "good" | "fair" {
-  if (score >= BAND_STRONG) return "strong";
-  if (score >= BAND_GOOD) return "good";
+// Qualitative bands only — cosine is NEVER rendered as a percentage (spec). RANK-based,
+// not score-threshold-based, by measurement (eval gate 2026-09-14): the labeled classes'
+// similarity distributions overlap almost completely (relevant median 0.707, irrelevant
+// median 0.688, irrelevant MAX 0.749) — an absolute threshold cannot honestly separate
+// them, while the ordering demonstrably can (P@10 lenient 0.80-0.90). So a band claims
+// "among today's best matches for you", which is relative by construction: top ~10% of
+// the eligible set (min 5) = strong, next ~25% = good, rest = fair.
+export function band(rank: number, total: number): "strong" | "good" | "fair" {
+  if (rank < Math.max(5, Math.ceil(total * 0.1))) return "strong";
+  if (rank < Math.ceil(total * 0.35)) return "good";
   return "fair";
 }

@@ -1651,6 +1651,25 @@ eliminated).
 
 Date: 2026-09-12
 
+**Gate outcome (2026-09-14, addendum):** the evaluation ran as pre-registered
+(research/embedding-model-bakeoff.md has every number). GO — signatures stand, with
+`nomic-embed-text` (primary strict P@10 tied 0.40/0.40 between sig models after the
+dead-link label correction; secondary lenient tiebreak 0.90 vs 0.80 → nomic). The raw
+baseline (raw:mxbai) won the primary by one item (0.50) but is DISQUALIFIED on the
+pre-registered soft-preference MUST: it moved zero SWE listings (10→10) because
+mxbai's 512-token truncation never sees soft answers appended to a ~750-token resume
+query — the questionnaire's one soft mechanism would be structurally dead. Its edge was
+also duplicate-inflated (a 3-row Tulip role family = 3 "relevant" hits that Decision 28's
+cards collapse) and unconfirmed by the held-out slice (all approaches tied at n=7).
+Two calibrations from the same labeled set: `W_FRESH` 0.15 → 0.05 (0.15 churned 4–6 of
+top-10 with unjudged items — remake, not nudge; 0.05 churns 1–2 with zero
+labeled-irrelevant entrants) and bands became RANK-based (labeled-class similarity
+distributions overlap almost completely — irrelevant max 0.749 > relevant median 0.707 —
+so absolute thresholds cannot honestly claim "strong"). Tradeoffs accepted: the verdict
+leans on a disqualifier rather than a P@10 margin (margins at n=10 are 1–2 items — the
+eval was sized to catch "clearly better/worse," and neither happened); the eval is
+single-profile; full backfill proceeds under this config.
+
 ## Decision 32: Attainability — alignment chip + curated selectivity badge; no probability banding
 
 Problem: User requirement — "someone with no projects shouldn't be pointed at Google."

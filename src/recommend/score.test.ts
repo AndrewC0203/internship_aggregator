@@ -18,9 +18,9 @@ test("freshness: publishedAt null falls back to firstSeenAt; future dates clamp 
   assert.equal(freshness(D("2026-09-13T00:00:00Z"), NOW, NOW), 1);
 });
 
-test("blend: W_SIM/W_FRESH named-constant math (0.85/0.15)", () => {
-  assert.ok(Math.abs(blendScore(1, 0) - 0.85) < 1e-9);
-  assert.ok(Math.abs(blendScore(0, 1) - 0.15) < 1e-9);
+test("blend: W_SIM/W_FRESH named-constant math (0.95/0.05, validated at the eval gate)", () => {
+  assert.ok(Math.abs(blendScore(1, 0) - 0.95) < 1e-9);
+  assert.ok(Math.abs(blendScore(0, 1) - 0.05) < 1e-9);
   assert.ok(Math.abs(blendScore(1, 1) - 1) < 1e-9);
 });
 
@@ -36,8 +36,13 @@ test("sort: score desc, id asc tiebreak — deterministic pagination for a fixed
   );
 });
 
-test("bands are qualitative only (provisional thresholds, calibrated at the eval gate)", () => {
-  assert.equal(band(0.7), "strong");
-  assert.equal(band(0.5), "good");
-  assert.equal(band(0.2), "fair");
+test("bands are rank-based (absolute similarity can't separate labeled classes — measured)", () => {
+  // 200 eligible: top 20 strong (10%), through rank 69 good (35%), rest fair.
+  assert.equal(band(0, 200), "strong");
+  assert.equal(band(19, 200), "strong");
+  assert.equal(band(20, 200), "good");
+  assert.equal(band(69, 200), "good");
+  assert.equal(band(70, 200), "fair");
+  // Tiny corpus: the strong band never shrinks below 5.
+  assert.equal(band(4, 8), "strong");
 });

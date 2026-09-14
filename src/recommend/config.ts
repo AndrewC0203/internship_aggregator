@@ -15,9 +15,12 @@ export const TEMPLATE_VERSION = 1;
 // fingerprint, so bumping it marks every signature stale for the next enrichment pass.
 export const SIGNATURE_PROMPT_VERSION = 1;
 
-// Score blend (spec "Ranking"): named constants, start 0.85/0.15; the freshness weight is
-// validated at the eval gate — the blend can reorder results, and that must be a CHOSEN
-// behavior, not an accident of a magic number.
-export const W_SIM = 0.85;
-export const W_FRESH = 0.15;
+// Score blend (spec "Ranking"): named constants, VALIDATED at the eval gate 2026-09-14
+// (research/embedding-model-bakeoff.md). The spec's starting 0.15 freshness weight churned
+// 4-6 of the top-10 with unjudged items on the labeled sample — the blend was remaking the
+// feed, not nudging it (cosine similarities compress into ~0.60-0.78, so a 0..1 freshness
+// term at 0.15 rivals the whole similarity spread). At 0.05 the churn is 1-2 items with
+// zero labeled-irrelevant entrants: nudge, not remake — the chosen behavior.
+export const W_SIM = 0.95;
+export const W_FRESH = 0.05;
 export const FRESHNESS_HALF_LIFE_DAYS = 30;

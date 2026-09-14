@@ -242,8 +242,12 @@ function readLabels(): Map<number, string> {
   const labels = new Map<number, string>();
   const allowed = new Set(["relevant", "borderline", "irrelevant"]);
   for (const line of lines) {
-    const id = Number(line.split(",")[0]);
-    const label = line.split(",").at(-1)!.trim().toLowerCase().replaceAll('"', "");
+    // Tolerant parse for hand-edited CSV: the label is the LAST NON-EMPTY field (survives
+    // trailing commas, added quotes, and stray spaces — all observed in real labeling);
+    // quoted title/url fields can contain commas, but the label always comes after them.
+    const fields = line.split(",").map((f) => f.replaceAll('"', "").trim());
+    const id = Number(fields[0]);
+    const label = (fields.filter(Boolean).at(-1) ?? "").toLowerCase();
     if (!allowed.has(label)) {
       throw new Error(`labels.csv: row for id ${id} has label "${label}" — every pooled row needs relevant/borderline/irrelevant`);
     }

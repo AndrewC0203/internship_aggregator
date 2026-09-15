@@ -66,7 +66,65 @@ export async function enrichListings(
     upToDate: 0,
   };
 
-  // ── Pass 1: signatures ────────────────────────────────────────────────────────────────
+  // Embed sub-pass, callable repeatedly: everything with a signature but no current-config
+  // vector. INTERLEAVED with the signature loop (initial sweep + every SIG_CHUNK distills +
+  // final) rather than run once at the end — the 2026-09-14 backfill crash showed why: a
+  // signatures-first/embeds-last structure left 1,613 freshly-signed rows with NO vector
+  // when the process died, so the rankable corpus never grew during hours of work.
+  // Interleaving keeps "usable" advancing continuously; embeds are cheap relative to
+  // distills, and the query is idempotent, so repeated sweeps cost ~nothing.
+  async function embedPending(): Promise<void> {
+    const idFilter = opts.ids
+      ? Prisma.sql`AND id IN (${Prisma.join(opts.ids)})`
+      : Prisma.empty;
+    const toEmbed = await prisma.$queryRaw<Array<{ id: number; signature: unknown }>>`
+      SELECT id, signature
+      FROM listings
+      WHERE is_listed
+        AND signature IS NOT NULL
+        AND (embedding IS NULL
+             OR embedding_model IS DISTINCT FROM ${EMBED_MODEL}
+             OR template_version IS DISTINCT FROM ${TEMPLATE_VERSION})
+        ${idFilter}
+      ORDER BY id ASC
+      ${opts.limit ? Prisma.sql`LIMIT ${opts.limit}` : Prisma.empty}`;
+
+    for (const batch of embedBatches(toEmbed, EMBED_BATCH_SIZE)) {
+      // A row whose stored signature no longer validates (schema drift) is skipped loudly —
+      // it re-enters via a prompt-version bump, never via a silent guess.
+      const valid = batch
+        .map((r) => ({ id: r.id, sig: validateSignature(r.signature) }))
+        .filter((r): r is { id: number; sig: NonNullable<ReturnType<typeof validateSignature>> } => {
+          if (!r.sig) console.error(`[enrich embed] #${r.id} stored signature invalid — skipped`);
+          return r.sig !== null;
+        });
+      if (valid.length === 0) continue;
+
+      try {
+        console.log(`[enrich embed] embedding batch of ${valid.length} (through #${valid[valid.length - 1].id})...`);
+        const vectors = await embed(
+          valid.map((r) => listingCanonicalText(r.sig, EMBED_MODEL)),
+          EMBED_MODEL,
+        );
+        for (let i = 0; i < valid.length; i++) {
+          await prisma.$executeRaw`
+            UPDATE listings
+            SET embedding = ${toVectorLiteral(vectors[i])}::vector,
+                embedding_model = ${EMBED_MODEL},
+                template_version = ${TEMPLATE_VERSION}
+            WHERE id = ${valid[i].id}`;
+          summary.embedded++;
+        }
+      } catch (err) {
+        // Batch-level isolation: these rows stay embedding-NULL and retry next sweep/pass.
+        summary.embedFailed += valid.length;
+        const reason = err instanceof Error ? err.message : String(err);
+        console.error(`[enrich embed] batch failed (rows stay NULL, retry next pass): ${reason}`);
+      }
+    }
+  }
+
+  // ── Signatures (with interleaved embed sweeps) ────────────────────────────────────────
   // Fingerprints compare in Node (the hash needs the full input tuple anyway); at ~2k
   // active rows the full scan is trivial and keeps the staleness rule in exactly one place.
   const rows = await prisma.listing.findMany({
@@ -86,7 +144,13 @@ export async function enrichListings(
   summary.scanned = rows.length;
 
   const stale = rows.filter((r) => needsSignature(r, signatureFingerprint(r)));
+
+  // Initial sweep: a restart after a crash embeds everything already signed BEFORE paying
+  // for a single new distill — the rankable corpus recovers first.
+  await embedPending();
+
   // Sequential like every model loop in this repo: one local Ollama, one request at a time.
+  const SIG_CHUNK = 50;
   for (const [i, row] of stale.entries()) {
     const label = `[enrich sig ${i + 1}/${stale.length}] #${row.id} ${row.company} :: "${row.title}"`;
     try {
@@ -108,60 +172,14 @@ export async function enrichListings(
       const reason = err instanceof Error ? err.message : String(err);
       console.error(`${label} -> FAILED (will retry next pass): ${reason}`);
     }
+    // Interleaved sweep: freshly-signed rows become rankable within SIG_CHUNK distills of
+    // their signature, no matter when (or whether) the full run finishes.
+    if ((i + 1) % SIG_CHUNK === 0) await embedPending();
   }
 
-  // ── Pass 2: embeddings ────────────────────────────────────────────────────────────────
-  // The usability gate's complement: anything with a signature but no current-config vector.
-  const idFilter = opts.ids
-    ? Prisma.sql`AND id IN (${Prisma.join(opts.ids)})`
-    : Prisma.empty;
-  const toEmbed = await prisma.$queryRaw<
-    Array<{ id: number; signature: unknown }>
-  >`
-    SELECT id, signature
-    FROM listings
-    WHERE is_listed
-      AND signature IS NOT NULL
-      AND (embedding IS NULL
-           OR embedding_model IS DISTINCT FROM ${EMBED_MODEL}
-           OR template_version IS DISTINCT FROM ${TEMPLATE_VERSION})
-      ${idFilter}
-    ORDER BY id ASC
-    ${opts.limit ? Prisma.sql`LIMIT ${opts.limit}` : Prisma.empty}`;
-
-  for (const batch of embedBatches(toEmbed, EMBED_BATCH_SIZE)) {
-    // A row whose stored signature no longer validates (schema drift) is skipped loudly —
-    // it re-enters via a prompt-version bump, never via a silent guess.
-    const valid = batch
-      .map((r) => ({ id: r.id, sig: validateSignature(r.signature) }))
-      .filter((r): r is { id: number; sig: NonNullable<ReturnType<typeof validateSignature>> } => {
-        if (!r.sig) console.error(`[enrich embed] #${r.id} stored signature invalid — skipped`);
-        return r.sig !== null;
-      });
-    if (valid.length === 0) continue;
-
-    try {
-      console.log(`[enrich embed] embedding batch of ${valid.length} (through #${valid[valid.length - 1].id})...`);
-      const vectors = await embed(
-        valid.map((r) => listingCanonicalText(r.sig, EMBED_MODEL)),
-        EMBED_MODEL,
-      );
-      for (let i = 0; i < valid.length; i++) {
-        await prisma.$executeRaw`
-          UPDATE listings
-          SET embedding = ${toVectorLiteral(vectors[i])}::vector,
-              embedding_model = ${EMBED_MODEL},
-              template_version = ${TEMPLATE_VERSION}
-          WHERE id = ${valid[i].id}`;
-        summary.embedded++;
-      }
-    } catch (err) {
-      // Batch-level isolation: these rows stay embedding-NULL and retry next pass.
-      summary.embedFailed += valid.length;
-      const reason = err instanceof Error ? err.message : String(err);
-      console.error(`[enrich embed] batch failed (rows stay NULL, retry next pass): ${reason}`);
-    }
-  }
+  // Final sweep catches the tail chunk (and, when the signature list was empty, is the
+  // whole run — e.g. after an embed-model swap, which re-embeds without re-distilling).
+  await embedPending();
 
   summary.upToDate = summary.scanned - stale.length;
   return summary;

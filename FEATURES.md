@@ -94,7 +94,9 @@
   distillation (`src/model/signature.ts`, separate prompt from extract on purpose);
   fingerprint-driven enrichment pass (`npm run enrich`, auto-runs non-fatally after refresh);
   quote-grounded 14B resume extraction (model writes `extracted_profile`, human approves into
-  `profile` — the only column ranking reads); questionnaire with three separate work-auth
+  `profile` — the only column ranking reads); enrichment interleaves embed sweeps with
+  distills (2026-09-14 crash lesson: signatures-first/embeds-last left 1,613 signed rows
+  unrankable — now the usable corpus grows continuously and recovers first on restart); questionnaire with three separate work-auth
   booleans and hard/soft split (hard = SQL conditions, soft = merged into the embedded
   Seeking: text); one-query ranking over ALL eligible rows (usability gate: embedding present
   AND model+template match current config) blended 0.85 similarity / 0.15 freshness

@@ -40,7 +40,7 @@ const EXTRACT_SCHEMA = {
 const EXTRACT_SYSTEM = `You extract a candidate profile from a resume. You may ONLY claim things you can quote from the resume text.
 
 Return:
-- skills: TECHNICAL skills the resume demonstrates (languages, frameworks, tools, technical methods). For each: "evidence" = the exact resume phrase that demonstrates it (copied verbatim), "name" = the skill in lowercase. NEVER include soft skills, and NEVER include a skill the resume merely wishes for ("eager to learn Rust" is NOT a Rust skill). At most 20.
+- skills: TECHNICAL skills the resume demonstrates IN USE (languages, frameworks, tools, technical methods). For each: "evidence" = the exact resume phrase from a PROJECT or WORK-EXPERIENCE bullet showing the skill actually being used (copied verbatim), "name" = the skill in lowercase. A standalone skills/technologies/languages LIST is NOT usage evidence — a skill that appears ONLY in such a list must be OMITTED (resumes routinely pad skill lists; demonstrated use is the bar). NEVER include soft skills, and NEVER include a skill the resume merely wishes for ("eager to learn Rust" is NOT a Rust skill). At most 20.
 - focus: ONE sentence summarizing the candidate's demonstrated technical experience — what they have actually built or worked on. "evidence" = the resume phrase that best supports it (verbatim quote). Do not include aspirations or objectives; only past/present demonstrated work.`;
 
 interface RawClaims {

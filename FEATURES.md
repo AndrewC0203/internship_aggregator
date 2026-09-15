@@ -147,7 +147,9 @@
   embed OUTSIDE the transaction; 0 rows = conflict, never overwrite); (d) every hard
   questionnaire filter keeps NULLs and badges them — filters exclude only explicit
   contradictions; (e) labels annotate, never filter, and cosine is never rendered as a
-  percentage; (f) bands are RANK-relative ("among today's best matches"), never absolute
+  percentage; (e2) the profile's SKILLS LIST is never embedded (template v2, user decision:
+  weight = token share; skills inform chips/overlap only — see Decision 31 addendum);
+  (f) bands are RANK-relative ("among today's best matches"), never absolute
   similarity thresholds — measured 2026-09-14: the labeled classes' cosine distributions
   overlap almost completely, so an absolute "strong match" claim would be dishonest.
 - Deadlines have two confidence tiers: Greenhouse's structured field is authoritative;

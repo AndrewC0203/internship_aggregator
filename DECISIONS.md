@@ -1670,6 +1670,17 @@ leans on a disqualifier rather than a P@10 margin (margins at n=10 are 1–2 ite
 eval was sized to catch "clearly better/worse," and neither happened); the eval is
 single-profile; full backfill proceeds under this config.
 
+**Template v2 (2026-09-14, user-directed):** skills list removed from the embedded
+profile text — the user judged resume skill lists overstated relative to demonstrated
+experience, and in a single-vector design weight IS token share, so omission is the
+honest "little weight" (Decision 31 already rejected hand-weighted multi-vector sums).
+Screened against the labeled set before shipping: P@10 identical with/without the skills
+sentence (0.60 strict / 0.90 lenient, judged projection), soft-preference intact (14→16).
+Skills still drive matched-skills explanations and the overlap scorer. TEMPLATE_VERSION
+1→2; the shared version bump also invalidates listing vectors (unchanged text, cheap
+~3-min re-embed) — accepted over splitting per-side versions, which would add a second
+gate for no measured benefit.
+
 ## Decision 32: Attainability — alignment chip + curated selectivity badge; no probability banding
 
 Problem: User requirement — "someone with no projects shouldn't be pointed at Google."

@@ -9,7 +9,9 @@ export const EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text";
 // Version of the canonical-text templates in canonical.ts (section wording, task prefixes).
 // Bump on ANY template change: old vectors were produced from different text and must not
 // be compared against new ones — the gate handles the rest.
-export const TEMPLATE_VERSION = 1;
+// v2 (2026-09-14): skills list removed from the embedded profile text (user decision —
+// skills get ~zero ranking weight vs demonstrated experience; screened, see canonical.ts).
+export const TEMPLATE_VERSION = 2;
 
 // Version of the distillation prompt (model/signature.ts). Part of the signature
 // fingerprint, so bumping it marks every signature stale for the next enrichment pass.

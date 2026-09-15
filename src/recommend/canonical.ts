@@ -90,6 +90,15 @@ export function listingCanonicalText(sig: RoleSignature, model: string): string 
 // questionnaire's wants (target levels, target fields, free-text interests — the soft
 // answers merge HERE, one mechanism, no weight knobs). The sections keep "has" and "wants"
 // from blurring: an ML interest must not read as ML experience.
+//
+// The skills LIST is deliberately NOT embedded (user decision 2026-09-14, TEMPLATE_VERSION
+// 2): in a single-vector design, weight IS token share, and resume skill lists are the
+// noisiest part of a profile (routinely padded), so they get ~zero ranking weight by
+// omission — the focus sentence (actual demonstrated work) carries the Experience signal.
+// Screened against the labeled eval set before shipping: P@10 identical with and without
+// the skills sentence (0.60 strict / 0.90 lenient, judged projection), soft-preference
+// responsiveness intact. Skills still drive the matched-skills explanations and the
+// overlap scorer — they inform, they just don't pull the vector.
 export interface ProfileJson {
   skills: string[];
   focus: string;
@@ -106,7 +115,6 @@ export function profileCanonicalText(
   q: QuestionnaireSoft,
   model: string,
 ): string {
-  const skills = canonicalizeSkills(p.skills).join(", ");
   const fields = q.targetFields.map((f) => f.field).join(", ");
   const seek = [
     q.types.length ? `${q.types.join(", ")} roles` : "early-career roles",
@@ -115,7 +123,7 @@ export function profileCanonicalText(
   ]
     .filter(Boolean)
     .join(" ");
-  return `${queryPrefix(model)}Experience: ${p.focus.trim()} Skills: ${skills}.\nSeeking: ${seek}`;
+  return `${queryPrefix(model)}Experience: ${p.focus.trim()}\nSeeking: ${seek}`;
 }
 
 // Baseline (b) for the eval gate: the honest no-distillation text — full description, not

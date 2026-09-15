@@ -53,6 +53,17 @@ test("profile text keeps Experience (has) and Seeking (wants) in separate sectio
   assert.ok(seekLine.includes("ml_ai") && seekLine.includes("interested in ML"));
 });
 
+test("profile text does NOT embed the skills list (TEMPLATE_VERSION 2: weight = token share)", () => {
+  const t = profileCanonicalText(
+    { skills: ["java", "kubernetes"], focus: "Backend services." },
+    { types: [], targetFields: [], interests: "" },
+    "nomic-embed-text",
+  );
+  // Skills inform (matched-skills chips, overlap scorer) but never pull the vector —
+  // padded resume skill lists must not outweigh demonstrated experience.
+  assert.ok(!t.includes("kubernetes") && !t.includes("Skills:"));
+});
+
 test("baseline text: title + truncated description, documented cap", () => {
   const t = baselineCanonicalText("SWE Intern", "x".repeat(7000), "nomic-embed-text");
   assert.ok(t.startsWith("search_document: SWE Intern\n"));

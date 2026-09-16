@@ -1,6 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchedSkills, paginate } from "./rank.js";
+import { matchedSkills, paginate, groupByRole } from "./rank.js";
+
+test("groupByRole: same-role variants fold into one entry, best rank wins, locations collected", () => {
+  const r = (id: number, company: string, title: string, location: string | null, score: number) => ({
+    row: { company, title, location },
+    id,
+    score,
+  });
+  const grouped = groupByRole([
+    r(1, "Stripe", "SWE, New Grad", "SF", 0.9),
+    r(2, "Stripe", "SWE, New Grad", "London", 0.89),
+    r(3, "DRW", "SWE Intern", "Chicago", 0.85),
+    r(4, "Stripe", "SWE, New Grad ", "SF", 0.84), // trimmed-title twin, duplicate location
+  ]);
+  assert.equal(grouped.length, 2);
+  assert.equal(grouped[0].rep.id, 1); // best-ranked variant represents the role
+  assert.equal(grouped[0].variantCount, 3);
+  assert.deepEqual(grouped[0].locations, ["SF", "London"]); // deduped, rep first
+  assert.equal(grouped[1].rep.id, 3);
+});
 
 test("matchedSkills: canonical intersection, demonstrated skills only", () => {
   // Both sides are already canonicalized (alias map applied at write time on both paths),

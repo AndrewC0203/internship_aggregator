@@ -62,9 +62,10 @@ $("go").onclick = async () => {
     + '<div class="rec-top"><span class="band ' + r.band + '">' + (r.band === "strong" ? "STRONG MATCH" : r.band === "good" ? "GOOD MATCH" : "FURTHER") + '</span>'
     + '<span>' + esc(r.company.toUpperCase()) + '</span>'
     + (r.opportunityType ? '<span>' + esc(r.opportunityType.toUpperCase()) + '</span>' : "")
-    + (r.location ? '<span>' + esc(r.location) + '</span>' : "") + '</div>'
+    + (r.location ? '<span>' + esc(r.location) + '</span>' : "")
+    + (r.variantCount > 1 ? '<span title="' + esc(r.locations.join(" · ")) + '">+' + (r.variantCount - 1) + ' MORE LOC</span>' : "") + '</div>'
     + '<div class="rec-title"><a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.title.trim()) + '</a></div>'
-    + (r.matchedSkills.length ? '<div class="rec-skills">MATCHED: <b>' + esc(r.matchedSkills.join(", ")) + '</b></div>' : "")
+    + (r.matchedSkills.length ? '<div class="rec-skills">SKILLS IN COMMON: <b>' + esc(r.matchedSkills.join(", ")) + '</b></div>' : "")
     + '</article>').join("");
   $("out").innerHTML = head + rows;
 };

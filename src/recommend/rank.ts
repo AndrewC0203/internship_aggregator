@@ -19,6 +19,10 @@ export interface RecItem {
   title: string;
   url: string;
   location: string | null;
+  // Role grouping (Decision 28 applied here): additional same-role postings folded into
+  // this entry — their distinct locations, and how many rows the role spans in total.
+  variantCount: number;
+  locations: string[];
   opportunityType: string | null;
   csField: string | null;
   score: number;
@@ -60,6 +64,38 @@ export function matchedSkills(
 export function paginate<T>(rows: T[], page: number, per: number): T[] {
   const p = Math.max(1, page);
   return rows.slice((p - 1) * per, p * per);
+}
+
+// Role grouping, the Decision 28 lesson applied to recommendations: same-titled postings
+// at different locations are near-identical signatures with near-identical cosines, so
+// ungrouped they flood the top-K (observed: one Stripe new-grad role occupying 5 of 10
+// tryout slots). One entry per trimmed (company, title); the best-ranked variant is the
+// representative, the others contribute their locations and a count. Exported for tests.
+export function groupByRole<T extends { company: string; title: string; location: string | null }>(
+  sorted: Array<{ row: T; id: number; score: number }>,
+): Array<{ rep: { row: T; id: number; score: number }; variantCount: number; locations: string[] }> {
+  const byKey = new Map<
+    string,
+    { rep: { row: T; id: number; score: number }; variantCount: number; locations: string[] }
+  >();
+  for (const s of sorted) {
+    const key = `${s.row.company.trim()}::${s.row.title.trim()}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, {
+        rep: s,
+        variantCount: 1,
+        locations: s.row.location ? [s.row.location] : [],
+      });
+    } else {
+      existing.variantCount++;
+      if (s.row.location && !existing.locations.includes(s.row.location)) {
+        existing.locations.push(s.row.location);
+      }
+    }
+  }
+  // Map preserves insertion order = best-rank-first, since input arrives sorted.
+  return [...byKey.values()];
 }
 
 interface RankRow {
@@ -138,28 +174,35 @@ export async function rankAgainst(
   ]);
 
   const now = new Date();
-  // Global rank survives pagination — bands are rank-relative to the WHOLE eligible set
-  // (see score.ts band()), so page 3's items must know their true position.
-  const scored = sortRecs(
-    rows.map((r) => ({
-      row: r,
-      id: r.id,
-      score: blendScore(r.similarity, freshness(r.published_at, r.first_seen_at, now)),
-    })),
-  ).map((s, rank) => ({ ...s, rank }));
+  // Sort listings, then fold same-role variants (one Stripe role must not eat five of ten
+  // slots); bands + pagination + total all operate on ROLES, matching what the board's
+  // cards taught users to expect. Global rank survives pagination — bands are
+  // rank-relative to the WHOLE eligible role set (see score.ts band()).
+  const grouped = groupByRole(
+    sortRecs(
+      rows.map((r) => ({
+        row: r,
+        id: r.id,
+        score: blendScore(r.similarity, freshness(r.published_at, r.first_seen_at, now)),
+      })),
+    ),
+  ).map((g, rank) => ({ ...g, rank }));
 
   const page = Math.max(1, opts.page ?? 1);
   const per = Math.min(100, Math.max(10, opts.per ?? 25));
   const hasLocationPrefs =
     questionnaire.locStates.length > 0 || questionnaire.locCountries.length > 0;
 
-  const items: RecItem[] = paginate(scored, page, per).map(({ row, score, rank }) => {
+  const items: RecItem[] = paginate(grouped, page, per).map(({ rep, variantCount, locations, rank }) => {
+    const { row, score } = rep;
     const sig = validateSignature(row.signature);
     const daysLeft = row.application_deadline
       ? Math.ceil((row.application_deadline.getTime() - now.getTime()) / MS_PER_DAY)
       : null;
     return {
       id: row.id,
+      variantCount,
+      locations,
       company: row.company,
       title: row.title,
       url: row.url,
@@ -167,7 +210,7 @@ export async function rankAgainst(
       opportunityType: row.opportunity_type,
       csField: row.cs_field,
       score,
-      band: band(rank, scored.length),
+      band: band(rank, grouped.length),
       matchedSkills: matchedSkills(profile.skills, sig),
       chip: alignmentChip(
         {
@@ -192,7 +235,9 @@ export async function rankAgainst(
 
   return {
     state: "ready",
-    total: rows.length,
+    // Distinct ROLES, not rows — the unit the user sees (same redefinition Decision 28
+    // made for the board's dup metric).
+    total: grouped.length,
     excludedUnenriched: Number(excludedRows[0]?.n ?? 0n),
     page,
     per,

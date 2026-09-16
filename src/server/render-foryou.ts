@@ -60,10 +60,11 @@ function recRow(r: RecItem): string {
       ${r.opportunityType ? `<span>${esc(r.opportunityType.toUpperCase())}</span>` : ""}
       ${r.csField ? `<span>${esc(r.csField.toUpperCase())}</span>` : ""}
       ${r.location ? `<span>${esc(r.location)}</span>` : ""}
+      ${r.variantCount > 1 ? `<span title="${esc(r.locations.join(" · "))}">+${r.variantCount - 1} MORE LOCATION${r.variantCount > 2 ? "S" : ""}</span>` : ""}
     </span>
   </div>
   <div class="rec-title"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title.trim())}</a></div>
-  ${r.matchedSkills.length ? `<div class="rec-skills">MATCHED SKILLS: <b>${esc(r.matchedSkills.join(", "))}</b></div>` : ""}
+  ${r.matchedSkills.length ? `<div class="rec-skills">SKILLS IN COMMON: <b>${esc(r.matchedSkills.join(", "))}</b></div>` : ""}
   <div class="rec-meta">${tags.join(" ")}</div>
 </article>`;
 }

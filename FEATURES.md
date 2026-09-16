@@ -149,7 +149,9 @@
   contradictions; (e) labels annotate, never filter, and cosine is never rendered as a
   percentage; (e2) the profile's SKILLS LIST is never embedded (template v2, user decision:
   weight = token share; skills inform chips/overlap only — see Decision 31 addendum);
-  (f) bands are RANK-relative ("among today's best matches"), never absolute
+  (e3) rec results are ROLE-grouped like the board's cards (Decision 28 — near-identical
+  location variants share one cosine and would flood the top-K ungrouped; observed: one
+  Stripe role in 5 of 10 slots); (f) bands are RANK-relative ("among today's best matches"), never absolute
   similarity thresholds — measured 2026-09-14: the labeled classes' cosine distributions
   overlap almost completely, so an absolute "strong match" claim would be dishonest.
 - Deadlines have two confidence tiers: Greenhouse's structured field is authoritative;

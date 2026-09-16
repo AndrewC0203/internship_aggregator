@@ -66,6 +66,7 @@ $("go").onclick = async () => {
     + (r.variantCount > 1 ? '<span title="' + esc(r.locations.join(" · ")) + '">+' + (r.variantCount - 1) + ' MORE LOC</span>' : "") + '</div>'
     + '<div class="rec-title"><a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.title.trim()) + '</a></div>'
     + (r.matchedSkills.length ? '<div class="rec-skills">SKILLS IN COMMON: <b>' + esc(r.matchedSkills.join(", ")) + '</b></div>' : "")
+    + (r.chip.state === "gaps" ? '<div class="rec-top"><span class="mono-tag">STATED GAPS: ' + esc(r.chip.facts.join(" · ").toUpperCase()) + '</span></div>' : "")
     + '</article>').join("");
   $("out").innerHTML = head + rows;
 };

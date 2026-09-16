@@ -29,6 +29,16 @@ test("chip: stated YOE > 0 is a gap, with the fact shown", () => {
   assert.ok(c.facts.some((f) => f.includes("3+ years")));
 });
 
+test("chip: implausible YOE (company-history boilerplate) is neither gap nor checkable", () => {
+  // Live case: DV Trading intern posting, "Founded 20 years ago and headquartered in
+  // Chicago" — the parser reads 20, but no early-career posting requires 20 years.
+  const c = alignmentChip(
+    listing({ descriptionPlain: "About Us: Founded 20 years ago and headquartered in Chicago." }),
+    q(),
+  );
+  assert.equal(c.state, "unverified"); // nothing genuinely checkable on this listing
+});
+
 test("chip: YOE 0 / unstated is NOT a gap", () => {
   const zero = alignmentChip(
     listing({ descriptionPlain: "0-2 years of experience welcome.", degreeStatus: "pursuing" }),

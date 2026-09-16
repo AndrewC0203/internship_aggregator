@@ -38,8 +38,15 @@ export function alignmentChip(l: ChipInput, q: Questionnaire): AlignmentChip {
 
   // Stated years-of-experience: deterministic regex fact parser (Decision 14) at read time —
   // YOE was deliberately never stored (write-time drops only), so the chip recomputes it.
+  // PLAUSIBILITY CLAMP: the parser's documented false-positive mode is company-history
+  // boilerplate ("Founded 20 years ago…" — observed live on a DV Trading intern posting,
+  // research/yoe-filter-analysis.md context-mixing risk). No genuine early-career posting
+  // requires 10+ years, so large values are treated as not-a-statement rather than a gap —
+  // the same skepticism the ingest pipeline encodes by bypassing the YOE gate for
+  // router-accepted intern titles.
+  const IMPLAUSIBLE_YOE = 10;
   const yoe = minYearsExperience(l.descriptionPlain);
-  if (yoe !== null) {
+  if (yoe !== null && yoe < IMPLAUSIBLE_YOE) {
     checkable++;
     if (yoe > 0) facts.push(`states ${yoe}+ years of experience`);
   }

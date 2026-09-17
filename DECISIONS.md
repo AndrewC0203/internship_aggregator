@@ -1717,3 +1717,166 @@ unassessed); no per-user calibration of "reach" — the feature answers "is this
 famously selective", not "can I get in".
 
 Date: 2026-09-12
+
+## Decision 33: Semantic-ranked search — extend /foryou, not a second ranking path on /search
+
+Problem: Wanted profile-based ranking reachable with a search box and more filters
+(workplace type, curated-list) layered on top, matching what /search's facets already
+offer. /search's filters are built on Prisma's typed query API; /foryou's ranking is
+raw-SQL-only because pgvector columns are `Unsupported("vector")` in schema.prisma —
+invisible to the typed client entirely. The two query engines don't compose for free.
+
+Options considered:
+
+1. Bolt a `rank=fit` mode onto /search — a second, raw-SQL translation of every
+   `SearchParams` facet (type/field/workplace/state/country/gradYear) so cosine ranking
+   can run alongside them. Matches the literal ask, but creates two copies of "what does
+   type=intern mean" to keep in sync — a real drift risk (one path gets a fix, the other
+   doesn't) on a project moving fast under deadline. Facet counts also get expensive or
+   get dropped in ranked mode.
+2. Extend /foryou — it already IS "ranked search with hard filters," just with a
+   narrower filter set than /search. Widen `Questionnaire`/`hardConditions()` with the
+   two missing facets and add a query box that, only when typed, triggers one ad-hoc
+   re-embed of the stored profile (same stateless pattern /tryout already uses). Zero
+   duplicate filter logic — reuses `hardConditions()`/`rankAgainst()` exactly as built.
+3. Unify /search and /foryou into one query engine — rewrite /search's filters as raw
+   SQL so one path serves both chronological and fit-ranked views. Architecturally the
+   cleanest end state, but means rewriting a working, tested, DB-side-paginated page
+   into /foryou's fetch-all-and-group-in-JS model (viable there specifically because the
+   corpus is ~2k rows — see Decision 30's ANN-index tradeoff) for a payoff not clearly
+   bigger than option 2's.
+
+Decision: Option 2 (user-approved). `Questionnaire` gains `workplaceTypes`/`curatedOnly`,
+parsed/persisted like every other field, but never surfaced in the /profile edit UI —
+`/foryou`'s page sets them per-request via new options on `recommend()`, so clicking a
+filter chip there never edits the approved profile or bumps its revision. The query box
+REPLACES the Seeking: free text for that one request (never the stored `interests`,
+never `profile.focus`); toggling workplace/curated is pure SQL and costs nothing, so
+only a typed query pays for a re-embed — verified live (curl) that filter toggles are
+instant while a query costs one Ollama round-trip.
+
+Reason: the corpus-scale argument that already justified /foryou's fetch-all-then-JS-
+group design (Decision 30: no ANN index needed at ~2k rows) is exactly why extending
+that engine is the cheap path — it was already built to answer this kind of query.
+Bolting ranking onto /search would have meant maintaining the same filter semantics
+twice; unifying the two pages would have meant rewriting a page that isn't broken.
+
+Tradeoffs accepted: ranking and chronological browsing now live on two pages instead of
+one — a user who wants both filters AND simple recency sort still has to pick a page.
+`/search`'s honest six-way `groupBy` facet-count machinery is not available on /foryou
+(chips show state, not live counts) — acceptable since /foryou's chip set is small (3
+workplace values + 1 toggle) and none of them are dynamic vocabularies like state/country.
+
+Date: 2026-09-16
+
+## Decision 34: Supersedes Decision 33 — ranking moves onto /search itself, "paste and go"
+
+Problem: user pushback on Decision 33, same day. Two pages (chronological /search with
+the full filter rail, ranked /foryou with a narrower one) is worse UX than one home
+screen that ranks differently once it knows about you. The duplication cost Decision 33
+was built to avoid was also smaller than estimated: most of `/search`'s facets were
+already ported into `Questionnaire` for that decision, shrinking the real gap to two
+filters (status join, free text) plus a second query engine.
+
+Options considered (same three as Decision 33, re-weighed):
+
+1. Rewrite /search's own filters onto raw SQL so ranking runs there directly — the option
+   rejected in Decision 33 for creating two copies of filter semantics. Chosen this time:
+   the duplication is bounded and explicit (`searchParamsToSql`, one function, parity
+   asserted by test + a live parity sweep across every facet before shipping) rather than
+   spread across the ranking algorithm.
+2. Keep the two-page split, just improve /foryou's UX. Rejected: doesn't address the
+   actual complaint (two places to look), and /foryou's narrower filter set was never
+   going to reach parity with /search's without becoming /search.
+3. Full unification (retire /search's DB-side pagination, one query engine for both
+   sorts). Deferred: `rankedSearch` fetches-all-and-groups-in-JS (same ~2k-row
+   justification as Decision 30/33), while the DB-side `groupBy` path stays for
+   chronological browsing — the facet-count queries are shared unchanged between both
+   (they don't depend on sort order), so this gets most of option 3's benefit without
+   its rewrite risk.
+
+Decision: Option 1, plus a bigger scope change the user asked for in the same
+conversation — the resume-paste flow itself changes. Pasting on `/search` is now
+"ephemeral by default": extract + embed happen immediately into an in-memory draft slot
+(`draftCache.ts`), NOT `user_profile.resumeText/extractedProfile` (those still mean "the
+human's in-progress draft on the /profile page" — conflating the two would mean a quick
+paste into /search silently clobbers what /profile shows). `/search`'s default sort
+becomes `fit` whenever a draft OR a previously-approved profile is active; an explicit
+sort choice always overrides. A "SAVE AS MY PROFILE" action promotes the draft through
+the existing `publishProfile` guarded-UPDATE — no new persistence mechanism, just a new
+trigger for the one that already existed. `/tryout` is kept as a separate tool per the
+user's explicit call, even though its stateless-testing use case now overlaps with
+"paste on /search and just don't hit save."
+
+Reason: matches what the user actually wants to do (paste a resume, see the board ranked
+by it, still have every filter) more directly than routing them through a second page
+with fewer options. The draft/approved split preserves the one invariant that matters —
+"nothing downstream reads unapproved content" — while removing the ceremony of an
+approval gate standing between pasting and seeing results.
+
+Tradeoffs accepted, flagged open (not resolved this session):
+- The approved profile's OWN persisted `Questionnaire` hard filters (work-auth,
+  sponsorship, remote-ok) are NOT applied by `/search`'s ranked mode — only `/search`'s
+  own filter rail is. `/foryou` still applies them. A user who set "needs sponsorship"
+  on `/profile` and expects that respected everywhere will be surprised it isn't on
+  `/search`. Candidate fix: port those three fields onto `/search`'s rail the same way
+  workplace/curated were — not done here, scope was already large.
+- `/foryou` and `/search`'s ranked mode are now two ranking views with different filter
+  power (`/foryou`: full questionnaire incl. work-auth; `/search`: rail filters
+  incl. status/curated-list but not work-auth) and no shared code between their WHERE
+  translation (`hardConditions()` vs `searchParamsToSql()`). Whether `/foryou` should be
+  retired, merged, or left as the "full-questionnaire" view is an open call for the user.
+- In-memory draft does not survive a server restart — acceptable (re-paste is cheap, one
+  extraction + one embed call) but worth knowing before relying on it across a deploy.
+
+Date: 2026-09-16
+
+**Addendum (2026-09-16, same day):** /foryou retired outright, accepting the work-auth
+gap rather than closing it first — the user's explicit choice over porting those three
+filters to /search's rail before removing the page. Removed: the `/foryou` route,
+`render-foryou.ts`, `recommend()` (rank.ts's stored-profile wrapper — `rankAgainst()`
+stays, still /tryout's ranking core), `/api/recommendations`, and
+`parseRecommendOverrides`/`RecommendOverrides` (dead once both callers were gone). Left
+in place, deliberately: `Questionnaire`'s `workplaceTypes`/`curatedOnly` fields and
+`hardConditions()`'s branches for them — harmless (no-op when unset), still exercised by
+existing tests, and the natural home if work-auth filters ever do get ported to
+`/search`'s rail. `/tryout` untouched. Verified live: `/foryou` 404s, `/`, `/profile`,
+`/tryout`, and paste-and-rank all still work; 314/314 tests passing after removing the
+3 tests that covered the deleted `parseRecommendOverrides`.
+
+## Decision 35: Template v3 — literal title line joins the listing embed text
+
+Problem: Under Template v2 the embedded listing text was `Role:` (distilled level/domains/
+focus) + `Requires:` (skills) — the LITERAL job title reached the vector only if the 7B
+echoed it into `focus`. A discriminative title term the distiller dropped ("Site
+Reliability", "Core Operations") was invisible to similarity, surfaced by the 2026-09-17
+embedding-system review as the cheapest untested quality lever.
+
+Options considered:
+1. Keep v2 (the 1-item strict margin is within the bake-off's stated noise floor).
+2. Promote v3: prepend `Title: {title}` to the listing text (bump TEMPLATE_VERSION,
+   ~3-min corpus re-embed, profile re-approval to re-stamp).
+3. Defer to a future larger-label eval round.
+
+Decision: Promote (option 2). Gated first as an eval-only variant `sigt:nomic` against the
+existing pooled-label harness, criteria stated BEFORE results: must beat sig:nomic on
+strict P@10 (NDCG tiebreak) with the soft-preference MUST intact.
+
+Reason: sigt won every measured axis — strict P@10 0.60 vs 0.50, NDCG@10 0.715 vs 0.652,
+lenient tied 0.70, soft-preference 11→13 (same +2 responsiveness as sig's 14→16). The
+entire strict gain is ONE mechanistically-explained swap: FeverUp "Becas de Excelencia"
+(irrelevant, scholarship posting with an engineering-flavored signature) pushed OUT by the
+title line; Virtu "2027 Internship – Core Operations Engineer" (relevant, pure title-term
+pull) brought IN. No duplicate inflation (checked: Varda/DRW pairs are distinct roles;
+the Cloudflare dead-link pair sits in both approaches symmetrically). Marginal eval cost
+was 7 labels thanks to pooled-label carry-forward.
+
+Tradeoffs accepted: The primary-metric margin is one item at n=10 — the same scale the
+2026-09-14 bake-off called unresolvable noise (logged objection). Accepted because the
+direction is corroborated by an independent position-aware metric (NDCG), the mechanism is
+visible in the actual swap rather than statistical, the MUST is intact, and reverting is a
+version-bump + 3-minute re-embed if a future larger eval disagrees. Also accepted: titles
+re-introduce some marketing noise ("Rockstar Engineer") that distillation existed to
+remove — bounded to one line of token share by construction.
+
+Date: 2026-09-17

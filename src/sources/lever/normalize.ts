@@ -88,6 +88,15 @@ function mapCompInterval(interval: string | null | undefined): CompInterval | nu
   return COMP_INTERVAL_MAP[interval.trim().toLowerCase()] ?? null;
 }
 
+// The DB column is Decimal(12,2): 10 integer digits max. A non-finite or overflow value from
+// the payload wouldn't fail here — it would throw inside persist()'s Prisma write, where (pre
+// 2026-09-17) one bad row cost the whole batch. Same boundary-validation seam as the model
+// enums in classifier.ts: an upstream number gets the same skepticism as an untrusted API.
+function plausibleComp(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return v >= 0 && v < 1e10 ? v : null;
+}
+
 // Pure function: Lever raw posting -> NormalizedListing, or null to drop the job. No I/O —
 // unit-testable against the fixture.
 export function normalizeLever(
@@ -125,8 +134,8 @@ export function normalizeLever(
     employmentType: mapEmploymentType(job.categories?.commitment),
     workplaceType: mapWorkplaceType(job.workplaceType),
 
-    compMin: job.salaryRange?.min ?? null,
-    compMax: job.salaryRange?.max ?? null,
+    compMin: plausibleComp(job.salaryRange?.min),
+    compMax: plausibleComp(job.salaryRange?.max),
     compCurrency: job.salaryRange?.currency ?? null,
     compInterval: mapCompInterval(job.salaryRange?.interval),
 

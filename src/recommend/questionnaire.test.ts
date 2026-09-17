@@ -6,6 +6,7 @@ import {
   workAuthExclusions,
   hardConditions,
 } from "./questionnaire.js";
+import { curatedSelectiveCompanies } from "./labels.js";
 
 const q = (over: object) => ({ ...defaultQuestionnaire(), ...over });
 
@@ -54,6 +55,26 @@ test("hardConditions: non-must-have target fields are soft — no condition", ()
   assert.equal(hardConditions(q({ targetFields: [{ field: "swe", mustHave: false }] })).length, 0);
 });
 
+// ── Ported /search facets (workplaceTypes, curatedOnly): ephemeral-only in practice, but
+// hardConditions() treats them like any other hard filter — same nulls-kept invariant. ──────
+
+test("hardConditions: workplaceTypes contributes one condition, keeps nulls", () => {
+  const conds = hardConditions(q({ workplaceTypes: ["remote"] }));
+  assert.equal(conds.length, 1);
+  assert.match(conds[0].sql, /workplace_type IS NULL OR workplace_type/);
+});
+
+test("hardConditions: curatedOnly contributes one condition over the curated list", () => {
+  const conds = hardConditions(q({ curatedOnly: true }));
+  assert.equal(conds.length, 1);
+  assert.match(conds[0].sql, /lower\(trim\(company\)\) = ANY/);
+  assert.deepEqual(conds[0].values[0], curatedSelectiveCompanies());
+});
+
+test("hardConditions: curatedOnly=false contributes nothing", () => {
+  assert.equal(hardConditions(q({ curatedOnly: false })).length, 0);
+});
+
 // ── Boundary parsing (querystring/JSON junk never reaches SQL) ───────────────────────────
 
 test("parseQuestionnaire: junk dropped, unknown enum values dropped, states uppercased", () => {
@@ -71,6 +92,15 @@ test("parseQuestionnaire: junk dropped, unknown enum values dropped, states uppe
   // silently promote a field into an exclusion filter — wrong direction to fail in.
   assert.deepEqual(p.targetFields, [{ field: "swe", mustHave: false }]);
   assert.equal(p.interests, "");
+});
+
+test("parseQuestionnaire: workplaceTypes drops junk, curatedOnly requires exactly true", () => {
+  const p = parseQuestionnaire({ workplaceTypes: ["remote", "spaceship"], curatedOnly: "1" });
+  assert.deepEqual(p.workplaceTypes, ["remote"]);
+  // Same posture as search.ts's parseParams: a string "1" is NOT a boolean true — only the
+  // literal boolean does, matching how every other bool field here already parses.
+  assert.equal(p.curatedOnly, false);
+  assert.equal(parseQuestionnaire({ curatedOnly: true }).curatedOnly, true);
 });
 
 test("parseQuestionnaire: null/undefined input -> defaults", () => {

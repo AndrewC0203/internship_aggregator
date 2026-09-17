@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { curatedSelectiveCompanies } from "./labels.js";
 
 // Questionnaire (spec table). Hard answers become SQL conditions in the ranking query; soft
 // answers (types + target fields + interests) also merge into the profile's Seeking: section
@@ -18,6 +19,12 @@ export interface Questionnaire {
   types: string[]; // opportunity types wanted (hard multi-select)
   targetFields: Array<{ field: string; mustHave: boolean }>; // soft; mustHave promotes to hard
   interests: string; // free-text, soft only
+  // Ported from search.ts's /search facets. Parsed/persisted like any other field here, but
+  // the /profile UI never exposes a control for them — /foryou's page sets them per-request
+  // instead (see rank.ts recommend()'s overrides), so toggling a filter chip there never
+  // touches the approved profile's stored answers or bumps its revision.
+  workplaceTypes: string[]; // onsite/remote/hybrid; hard multi-select, same nulls-kept rule
+  curatedOnly: boolean; // restrict to data/company-tiers.json's curated list (Decision 32)
 }
 
 const ALL_TYPES = ["internship", "co_op", "fellowship", "new_grad", "research", "part_time"];
@@ -25,6 +32,7 @@ const ALL_FIELDS = [
   "swe", "ml_ai", "data", "quant", "security",
   "hardware_embedded", "devops_infra", "it", "product", "other",
 ];
+const ALL_WORKPLACE = ["onsite", "remote", "hybrid"];
 
 export function defaultQuestionnaire(): Questionnaire {
   return {
@@ -39,6 +47,8 @@ export function defaultQuestionnaire(): Questionnaire {
     types: [],
     targetFields: [],
     interests: "",
+    workplaceTypes: [],
+    curatedOnly: false,
   };
 }
 
@@ -76,6 +86,8 @@ export function parseQuestionnaire(raw: unknown): Questionnaire {
           .map((f) => ({ field: f.field, mustHave: f.mustHave === true }))
       : [],
     interests: typeof o.interests === "string" ? o.interests : "",
+    workplaceTypes: strList(o.workplaceTypes).filter((w) => ALL_WORKPLACE.includes(w)),
+    curatedOnly: o.curatedOnly === true,
   };
 }
 
@@ -128,6 +140,17 @@ export function hardConditions(q: Questionnaire): Prisma.Sql[] {
   if (musts.length) {
     // Multiple must-haves = OR (ANY does that); non-must-have fields stay soft (Seeking text).
     conds.push(Prisma.sql`(cs_field IS NULL OR cs_field::text = ANY(${musts}))`);
+  }
+
+  if (q.workplaceTypes.length) {
+    conds.push(Prisma.sql`(workplace_type IS NULL OR workplace_type::text = ANY(${q.workplaceTypes}))`);
+  }
+
+  if (q.curatedOnly) {
+    // Raw SQL, so lower(trim(...)) is available directly — unlike search.ts's buildWhere,
+    // which builds a Prisma.ListingWhereInput and has to fall back to an OR of per-value
+    // case-insensitive `equals` for the same list (Prisma's typed API has no ANY() escape).
+    conds.push(Prisma.sql`lower(trim(company)) = ANY(${curatedSelectiveCompanies()})`);
   }
 
   if (q.locStates.length || q.locCountries.length) {

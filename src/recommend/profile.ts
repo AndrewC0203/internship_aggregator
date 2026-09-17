@@ -3,6 +3,7 @@ import { embed, toVectorLiteral } from "../model/ollama.js";
 import { EMBED_MODEL, TEMPLATE_VERSION } from "./config.js";
 import { profileCanonicalText, type ProfileJson } from "./canonical.js";
 import { parseQuestionnaire, type Questionnaire } from "./questionnaire.js";
+import { getDraft } from "./draftCache.js";
 
 // Profile publish + load (spec "Consistency rules"). The invariants this file owns:
 //   - approved inputs + their matching embedding always land TOGETHER (one guarded UPDATE)
@@ -31,7 +32,9 @@ export function softEditRequiresReembed(
 // Null/malformed -> null (treated as "no usable embedding", never a guess).
 export function parseVectorText(text: string | null): number[] | null {
   if (!text || !text.startsWith("[") || !text.endsWith("]")) return null;
-  const vals = text.slice(1, -1).split(",").map(Number);
+  const inner = text.slice(1, -1).trim();
+  if (!inner) return null; // "[]": "".split(",") is [""] and Number("") is 0 — not a vector
+  const vals = inner.split(",").map(Number);
   return vals.length > 0 && vals.every((v) => Number.isFinite(v)) ? vals : null;
 }
 
@@ -142,4 +145,33 @@ export async function loadRankingProfile(prisma: PrismaClient): Promise<RankingP
   }
 
   return { state: "ready", profile, questionnaire: parseQuestionnaire(row.questionnaire), vector };
+}
+
+export type ActiveProfile =
+  | { state: "draft"; profile: ProfileJson; vector: number[] }
+  | { state: "approved"; profile: ProfileJson; vector: number[] }
+  | { state: "stale" } // approved profile exists but its vector predates current config
+  | { state: "none" };
+
+// What /search's ranked path reads (Decision 34). Precedence: an in-memory paste-and-go
+// draft (draftCache.ts) beats the persisted approved profile — most-recent-action wins,
+// same instinct as /tryout overriding /foryou for one request, just persisted across
+// requests instead of one-shot. Falls through silently on a stale/config-mismatched draft
+// (drop it, don't error) since it's ephemeral by design — the honest response to "the
+// embedding config changed" here is just "re-paste", not a loud 409 like the approved
+// profile's stale-embedding case gets.
+export async function loadActiveProfile(prisma: PrismaClient): Promise<ActiveProfile> {
+  const draft = getDraft();
+  if (draft && draft.embeddingModel === EMBED_MODEL && draft.templateVersion === TEMPLATE_VERSION) {
+    return { state: "draft", profile: draft.profile, vector: draft.vector };
+  }
+  const loaded = await loadRankingProfile(prisma);
+  if (loaded.state === "ready") {
+    return { state: "approved", profile: loaded.profile, vector: loaded.vector };
+  }
+  // stale_embedding must stay distinguishable from "none": flattening it made a template/
+  // model bump silently un-person the approved profile (fit sort vanished, setup CTA shown)
+  // instead of surfacing the documented "re-approve to re-embed" remediation.
+  if (loaded.state === "stale_embedding") return { state: "stale" };
+  return { state: "none" };
 }

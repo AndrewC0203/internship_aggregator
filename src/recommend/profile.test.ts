@@ -51,3 +51,10 @@ test("parseVectorText: pgvector text form round-trips", () => {
   assert.equal(parseVectorText(null), null);
   assert.equal(parseVectorText("junk"), null);
 });
+
+test('parseVectorText: "[]" is malformed (zero-dim vector), not [0]', () => {
+  // "".split(",") is [""] and Number("") is 0 — without an explicit empty check the
+  // "malformed -> null" contract silently produced a bogus 1-dim zero vector.
+  assert.equal(parseVectorText("[]"), null);
+  assert.equal(parseVectorText("[ ]"), null);
+});

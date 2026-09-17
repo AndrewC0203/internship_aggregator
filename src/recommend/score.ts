@@ -34,7 +34,11 @@ export function sortRecs<T extends { score: number; id: number }>(rows: T[]): T[
 // "among today's best matches for you", which is relative by construction: top ~10% of
 // the eligible set (min 5) = strong, next ~25% = good, rest = fair.
 export function band(rank: number, total: number): "strong" | "good" | "fair" {
-  if (rank < Math.max(5, Math.ceil(total * 0.1))) return "strong";
-  if (rank < Math.ceil(total * 0.35)) return "good";
+  const strongCutoff = Math.max(5, Math.ceil(total * 0.1));
+  if (rank < strongCutoff) return "strong";
+  // Cumulative, not absolute: "good" is the next ~25% AFTER wherever strong actually ends.
+  // An absolute ceil(total*0.35) line sat below the min-5 strong floor for every total <= 14,
+  // making "good" unreachable exactly where bands matter most (small filtered sets).
+  if (rank < strongCutoff + Math.ceil(total * 0.25)) return "good";
   return "fair";
 }

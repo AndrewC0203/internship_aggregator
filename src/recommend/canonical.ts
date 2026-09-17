@@ -77,11 +77,17 @@ const queryPrefix = (model: string): string =>
       : "";
 
 // Listing side: sectioned so requirements read as requirements — "Requires:" keeps a
-// posting's skill list from blurring into what a candidate HAS.
-export function listingCanonicalText(sig: RoleSignature, model: string): string {
+// posting's skill list from blurring into what a candidate HAS. Template v3 (Decision 35,
+// gated 2026-09-17): the LITERAL title line leads — under v2 the title reached the
+// embedder only if the 7B echoed it into focus, so a discriminative title term ("Site
+// Reliability", "Core Operations") the distiller dropped was invisible to the vector. The
+// gate's entire strict-P@10 gain was one title-mechanism swap (irrelevant scholarship out,
+// relevant title-term match in), corroborated by NDCG, soft-preference MUST intact.
+export function listingCanonicalText(title: string, sig: RoleSignature, model: string): string {
   const skills = canonicalizeSkills(sig.skills).join(", ");
   return (
-    `${docPrefix(model)}Role: ${sig.level} ${sig.domains.join(", ")} — ${sig.focus.trim()}` +
+    `${docPrefix(model)}Title: ${title.trim()}` +
+    `\nRole: ${sig.level} ${sig.domains.join(", ")} — ${sig.focus.trim()}` +
     `\nRequires: ${skills}`
   );
 }

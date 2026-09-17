@@ -46,3 +46,13 @@ test("bands are rank-based (absolute similarity can't separate labeled classes �
   // Tiny corpus: the strong band never shrinks below 5.
   assert.equal(band(4, 8), "strong");
 });
+
+test("small sets still have a good band — next ~25% after strong, not an absolute 35% line", () => {
+  // 10 eligible: ranks 0-4 strong (min-5 floor), 5-7 good (next ~25%), 8-9 fair.
+  // Regression pin: with an absolute ceil(total*0.35) cutoff, the min-5 strong floor
+  // swallowed the whole good band for every total <= 14 — "good" was unreachable.
+  assert.equal(band(5, 10), "good");
+  assert.equal(band(7, 10), "good");
+  assert.equal(band(8, 10), "fair");
+  assert.equal(band(5, 14), "good");
+});

@@ -666,3 +666,159 @@
   role whose variants hold different application statuses counts once under EACH status
   chip — chip count matches what clicking renders. Storage rows and the write-time dedup
   key are completely untouched.
+
+## Search filter expansion: workplace, deadline sort, curated-list toggle (2026-09-16)
+
+- New `/search` facet: `workplace` (onsite/remote/hybrid), same pattern as `type`/`field`
+  — own query param, own omit-branch for honest facet counts, own rail group.
+- New `sort=deadline`: NOT a naive ascending date sort. Buckets future deadlines
+  (soonest first) ahead of no-stated-deadline rows, with already-passed deadlines sunk
+  last — a plain ascending sort surfaced stale 2023 deadlines ahead of real upcoming
+  2026 ones (caught live against the DB before shipping). `sortGroups()` takes an
+  injectable `now` so the bucket boundary is testable without a wall-clock time bomb.
+- New `selective` boolean filter: promotes `company-tiers.json` (Decision 32's curated
+  annotation list) from badge-only to an actual filter, via case-insensitive OR over the
+  ~26 curated names. UI label is "CURATED LIST", deliberately not "selective" or
+  "top-tier" — the source file's own stated methodology is "annotates, never assesses
+  the rest of the corpus," and the filter must not imply otherwise.
+- Comp-range filter considered and dropped: measured only 36/2,355 listed rows (1.5%)
+  have any `comp_min`/`comp_max` value, and 35 of those have no stated `comp_interval`
+  (hourly vs. yearly) — not enough signal to justify the filter UI, let alone a
+  unit-normalization scheme. Revisit if/when comp extraction coverage improves.
+- Decisions to remember: `RoleGroup` now carries `minDeadline` (soonest non-null
+  deadline across a group's variants, same "any variant qualifies the whole card" rule
+  `isNew` already uses) — any future per-group aggregate follows the same `_min`/`_max`
+  groupBy pattern, no extra query.
+
+## /foryou search box + extra filters, layered on the existing ranking engine (2026-09-16)
+
+- `/foryou` gains a query box and two filter chips (workplace type, curated-list) —
+  chosen over building a second `rank=fit` mode on `/search` after confirming pgvector
+  columns are invisible to Prisma's typed query builder (`embedding` is
+  `Unsupported("vector")` in schema.prisma): `/search`'s filters are Prisma-typed,
+  `/foryou`'s ranking is raw-SQL-only, and reconciling them would mean either a second
+  copy of every filter's SQL semantics or a rewrite of `/search`'s tested DB-side
+  pagination into `/foryou`'s fetch-all-and-group-in-JS model. Extending `/foryou`
+  reuses `hardConditions()`/`rankAgainst()` as-is — zero duplicate filter logic.
+- `Questionnaire` gains `workplaceTypes`/`curatedOnly`, parsed/persisted like any other
+  field, but the `/profile` UI never exposes a control for them — `/foryou`'s page sets
+  them per-request instead (`rank.ts` `recommend()`'s new `opts.workplaceTypes` /
+  `opts.curatedOnly`), so toggling a chip there never touches the approved profile or
+  bumps its revision. `curatedOnly` reuses `company-tiers.json` (Decision 32) via a new
+  `curatedSelectiveCompanies()` export from `labels.ts`.
+- The query box REPLACES the Seeking: free text for that request only (never the
+  profile's stored `interests`, never `profile.focus`/Experience:) and triggers exactly
+  one ad-hoc re-embed, the same stateless pattern `/tryout` already uses. Workplace/
+  curated toggles are pure SQL and need no re-embed — verified live that toggling them
+  is instant while a typed query costs one Ollama round-trip. Rejected alternative:
+  appending the query to stored interests — replacing was chosen so the search box
+  behaves like an actual search box (explore a different angle) rather than diluting
+  the stored preference with whatever was just typed.
+- This makes `recommend()` no longer unconditionally Ollama-free — the SSR `/foryou`
+  route and `/api/recommendations` both now catch `ollama_down` around the query path
+  (previously ranking never called Ollama at all). New `renderOllamaDownPage()` panel
+  for the SSR case instead of a JSON 503, since there's no `RecResult` to render mid-SSR
+  error.
+- Decisions to remember: any new `/foryou` filter should extend `Questionnaire` +
+  `hardConditions()` the same way, with the override wired through `recommend()`'s
+  `opts`, rather than inventing a second filter path — that's the whole reason this
+  design was chosen over the `/search`-side alternative.
+
+## /search: rank the board itself by resume fit, "paste and go" (Decision 34)
+
+- Supersedes the /foryou-only approach above, same day, after user pushback: one home
+  screen that ranks by fit beats a second page with a narrower filter set. `/search`
+  gains a paste box; pasting extracts + embeds into an in-memory draft
+  (`recommend/draftCache.ts`) — NOT `user_profile.resumeText/extractedProfile`, which
+  still mean "the human's in-progress draft on /profile" and would otherwise get
+  silently clobbered by a quick paste elsewhere.
+- New `searchParamsToSql()` translates `SearchParams` into raw SQL (Prisma can't see the
+  `Unsupported("vector")` embedding column at all) so `rankedSearch()` can cosine-rank
+  under every existing `/search` filter — status join, curated-list, workplace, all of
+  it. `computeFacets()` (the six-way facet-count machinery) is shared UNCHANGED between
+  chronological `search()` and ranked `rankedSearch()`, since facet counts don't depend
+  on sort order — no duplicated counting logic, only the row-fetch/ordering differs.
+  Verified parity between the two WHERE-builders with a live sweep across every facet
+  (type/field/country/state/gradYear/q/status/selective) before shipping — see Decision
+  34 for why a unit-test-level parity check isn't possible without a DB.
+- Default sort is `fit` whenever a draft or approved profile is active, `first_seen`
+  otherwise; an explicit `sort=` always wins. Caught live (curl, before shipping): a
+  naive `params.sort ?? "fit"` default never fired because `parseParams` was still
+  defaulting `sort` to the literal `"first_seen"` internally — fixed by leaving it
+  genuinely `undefined` until `runSearch()` resolves the default, since only that
+  function knows whether ranking is available.
+- `excludedUnenriched` ported onto `SearchResult` (rankedSearch only): caught live that
+  filtering `type=internship` gave 775 under `sort=fit` vs. 776 under chronological — not
+  a translator bug, one of the corpus's 3 known-poison unenriched rows happened to be an
+  internship listing. Ranking can only rank what's embedded; the gap is now surfaced in
+  the UI ("N matching but not yet enriched") instead of silently shrinking the count,
+  same rule `/foryou`'s `excludedUnenriched` already enforces.
+- `/tryout` kept separate per explicit user instruction, even though its stateless-resume
+  use case now overlaps with "paste on /search and don't hit save."
+- Decisions to remember / open items: `/search`'s ranked mode does NOT apply the approved
+  profile's work-auth/sponsorship/remote-ok questionnaire answers — only `/search`'s own
+  rail filters apply. In-memory draft doesn't survive a server restart (by design —
+  re-paste is cheap); don't rely on it surviving a deploy.
+
+## /foryou retired (Decision 34 addendum, same day)
+
+- Removed outright per explicit user choice, accepting the work-auth/sponsorship gap
+  noted above rather than closing it first. Gone: the `/foryou` route, `render-foryou.ts`,
+  `recommend()` (rank.ts's stored-profile ranking wrapper), `/api/recommendations`,
+  `parseRecommendOverrides`/`RecommendOverrides`. `rankAgainst()` stays — still /tryout's
+  ranking core. `Questionnaire`'s `workplaceTypes`/`curatedOnly` fields left in place
+  (harmless, still tested) as the natural landing spot if work-auth filters ever get
+  ported to /search's rail. 314/314 tests passing after dropping the 3 tests for the
+  deleted parser.
+
+## Codebase-wide bug audit fixes (2026-09-17)
+
+- Pipeline failure containment: `flush()`'s shared tail is now wrapped (one batch's
+  dedup/filter/extract/persist failure costs that batch only, logged as `BATCH LOST` —
+  previously it killed the whole run with clean crawl health left behind, the AIFT
+  vanishing-board signature; see research/first-clean-run-audit.md Finding 4 update).
+  `persist()` gained per-row isolation and honest written/failed counts.
+- Model-output boundary guards: `citizenship_status`, `opportunity_type`, `cs_field` now
+  normalize-to-null like `degree_status` always did; Lever/Ashby comp values are checked
+  finite and within Decimal(12,2) before persist.
+- `/search` stale-profile honesty: a template/model bump no longer silently "loses" the
+  approved profile — `profileState: "stale"` renders a re-approve remediation note (FIT
+  control hidden, chronological fallback unchanged).
+- Paste-and-go draft ordering: sequence tokens make the LAST-submitted paste win even when
+  an older paste's model call finishes later (previously the slow older paste could clobber
+  the newer draft, and SAVE could publish the wrong resume).
+- Rank band fix: "good" was unreachable for eligible sets ≤ 14 (absolute 35% cutoff sat
+  below the min-5 strong floor); now cumulative — next ~25% after wherever strong ends.
+- Small guards: `/api/applications/:id` validates `note` type + int4-bounds the id (400,
+  not Prisma 500); `?page=2.5`/`Infinity` fall to defaults instead of rendering "PAGE 2.5";
+  `parseVectorText("[]")` is null, not `[0]`; eval `cosineSim` throws on length mismatch /
+  zero vector instead of returning NaN; csField render fallback HTML-escaped.
+- Decisions to remember: on a FAILED flush the batch's queued etags are DROPPED, never
+  written — persisting them would 304 straight past the lost listings next run. A failed
+  per-row persist leaves the listing in NO table (same "stays unseen" state as
+  titleDropped), so the next run re-evaluates it: transient failures self-heal, persistent
+  ones re-log every run. `clearDraft()` bumps the draft sequence so save/clear also
+  invalidates in-flight older pastes.
+
+## Embedding eval harness v2 (2026-09-17)
+
+- NDCG@10 added to `eval:recommend score` (graded relevant=2/borderline=1/irrelevant=0,
+  log2 positional discount, normalized per projected ranking) — position-aware secondary;
+  strict P@10 remains the pre-registered primary.
+- Pool now ranks embedding approaches by the PRODUCTION blend (`blendScore` + freshness at
+  a pinned `pooledAt` stored in rankings.json) instead of raw cosine — closes the gap the
+  bake-off doc itself flagged. Score-time diagnostics recover the similarity-only order
+  from stored `sim` fields; no clock dependence at score time.
+- New eval approach `sigt:nomic`: Template-v3 candidate embedding the literal listing
+  title line ahead of the signature sections (`listingCanonicalTextWithTitle`, eval-only —
+  production template untouched until this wins a gate). Nomic-only (mxbai disqualified).
+- `pool` carries existing labels.csv judgments forward and prints exactly which pooled ids
+  still need labels — re-pooling can no longer destroy prior labeling work.
+- Decisions to remember: NDCG gains are LINEAR (2/1/0) on purpose — interpretable, and
+  emphasis questions belong to the strict/lenient P@K pair. `listingCanonicalTextWithTitle`
+  must track `listingCanonicalText`'s sections byte-for-byte (pinned by test) until
+  promoted via TEMPLATE_VERSION bump or deleted. Promoting sigt to production is a gate
+  decision (pre-registered metrics, user labels the delta), not a code change.
+- Template v3 SHIPPED (Decision 35, same day): literal `Title:` line now leads the listing
+  embed text; TEMPLATE_VERSION 3, corpus re-embedded. The approved profile goes stale by
+  design until re-approved on /profile (the new stale banner is the remediation path).

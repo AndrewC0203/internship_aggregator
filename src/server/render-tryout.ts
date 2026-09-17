@@ -2,8 +2,11 @@ import { subPage } from "./render-shell.js";
 
 // Tryout page: paste ANY resume -> top matches, fully stateless (see /api/tryout — nothing
 // is persisted; this exists for manually testing other people's resumes and for demos).
-// Results render client-side from the JSON response — unlike /foryou there is no stored
-// state to server-render from, and reloading would discard the pasted resume.
+// Kept deliberately separate from /search's own "paste and go" (Decision 34 addendum) —
+// that flow caches a draft server-side and can be saved as your profile; this one never
+// does either, by design, so someone else's resume can never end up in user_profile.
+// Results render client-side from the JSON response — there is no stored state to
+// server-render from, and reloading would discard the pasted resume.
 
 const TRYOUT_CSS = `
 textarea,input[type=text]{width:100%;background:var(--bg2);border:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:12px;padding:8px;border-radius:0}

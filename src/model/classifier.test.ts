@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeDegreeStatus, passModel } from "./classifier.js";
+import {
+  normalizeDegreeStatus,
+  normalizeCitizenshipStatus,
+  normalizeOpportunityType,
+  normalizeCsField,
+  passModel,
+} from "./classifier.js";
 
 // Boundary guard for the extract pass's degree_status field (Decision 24). Same seam as
 // gradField/parseDate in classifier.ts: the JSON schema guarantees SHAPE, not semantics, and
@@ -23,6 +29,38 @@ test("junk strings normalize to null, never leak into the data model", () => {
   assert.equal(normalizeDegreeStatus("Pursuing"), null);
   assert.equal(normalizeDegreeStatus("the posting requires a completed degree"), null);
   assert.equal(normalizeDegreeStatus(""), null);
+});
+
+// The same boundary guard must cover EVERY model-emitted enum, not just degree_status: an
+// off-enum value that leaks into a Prisma enum column doesn't fail at extract time — it
+// throws inside persist(), where (pre-fix) it killed the whole batch. Temperature-0 calls
+// make such a value deterministic for a given posting: a permanent landmine, not a flake.
+
+test("citizenship: valid values pass, junk normalizes to null", () => {
+  assert.equal(normalizeCitizenshipStatus("no_sponsorship"), "no_sponsorship");
+  assert.equal(normalizeCitizenshipStatus("unknown"), "unknown");
+  assert.equal(normalizeCitizenshipStatus(null), null);
+  assert.equal(normalizeCitizenshipStatus("No Sponsorship"), null);
+  assert.equal(normalizeCitizenshipStatus("visa sponsorship is not available"), null);
+  assert.equal(normalizeCitizenshipStatus(""), null);
+});
+
+test("opportunity type: valid values pass, junk normalizes to null (= filtered out, not crash)", () => {
+  assert.equal(normalizeOpportunityType("internship"), "internship");
+  assert.equal(normalizeOpportunityType("co_op"), "co_op");
+  assert.equal(normalizeOpportunityType(null), null);
+  // Null means "not early-career" downstream, so a paraphrase becomes a safe drop.
+  assert.equal(normalizeOpportunityType("Internship"), null);
+  assert.equal(normalizeOpportunityType("co-op"), null);
+  assert.equal(normalizeOpportunityType("full_time"), null);
+});
+
+test("cs field: valid values pass, junk normalizes to null", () => {
+  assert.equal(normalizeCsField("swe"), "swe");
+  assert.equal(normalizeCsField("hardware_embedded"), "hardware_embedded");
+  assert.equal(normalizeCsField(null), null);
+  assert.equal(normalizeCsField("software engineering"), null);
+  assert.equal(normalizeCsField("SWE"), null);
 });
 
 // ── passModel: per-pass model resolution (Decision 25 split) ───────────────────────────────

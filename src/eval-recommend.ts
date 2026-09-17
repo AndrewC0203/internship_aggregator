@@ -16,11 +16,14 @@ import { parseQuestionnaire, type Questionnaire } from "./recommend/questionnair
 import {
   cosineSim,
   precisionAtK,
+  ndcgAtK,
+  blendRanked,
+  labelFromCsvLine,
   projectRanking,
   stratifiedAllocate,
   poolTopK,
 } from "./recommend/eval-metrics.js";
-import { freshness, blendScore, sortRecs } from "./recommend/score.js";
+import { sortRecs } from "./recommend/score.js";
 
 // Evaluation gate CLI (Decision 31 amendment; spec "Evaluation gate"). Three subcommands,
 // run in order, with the human labeling step between pool and score:
@@ -162,13 +165,30 @@ async function cmdPool(): Promise<void> {
     });
 
   const rankings: Record<string, number[]> = {};
-  const scores: Record<string, Array<{ id: number; score: number }>> = {};
+  const scores: Record<string, Array<{ id: number; sim?: number; score: number }>> = {};
   const vectors: Record<string, Record<string, Record<number, number[]>>> = {};
+
+  // Pinned pool-time clock, persisted in rankings.json: blend-based rankings must be
+  // reproducible on a re-run, and score-time diagnostics must see the SAME ordering the
+  // labeling sheet was pooled from.
+  const pooledAt = new Date();
+  const metaById = new Map(sample.map((s) => [s.id, s]));
+  // Embedding approaches rank by the PRODUCTION blend (bakeoff.md's flagged gap: pooling
+  // on similarity-only diverged from what production actually shows). `sim` rides along
+  // for the similarity-only diagnostics at score time.
+  const rankByBlend = (sims: Array<{ id: number; sim: number }>) =>
+    blendRanked(
+      sims.map((r) => {
+        const m = metaById.get(r.id)!;
+        return { ...r, publishedAt: m.publishedAt, firstSeenAt: m.firstSeenAt };
+      }),
+      pooledAt,
+    );
 
   for (const model of MODELS) {
     vectors[model] = { sig: {}, raw: {} };
     console.log(`[eval] embedding ${withSig.length} x2 texts with ${model}...`);
-    const sigTexts = withSig.map((r) => listingCanonicalText(r.sig!, model));
+    const sigTexts = withSig.map((r) => listingCanonicalText(r.title, r.sig!, model));
     const rawTexts = withSig.map((r) => baselineCanonicalText(r.title, r.descriptionPlain, model));
     // Chunked + sequential, like the enrich pass: 200 raw-baseline texts are ~300k tokens —
     // as ONE /api/embed request that can outlive the 120s Ollama timeout, and Ollama
@@ -185,17 +205,21 @@ async function cmdPool(): Promise<void> {
       model,
     );
 
-    for (const [variant, vecs, prof] of [
+    // sigt (the Template-v3 title-line candidate) was compared here for the 2026-09-17 gate
+    // and PROMOTED — `sig` now embeds the v3 text, so a separate variant would be identical.
+    const variants: Array<readonly [string, number[][], number[]]> = [
       ["sig", sigVecs, profSig],
       ["raw", rawVecs, profRaw],
-    ] as const) {
+    ];
+
+    for (const [variant, vecs, prof] of variants) {
       const approach = `${variant}:${model.split("-")[0]}`;
-      const ranked = withSig
-        .map((r, i) => {
+      const ranked = rankByBlend(
+        withSig.map((r, i) => {
           vectors[model][variant][r.id] = vecs[i];
-          return { id: r.id, score: cosineSim(vecs[i], prof) };
-        })
-        .sort((a, b) => b.score - a.score || a.id - b.id);
+          return { id: r.id, sim: cosineSim(vecs[i], prof) };
+        }),
+      );
       scores[approach] = ranked;
       rankings[approach] = ranked.map((r) => r.id);
     }
@@ -219,19 +243,34 @@ async function cmdPool(): Promise<void> {
 
   const pooled = poolTopK(rankings, K);
   const byId = new Map(sample.map((s) => [s.id, s]));
-  const csv = [
-    "id,company,title,url,label",
-    ...pooled.map((id) => {
-      const s = byId.get(id)!;
-      const q = (v: string) => `"${v.replaceAll('"', '""')}"`;
-      return `${id},${q(s.company)},${q(s.title.trim())},${q(s.url)},`;
-    }),
-  ].join("\n");
 
-  writeFileSync(join(EVAL_DIR, "rankings.json"), JSON.stringify({ k: K, approaches: Object.keys(rankings), scores }, null, 2));
+  // Carry existing labels forward: re-pooling (new approach, wider K) must only ADD rows
+  // to label, never destroy the ~30min of human judgment already in labels.csv.
+  const labelsPath = join(EVAL_DIR, "labels.csv");
+  const carried = new Map<number, string>();
+  if (existsSync(labelsPath)) {
+    for (const line of readFileSync(labelsPath, "utf8").trim().split("\n").slice(1)) {
+      const { id, label } = labelFromCsvLine(line);
+      if (label) carried.set(id, label);
+    }
+  }
+  // Labeled ids that fell OUT of every top-10 under re-pooling are retained as extra rows:
+  // a judgment is never discarded, and score's select/holdout slices use every labeled id
+  // via projection, so retained labels keep improving metric stability for free.
+  const retained = [...carried.keys()].filter((id) => !pooled.includes(id) && byId.has(id));
+  const q = (v: string) => `"${v.replaceAll('"', '""')}"`;
+  const row = (id: number) => {
+    const s = byId.get(id)!;
+    return `${id},${q(s.company)},${q(s.title.trim())},${q(s.url)},${carried.get(id) ?? ""}`;
+  };
+  const csv = ["id,company,title,url,label", ...pooled.map(row), ...retained.sort((a, b) => a - b).map(row)].join("\n");
+  const unlabeled = pooled.filter((id) => !carried.has(id));
+
+  writeFileSync(join(EVAL_DIR, "rankings.json"), JSON.stringify({ k: K, pooledAt: pooledAt.toISOString(), approaches: Object.keys(rankings), scores }, null, 2));
   writeFileSync(join(EVAL_DIR, "vectors.json"), JSON.stringify(vectors));
-  writeFileSync(join(EVAL_DIR, "labels.csv"), csv);
+  writeFileSync(labelsPath, csv);
   console.log(`[eval] pooled ${pooled.length} unique listings from ${Object.keys(rankings).length} approaches' top-${K}`);
+  console.log(`[eval] labels: ${carried.size - retained.length} carried in-pool, ${retained.length} retained out-of-pool; ${unlabeled.length} rows NEED labels: [${unlabeled.join(", ") || "none"}]`);
   console.log(`[eval] -> ${EVAL_DIR}/labels.csv  (fill the last column: relevant / borderline / irrelevant)`);
 }
 
@@ -240,16 +279,13 @@ async function cmdPool(): Promise<void> {
 function readLabels(): Map<number, string> {
   const lines = readFileSync(join(EVAL_DIR, "labels.csv"), "utf8").trim().split("\n").slice(1);
   const labels = new Map<number, string>();
-  const allowed = new Set(["relevant", "borderline", "irrelevant"]);
   for (const line of lines) {
-    // Tolerant parse for hand-edited CSV: the label is the LAST NON-EMPTY field (survives
-    // trailing commas, added quotes, and stray spaces — all observed in real labeling);
-    // quoted title/url fields can contain commas, but the label always comes after them.
-    const fields = line.split(",").map((f) => f.replaceAll('"', "").trim());
-    const id = Number(fields[0]);
-    const label = (fields.filter(Boolean).at(-1) ?? "").toLowerCase();
-    if (!allowed.has(label)) {
-      throw new Error(`labels.csv: row for id ${id} has label "${label}" — every pooled row needs relevant/borderline/irrelevant`);
+    // Tolerant parse (labelFromCsvLine) for hand-edited CSV — survives trailing commas,
+    // added quotes, stray spaces; a quoted title/url can contain commas but the label is
+    // always the last non-empty field. Strict HERE: scoring needs every row judged.
+    const { id, label } = labelFromCsvLine(line);
+    if (!label) {
+      throw new Error(`labels.csv: row for id ${id} is unlabeled — every pooled row needs relevant/borderline/irrelevant`);
     }
     labels.set(id, label);
   }
@@ -259,7 +295,7 @@ function readLabels(): Map<number, string> {
 async function cmdScore(): Promise<void> {
   const { sample } = JSON.parse(readFileSync(join(EVAL_DIR, "sample.json"), "utf8")) as { sample: SampleRow[] };
   const { scores } = JSON.parse(readFileSync(join(EVAL_DIR, "rankings.json"), "utf8")) as {
-    scores: Record<string, Array<{ id: number; score: number }>>;
+    scores: Record<string, Array<{ id: number; sim?: number; score: number }>>;
   };
   const labels = readLabels();
   const fixture = loadFixture();
@@ -272,12 +308,16 @@ async function cmdScore(): Promise<void> {
   console.log(`\n[eval] ${labeledIds.length} labeled; ${select.size} selection / ${holdout.size} held out\n`);
 
   console.log("SELECTION METRICS — P@10, strict = borderline counts as NOT relevant (primary)");
-  console.log("approach        P@10 strict   P@10 lenient");
+  console.log("approach        P@10 strict   P@10 lenient  NDCG@10");
   for (const [approach, ranked] of Object.entries(scores)) {
     const ids = projectRanking(ranked.map((r) => r.id), select);
     const strict = precisionAtK(ids, labels, K, "strict");
     const lenient = precisionAtK(ids, labels, K, "lenient");
-    console.log(`${approach.padEnd(15)} ${strict.toFixed(2).padEnd(13)} ${lenient.toFixed(2)}`);
+    // NDCG (graded 2/1/0, position-discounted): P@10 counts hits anywhere in the window;
+    // NDCG asks whether the ordering puts them at the top. Secondary/diagnostic — the
+    // pre-registered primary stays strict P@10 (registered before any results existed).
+    const ndcg = ndcgAtK(ids, labels, K);
+    console.log(`${approach.padEnd(15)} ${strict.toFixed(2).padEnd(13)} ${lenient.toFixed(2).padEnd(13)} ${ndcg.toFixed(3)}`);
   }
 
   console.log("\nHELD-OUT FINAL CHECK (run once, AFTER choosing model + freshness weight):");
@@ -288,23 +328,21 @@ async function cmdScore(): Promise<void> {
     console.log(`${approach.padEnd(15)} P@${k} strict ${precisionAtK(ids, labels, k, "strict").toFixed(2)}`);
   }
 
-  // Freshness-weight sanity (spec metric 4c): does the 0.15 blend pull anything labeled
-  // irrelevant into a top-10 that similarity alone kept out?
+  // Freshness-weight sanity (spec metric 4c): pooling now ranks by the blend, so the
+  // stored order IS the blended order; the similarity-only order is recovered from the
+  // stored `sim` field (no clock at score time — reproducible from the files alone).
+  // Question unchanged: does freshness pull anything labeled irrelevant into a top-10
+  // that similarity alone kept out?
   const byId = new Map(sample.map((s) => [s.id, s]));
-  console.log("\nFRESHNESS BLEND SANITY (W_FRESH 0 -> 0.15, full labeled ranking):");
+  console.log("\nFRESHNESS BLEND SANITY (blend vs similarity-only, from stored sims):");
   for (const [approach, ranked] of Object.entries(scores)) {
     if (approach === "overlap") continue; // overlap scores aren't cosines; blend n/a
-    const now = new Date();
-    const blended = sortRecs(
-      ranked.map((r) => {
-        const s = byId.get(r.id)!;
-        return {
-          id: r.id,
-          score: blendScore(r.score, freshness(s.publishedAt ? new Date(s.publishedAt) : null, new Date(s.firstSeenAt), now)),
-        };
-      }),
-    ).map((r) => r.id);
-    const simOnly = ranked.map((r) => r.id);
+    if (ranked.some((r) => r.sim === undefined)) {
+      console.log(`${approach.padEnd(15)} (rankings.json predates blend pooling — re-run pool)`);
+      continue;
+    }
+    const blended = ranked.map((r) => r.id);
+    const simOnly = sortRecs(ranked.map((r) => ({ id: r.id, score: r.sim! }))).map((r) => r.id);
     const entered = blended.slice(0, K).filter((id) => !simOnly.slice(0, K).includes(id));
     const badEntrants = entered.filter((id) => labels.get(id) === "irrelevant");
     console.log(`${approach.padEnd(15)} entered top-10 via freshness: [${entered.join(", ") || "none"}]${badEntrants.length ? `  IRRELEVANT: [${badEntrants.join(", ")}]` : ""}`);
@@ -349,14 +387,19 @@ async function cmdScore(): Promise<void> {
         ],
         model,
       );
-      const sigVecs = Object.entries(vectors[model]?.sig ?? {});
-      const rankBy = (prof: number[]) =>
-        sigVecs
-          .map(([id, v]) => ({ id: Number(id), score: cosineSim(v, prof) }))
-          .sort((a, b) => b.score - a.score || a.id - b.id)
-          .slice(0, 20)
-          .filter((r) => byId.get(r.id)?.csField === "swe").length;
-      console.log(`sig:${model.split("-")[0]}`.padEnd(15) + ` swe in top-20: ${rankBy(base)} -> ${rankBy(pref)}`);
+      // sigt included: the soft-pref MUST is what disqualified raw:mxbai — a document-side
+      // template candidate can't be promoted without passing the same check.
+      for (const variant of ["sig", "sigt"] as const) {
+        const docVecs = Object.entries(vectors[model]?.[variant] ?? {});
+        if (docVecs.length === 0) continue; // sigt exists for nomic only
+        const rankBy = (prof: number[]) =>
+          docVecs
+            .map(([id, v]) => ({ id: Number(id), score: cosineSim(v, prof) }))
+            .sort((a, b) => b.score - a.score || a.id - b.id)
+            .slice(0, 20)
+            .filter((r) => byId.get(r.id)?.csField === "swe").length;
+        console.log(`${variant}:${model.split("-")[0]}`.padEnd(15) + ` swe in top-20: ${rankBy(base)} -> ${rankBy(pref)}`);
+      }
     }
   } else {
     console.log("\n(vectors.json missing — re-run pool to regenerate clustering + soft-preference diagnostics)");

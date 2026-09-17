@@ -77,8 +77,8 @@ export async function enrichListings(
     const idFilter = opts.ids
       ? Prisma.sql`AND id IN (${Prisma.join(opts.ids)})`
       : Prisma.empty;
-    const toEmbed = await prisma.$queryRaw<Array<{ id: number; signature: unknown }>>`
-      SELECT id, signature
+    const toEmbed = await prisma.$queryRaw<Array<{ id: number; title: string; signature: unknown }>>`
+      SELECT id, title, signature
       FROM listings
       WHERE is_listed
         AND signature IS NOT NULL
@@ -93,8 +93,8 @@ export async function enrichListings(
       // A row whose stored signature no longer validates (schema drift) is skipped loudly —
       // it re-enters via a prompt-version bump, never via a silent guess.
       const valid = batch
-        .map((r) => ({ id: r.id, sig: validateSignature(r.signature) }))
-        .filter((r): r is { id: number; sig: NonNullable<ReturnType<typeof validateSignature>> } => {
+        .map((r) => ({ id: r.id, title: r.title, sig: validateSignature(r.signature) }))
+        .filter((r): r is { id: number; title: string; sig: NonNullable<ReturnType<typeof validateSignature>> } => {
           if (!r.sig) console.error(`[enrich embed] #${r.id} stored signature invalid — skipped`);
           return r.sig !== null;
         });
@@ -103,7 +103,7 @@ export async function enrichListings(
       try {
         console.log(`[enrich embed] embedding batch of ${valid.length} (through #${valid[valid.length - 1].id})...`);
         const vectors = await embed(
-          valid.map((r) => listingCanonicalText(r.sig, EMBED_MODEL)),
+          valid.map((r) => listingCanonicalText(r.title, r.sig, EMBED_MODEL)),
           EMBED_MODEL,
         );
         for (let i = 0; i < valid.length; i++) {

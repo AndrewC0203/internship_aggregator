@@ -1,36 +1,43 @@
 id,company,title,url,label
-316,"DRW","Software Engineer Intern (Data Engineering)","https://job-boards.greenhouse.io/drweng/jobs/8127242", "relevant",
-224,"CloudSEK","DevOps Intern","https://job-boards.greenhouse.io/cloudsek/jobs/6149788004", "relevant",
-220,"Cloudflare","Software Engineer Intern (Fall 2026)","https://boards.greenhouse.io/cloudflare/jobs/8118845?gh_jid=8118845", "irrelevant",
-221,"Cloudflare","Software Engineer Intern (Fall 2026) - Austin, TX","https://boards.greenhouse.io/cloudflare/jobs/8052785?gh_jid=8052785", "irrelevant",
-341,"FeverUp","Becas de Excelencia - Engineering","https://job-boards.eu.greenhouse.io/feverup/jobs/4942287101", "irrelevant",
-179,"Canonical","Python and Kubernetes Software Engineer - Data, Workflows, AI/ML & Analytics","https://job-boards.greenhouse.io/canonical/jobs/5703396", "borderline",
-373,"Varda Space Industries","Applications Engineering Internship - Spring 2027","https://job-boards.greenhouse.io/vardaspace/jobs/7824822003", "relevant",
-124,"Anthropic","Software Engineer, Research Data Platform","https://job-boards.greenhouse.io/anthropic/jobs/5191226008", "borderline",
-311,"DRW","Software Developer Intern","https://job-boards.greenhouse.io/drweng/jobs/7991196", "relevant",
-10,"Accenture Federal Services","Jr. Software Engineer","https://boards.greenhouse.io/accenturefederalservices/jobs/4689025006?gh_jid=4689025006", "borderline",
-268,"Databricks","PhD GenAI Research Scientist Intern","https://databricks.com/company/careers/open-positions/job?gh_jid=7011263002", "irrelevant",
-157,"Block","Applied Research Intern, Proactive Intelligence & Customer World Models (PhD / Graduate Co-op)","http://block.xyz/careers/jobs/5108009008?gh_jid=5108009008", "irrelevant",
-287,"DRW","AI/ML Research Intern","https://job-boards.greenhouse.io/drweng/jobs/7991171", "irrelevant",
-41,"10a Labs","Engineering Fellowship","https://job-boards.greenhouse.io/10alabs/jobs/4203095009", "relevant",
-67,"Alumni Ventures","AI Associate","https://job-boards.greenhouse.io/alumniventures/jobs/4299342009", "borderline",
-250,"Cresta","Machine Learning Engineering Intern","https://job-boards.greenhouse.io/cresta/jobs/4123863008", "relevant",
-105,"Anthropic","Machine Learning Infrastructure Engineer, Safeguards Research","https://job-boards.greenhouse.io/anthropic/jobs/5364804008", "irrelevant",
-269,"Databricks","Product Management Intern (Summer 2027)","https://databricks.com/company/careers/open-positions/job?gh_jid=6883068002", "relevant",
-72,"Amtech Software","Associate Software Engineer","https://job-boards.greenhouse.io/amtechsoftware/jobs/4339915009", "borderline",
-364,"Tulip Interfaces","Ecosystem Engineer Co-op","https://tulip.co/careers/job-posting/?gh_jid=7763800003", "relevant",
-53,"AIFT","Web3 Internship- Software Engineering Intern, OneSavieLab","https://job-boards.greenhouse.io/aift/jobs/5034882004", "irrelevant",
-173,"Canonical","Graduate Software Engineer, Open Source and Linux, Canonical Ubuntu","https://job-boards.greenhouse.io/canonical/jobs/8142329", "borderline",
-185,"Canonical","Software Engineer - Data Infrastructure - Kafka","https://job-boards.greenhouse.io/canonical/jobs/5218601", "borderline",
-366,"Tulip Interfaces","Ecosystem Engineer Working Student","https://tulip.co/careers/job-posting/?gh_jid=7763832003", "relevant",
-365,"Tulip Interfaces","Ecosystem Engineer Intern","https://tulip.co/careers/job-posting/?gh_jid=7763805003", "relevant",
-363,"Truveta","Software Engineering Intern","https://job-boards.greenhouse.io/truveta/jobs/5659745004", "relevant",
-332,"Epic Games","Machine Learning Intern","https://epicgames.com/careers/jobs/6138140004?gh_jid=6138140004", "borderline",
-16,"Affirm","Software Engineer I, Backend (Collections)","https://job-boards.greenhouse.io/affirm/jobs/7807508003", "irrelevant",
-194,"Canonical","Web Developer","https://job-boards.greenhouse.io/canonical/jobs/2804965", "borderline",
-56,"7shifts","AI Automation Engineer","https://job-boards.greenhouse.io/7shifts/jobs/6148185004", "borderline",
-57,"7shifts","AI Automation Engineer","https://job-boards.greenhouse.io/7shifts/jobs/6148180004", "borderline",
-248,"Cresta","Data Science Intern (Customer Success)","https://job-boards.greenhouse.io/cresta/jobs/5213417008", "relevant",
-46,"Ably (UK)","Software Engineer, Pub/Sub","https://job-boards.eu.greenhouse.io/ably30/jobs/4880791101", "irrelevant",
-64,"Algolia","Software Engineer, Growth","https://job-boards.greenhouse.io/algolia/jobs/6112860004", "borderline",
-86,"Anduril Industries","Mission Software Engineer, Vehicle Software, Frontend","https://boards.greenhouse.io/andurilindustries/jobs/4672911007?gh_jid=4672911007", "borderline",
+316,"DRW","Software Engineer Intern (Data Engineering)","https://job-boards.greenhouse.io/drweng/jobs/8127242",relevant
+224,"CloudSEK","DevOps Intern","https://job-boards.greenhouse.io/cloudsek/jobs/6149788004",relevant
+220,"Cloudflare","Software Engineer Intern (Fall 2026)","https://boards.greenhouse.io/cloudflare/jobs/8118845?gh_jid=8118845",irrelevant
+341,"FeverUp","Becas de Excelencia - Engineering","https://job-boards.eu.greenhouse.io/feverup/jobs/4942287101",irrelevant
+373,"Varda Space Industries","Applications Engineering Internship - Spring 2027","https://job-boards.greenhouse.io/vardaspace/jobs/7824822003",relevant
+221,"Cloudflare","Software Engineer Intern (Fall 2026) - Austin, TX","https://boards.greenhouse.io/cloudflare/jobs/8052785?gh_jid=8052785",irrelevant
+162,"BlueCrest Capital Management","DevOps Engineer (FTC)","https://job-boards.greenhouse.io/bluecrestcapitalmanagement/jobs/7972620003", relevant
+380,"Varda Space Industries","Site Reliability Internship - Spring 2027","https://job-boards.greenhouse.io/vardaspace/jobs/7824814003", relevant
+311,"DRW","Software Developer Intern","https://job-boards.greenhouse.io/drweng/jobs/7991196",relevant
+270,"Databricks","Software Engineering Intern (2027 Start) - Winter","https://databricks.com/company/careers/open-positions/job?gh_jid=8732364002", relevant
+268,"Databricks","PhD GenAI Research Scientist Intern","https://databricks.com/company/careers/open-positions/job?gh_jid=7011263002",irrelevant
+157,"Block","Applied Research Intern, Proactive Intelligence & Customer World Models (PhD / Graduate Co-op)","http://block.xyz/careers/jobs/5108009008?gh_jid=5108009008",irrelevant
+287,"DRW","AI/ML Research Intern","https://job-boards.greenhouse.io/drweng/jobs/7991171",irrelevant
+1867,"Brave","AI Security Researcher/Research Engineer","https://job-boards.greenhouse.io/brave/jobs/8165845", relevant
+67,"Alumni Ventures","AI Associate","https://job-boards.greenhouse.io/alumniventures/jobs/4299342009",borderline
+41,"10a Labs","Engineering Fellowship","https://job-boards.greenhouse.io/10alabs/jobs/4203095009",relevant
+173,"Canonical","Graduate Software Engineer, Open Source and Linux, Canonical Ubuntu","https://job-boards.greenhouse.io/canonical/jobs/8142329",borderline
+72,"Amtech Software","Associate Software Engineer","https://job-boards.greenhouse.io/amtechsoftware/jobs/4339915009",borderline
+105,"Anthropic","Machine Learning Infrastructure Engineer, Safeguards Research","https://job-boards.greenhouse.io/anthropic/jobs/5364804008",irrelevant
+364,"Tulip Interfaces","Ecosystem Engineer Co-op","https://tulip.co/careers/job-posting/?gh_jid=7763800003",relevant
+392,"Virtu Financial","2027 Internship – Core Operations Engineer","https://job-boards.greenhouse.io/virtu/jobs/6329460002", relevant
+53,"AIFT","Web3 Internship- Software Engineering Intern, OneSavieLab","https://job-boards.greenhouse.io/aift/jobs/5034882004",irrelevant
+10,"Accenture Federal Services","Jr. Software Engineer","https://boards.greenhouse.io/accenturefederalservices/jobs/4689025006?gh_jid=4689025006",borderline
+366,"Tulip Interfaces","Ecosystem Engineer Working Student","https://tulip.co/careers/job-posting/?gh_jid=7763832003",relevant
+332,"Epic Games","Machine Learning Intern","https://epicgames.com/careers/jobs/6138140004?gh_jid=6138140004",borderline
+365,"Tulip Interfaces","Ecosystem Engineer Intern","https://tulip.co/careers/job-posting/?gh_jid=7763805003",relevant
+331,"Epic Games","Machine Learning Intern","https://epicgames.com/careers/jobs/6138134004?gh_jid=6138134004", borderline
+16,"Affirm","Software Engineer I, Backend (Collections)","https://job-boards.greenhouse.io/affirm/jobs/7807508003",irrelevant
+76,"Alarm.com","Embedded Software Engineer I","https://job-boards.greenhouse.io/alarmcom/jobs/8622530002", borderline
+363,"Truveta","Software Engineering Intern","https://job-boards.greenhouse.io/truveta/jobs/5659745004",relevant
+194,"Canonical","Web Developer","https://job-boards.greenhouse.io/canonical/jobs/2804965",borderline
+56,"7shifts","AI Automation Engineer","https://job-boards.greenhouse.io/7shifts/jobs/6148185004",borderline
+57,"7shifts","AI Automation Engineer","https://job-boards.greenhouse.io/7shifts/jobs/6148180004",borderline
+248,"Cresta","Data Science Intern (Customer Success)","https://job-boards.greenhouse.io/cresta/jobs/5213417008",relevant
+46,"Ably (UK)","Software Engineer, Pub/Sub","https://job-boards.eu.greenhouse.io/ably30/jobs/4880791101",irrelevant
+64,"Algolia","Software Engineer, Growth","https://job-boards.greenhouse.io/algolia/jobs/6112860004",borderline
+86,"Anduril Industries","Mission Software Engineer, Vehicle Software, Frontend","https://boards.greenhouse.io/andurilindustries/jobs/4672911007?gh_jid=4672911007",borderline
+124,"Anthropic","Software Engineer, Research Data Platform","https://job-boards.greenhouse.io/anthropic/jobs/5191226008",borderline
+179,"Canonical","Python and Kubernetes Software Engineer - Data, Workflows, AI/ML & Analytics","https://job-boards.greenhouse.io/canonical/jobs/5703396",borderline
+185,"Canonical","Software Engineer - Data Infrastructure - Kafka","https://job-boards.greenhouse.io/canonical/jobs/5218601",borderline
+250,"Cresta","Machine Learning Engineering Intern","https://job-boards.greenhouse.io/cresta/jobs/4123863008",relevant
+269,"Databricks","Product Management Intern (Summer 2027)","https://databricks.com/company/careers/open-positions/job?gh_jid=6883068002",relevant

@@ -115,6 +115,34 @@ So today's code would keep it, and the cause of the run not keeping it is UNKNOW
 is simply to re-run and see whether AIFT yields listings; if it still yields nothing, there is
 a real bug to chase.
 
+### Root-cause update (2026-09-17): structural mechanism found, fixed
+
+A code review of the orchestrator found a structural gap whose failure signature matches this
+anomaly exactly. `flush()` — the dedup → partition → filter → extract → persist tail over a
+10-board batch — ran OUTSIDE the per-board try/catch, and `persist()` had no per-row error
+handling. One throw anywhere in a batch's tail (e.g. a DB write refusing one row) therefore:
+
+- discarded the ENTIRE batch's in-memory work (`batch` is consumed at the top of `flush()`),
+- aborted every board not yet crawled that run (the exception propagated out of
+  `runPipeline()` to `main()`'s top-level catch),
+- while every board in the batch kept clean crawl health (`lastCrawledAt` set, `lastError`
+  null — those write eagerly, before the flush).
+
+That produces precisely what this audit observed and ruled everything else out for: fetch
+fine, normalize fine, filters fine, zero rows in either table, no error recorded anywhere.
+Two plausible batch-killing triggers were also found unguarded at the model boundary:
+`citizenship_status` / `opportunity_type` / `cs_field` passed raw from the 7B/14B into
+Prisma enum columns (only `degree_status` had the normalize-to-null guard; a temperature-0
+off-enum emission would recur deterministically every run), and Lever/Ashby `salaryRange`
+passed unvalidated into `Decimal(12,2)`.
+
+All three are fixed (flush containment + per-row persist isolation + boundary guards), with
+one invariant worth remembering: on a failed flush the batch's QUEUED etags are dropped, not
+written — writing them would make the next run 304 past the lost listings permanently.
+Historical attribution to a specific trigger row is not provable post-hoc (the throw was
+never logged); the mechanism is confirmed by code-path analysis, and the fix converts any
+recurrence into a loud `[orchestrator] BATCH LOST` log line plus self-healing re-crawl.
+
 ## Finding 5 — one keep worth eyeballing
 
 `Consumer Insights Intern` @ 10Beauty — consumer/market research at a beauty company, kept as

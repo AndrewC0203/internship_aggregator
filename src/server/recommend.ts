@@ -8,23 +8,25 @@ import {
   saveQuestionnaire,
   loadRankingProfile,
 } from "../recommend/profile.js";
-import { parseQuestionnaire } from "../recommend/questionnaire.js";
+import { parseQuestionnaire, defaultQuestionnaire } from "../recommend/questionnaire.js";
 import { canonicalizeSkills } from "../recommend/aliases.js";
 import { profileCanonicalText, type ProfileJson } from "../recommend/canonical.js";
-import { recommend, rankAgainst } from "../recommend/rank.js";
+import { rankAgainst } from "../recommend/rank.js";
 import { EMBED_MODEL, TEMPLATE_VERSION } from "../recommend/config.js";
 import { embed } from "../model/ollama.js";
+import { draftFingerprint, beginDraft, getDraft, setDraft, clearDraft } from "../recommend/draftCache.js";
 
 // Recommendation API (spec "API + UI"). Thin routes: every rule lives in the recommend/
 // modules; this file only parses, dispatches, and maps outcomes to status codes.
 //
 // Error contract:
-//   503 ollama_down          — profile edits + extraction need the local model; ranking never does
+//   503 ollama_down          — profile edits + extraction (incl. /search's paste-and-go)
+//                              need the local model; plain ranking never does
 //   409 revision_conflict    — a newer edit won the optimistic-concurrency race; reload, redo
 //   409 profile_embedding_stale — stored profile vector disagrees with current config; loud,
 //                                with the remediation spelled out (re-approve to re-embed)
 
-const ollamaDown = (err: unknown): boolean =>
+export const ollamaDown = (err: unknown): boolean =>
   err instanceof OllamaError && (err.status === undefined || err.status === 429 || err.status >= 500);
 
 function parseProfileBody(raw: unknown): ProfileJson | null {
@@ -146,6 +148,82 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
     },
   );
 
+  // /search "paste and go" (Decision 34): extract + embed a resume into the in-memory draft
+  // slot (draftCache.ts) — NOT user_profile.resumeText/extractedProfile, which mean "the
+  // human's in-progress draft on the /profile page" and would otherwise get silently
+  // clobbered by a quick paste here. Fingerprint-gated so re-submitting the SAME text (e.g.
+  // a page reload re-posting a cached form) skips the embed call entirely.
+  app.post<{ Body: { resumeText?: string } }>("/api/search/paste", async (req, reply) => {
+    const resumeText = req.body?.resumeText;
+    if (typeof resumeText !== "string" || resumeText.trim().length < 40) {
+      return reply.code(400).send({ error: "resumeText required (paste the plain text)" });
+    }
+    const fingerprint = draftFingerprint(resumeText);
+    const existing = getDraft();
+    if (existing && existing.fingerprint === fingerprint) {
+      return { extracted: existing.profile };
+    }
+    // Sequence token issued BEFORE the model round-trip: if a newer paste (or a clear/save)
+    // happens while this one is still extracting, this one's late setDraft is discarded —
+    // without this, the slower-but-older paste clobbered the newer draft, and a follow-up
+    // SAVE could silently publish the wrong resume as the approved profile.
+    const seq = beginDraft();
+    try {
+      const extracted = await extractProfile(resumeText);
+      const profile = { skills: extracted.skills, focus: extracted.focus };
+      const [vector] = await embed(
+        [profileCanonicalText(profile, defaultQuestionnaire(), EMBED_MODEL)],
+        EMBED_MODEL,
+      );
+      setDraft(
+        { fingerprint, profile, vector, embeddingModel: EMBED_MODEL, templateVersion: TEMPLATE_VERSION },
+        seq,
+      );
+      return { extracted };
+    } catch (err) {
+      if (ollamaDown(err)) {
+        return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      return reply.code(422).send({ error: "extraction_failed", reason });
+    }
+  });
+
+  app.post("/api/search/paste/clear", async () => {
+    clearDraft();
+    return { ok: true };
+  });
+
+  // Promote the current draft to the approved profile. Server-side end to end (reads the
+  // draft from memory, reads the current revision, writes) — the client never needs to
+  // round-trip resume text it never had in the first place.
+  app.post("/api/search/paste/save", async (_req, reply) => {
+    const draft = getDraft();
+    if (!draft) return reply.code(400).send({ error: "no_draft" });
+    await ensureProfileRow(prisma);
+    const row = await prisma.userProfile.findUnique({
+      where: { id: 1 },
+      select: { questionnaire: true, revision: true },
+    });
+    try {
+      const result = await publishProfile(prisma, {
+        profile: draft.profile,
+        questionnaire: parseQuestionnaire(row?.questionnaire),
+        expectedRevision: row?.revision ?? 0,
+      });
+      if (!result.ok) return reply.code(409).send({ error: "revision_conflict" });
+      // The draft is now redundant with the approved profile — clear it so /search reads
+      // "approved" cleanly instead of re-embedding the identical text on the next request.
+      clearDraft();
+      return { ok: true, revision: result.revision };
+    } catch (err) {
+      if (ollamaDown(err)) {
+        return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+      }
+      throw err;
+    }
+  });
+
   // Stateless tryout (manual testing / demo): rank the corpus against a PASTED resume —
   // extract + embed + rank happen in-memory, NOTHING is persisted (not the resume, not the
   // profile — someone else's resume is PII and must not land in user_profile or anywhere).
@@ -185,21 +263,4 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
     },
   );
 
-  app.get<{ Querystring: { page?: string; per?: string } }>(
-    "/api/recommendations",
-    async (req, reply) => {
-      const result = await recommend(prisma, {
-        page: Number(req.query.page) || 1,
-        per: Number(req.query.per) || 25,
-      });
-      if (result.state === "no_profile") return { needsSetup: true };
-      if (result.state === "stale_embedding") {
-        return reply.code(409).send({
-          error: "profile_embedding_stale",
-          remediation: "re-approve the profile (PUT /api/profile) to re-embed under current config",
-        });
-      }
-      return result;
-    },
-  );
 }

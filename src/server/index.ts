@@ -5,11 +5,9 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma } from "../db.js";
-import { parseParams, search } from "./search.js";
+import { parseParams, runSearch } from "./search.js";
 import { renderPage } from "./render.js";
 import { registerRecommendRoutes } from "./recommend.js";
-import { recommend } from "../recommend/rank.js";
-import { renderForYouPage } from "./render-foryou.js";
 import { renderProfilePage } from "./render-profile.js";
 import { renderTryoutPage } from "./render-tryout.js";
 import { ensureProfileRow } from "../recommend/profile.js";
@@ -33,16 +31,9 @@ app.get<{ Params: { file: string } }>("/fonts/:file", async (req, reply) => {
 
 // SSR page — the hub itself.
 app.get("/", async (req, reply) => {
-  const params = parseParams(req.query as Record<string, unknown>);
-  const result = await search(prisma, params);
-  reply.type("text/html; charset=utf-8").send(renderPage(params, result));
-});
-
-// For You + profile pages (Decisions 29-32): SSR from the same modules the JSON API uses.
-app.get<{ Querystring: { page?: string } }>("/foryou", async (req, reply) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const result = await recommend(prisma, { page, per: 25 });
-  reply.type("text/html; charset=utf-8").send(renderForYouPage(result, page));
+  const raw = parseParams(req.query as Record<string, unknown>);
+  const { params, result, profileState } = await runSearch(prisma, raw);
+  reply.type("text/html; charset=utf-8").send(renderPage(params, result, profileState));
 });
 
 app.get("/tryout", async (_req, reply) => {
@@ -82,11 +73,13 @@ app.get("/profile", async (_req, reply) => {
 
 // Same query, JSON shape — the search API Phase 1 promises.
 app.get("/api/search", async (req) => {
-  const params = parseParams(req.query as Record<string, unknown>);
-  return search(prisma, params);
+  const raw = parseParams(req.query as Record<string, unknown>);
+  const { result } = await runSearch(prisma, raw);
+  return result;
 });
 
-// Recommendations (Decisions 29-32): profile flow + For You ranking.
+// Profile flow (Decisions 29-32) + /tryout; /search's own paste-and-go covers ranking
+// now (Decision 34) — /foryou retired, see Decision 34's addendum.
 registerRecommendRoutes(app);
 
 // Apply-status upsert/clear (Decision 21). PUT with {status: null} deletes the row —
@@ -95,8 +88,17 @@ app.put<{ Params: { id: string }; Body: { status?: string | null; note?: string 
   "/api/applications/:id",
   async (req, reply) => {
     const listingId = Number(req.params.id);
-    if (!Number.isInteger(listingId)) return reply.code(400).send({ error: "bad id" });
+    // Bounded to int4: Listing.id is Postgres Int, and an oversized JS integer passes
+    // Number.isInteger but throws inside Prisma (500) instead of the intended 400.
+    if (!Number.isInteger(listingId) || listingId < 1 || listingId > 2147483647) {
+      return reply.code(400).send({ error: "bad id" });
+    }
     const { status, note } = req.body ?? {};
+    // Fastify's Body generic is compile-time only (no schema on this route) — an unvalidated
+    // non-string note reached Prisma and 500'd with the raw validation message in the body.
+    if (note !== undefined && note !== null && typeof note !== "string") {
+      return reply.code(400).send({ error: "bad note" });
+    }
     const allowed = ["saved", "applied", "interviewing", "offer", "rejected"];
     if (status == null) {
       await prisma.application.deleteMany({ where: { listingId } });

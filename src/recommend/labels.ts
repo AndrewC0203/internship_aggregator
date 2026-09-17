@@ -98,3 +98,9 @@ function loadTiers(): Set<string> {
 export function selectivityBadge(company: string): string | null {
   return loadTiers().has(company.trim().toLowerCase()) ? SELECTIVITY_BADGE_TEXT : null;
 }
+
+// The curated list itself, for callers that filter rather than badge (search.ts's
+// "curated list" toggle). Same source of truth as the badge — one file, one cache.
+export function curatedSelectiveCompanies(): string[] {
+  return [...loadTiers()];
+}

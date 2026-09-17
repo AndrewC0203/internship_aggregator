@@ -85,3 +85,26 @@ test("location and department read from categories, falling back to null", () =>
   assert.equal(out.location, "London, United Kingdom");
   assert.equal(out.department, null); // this fixture job has no categories.department at all
 });
+
+// Comp plausibility guard: salaryRange is an UNVERIFIED shape (see normalize.ts) feeding a
+// Decimal(12,2) column — a non-finite or >10-digit value wouldn't fail here, it would throw
+// inside persist()'s Prisma write. Same "validate at the boundary" seam as the model enums.
+test("comp values that can't fit Decimal(12,2) — or aren't finite — normalize to null", () => {
+  const bad = {
+    ...fullTime,
+    salaryRange: { min: 1e12, max: Infinity, currency: "USD", interval: null },
+  };
+  const out = normalizeLever(bad, { company: "palantir" })!;
+  assert.equal(out.compMin, null);
+  assert.equal(out.compMax, null);
+});
+
+test("plausible comp values pass through unchanged", () => {
+  const ok = {
+    ...fullTime,
+    salaryRange: { min: 45000, max: 62000, currency: "USD", interval: null },
+  };
+  const out = normalizeLever(ok, { company: "palantir" })!;
+  assert.equal(out.compMin, 45000);
+  assert.equal(out.compMax, 62000);
+});

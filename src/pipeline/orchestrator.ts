@@ -83,43 +83,76 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
       }
     }
 
+    // The whole flush body is contained (2026-09-17): flush() runs OUTSIDE the per-board
+    // try/catch below, so before this guard existed, one throw anywhere in the shared tail
+    // propagated out of runPipeline() — discarding the batch's already-computed AI work AND
+    // aborting every board not yet crawled this run, while the batch's boards kept their
+    // eagerly-written clean crawl health (lastCrawledAt set, lastError null). That silent
+    // "crawled fine, zero rows" signature is exactly what the first-clean-run audit observed
+    // on the AIFT board. One batch's tail failure now costs that batch only.
     if (batch.length === 0) {
       boardsSinceFlush = 0;
-      await persistPendingEtags();
+      try {
+        await persistPendingEtags();
+      } catch (err) {
+        // A lost etag costs one re-download next run (the safe direction) — never the run.
+        const reason = err instanceof Error ? err.message : String(err);
+        console.error(`[orchestrator] etag write failed (etags dropped, boards re-fetch): ${reason}`);
+      }
       return;
     }
-    const normalized = batch;
-    batch = [];
-    boardsSinceFlush = 0;
+    try {
+      const normalized = batch;
+      batch = [];
+      boardsSinceFlush = 0;
 
-    console.log(`[orchestrator] flushing batch of ${normalized.length} normalized listings...`);
+      console.log(`[orchestrator] flushing batch of ${normalized.length} normalized listings...`);
 
-    // Shared tail (Decision 9 + Decision 12): dedup → partition-by-seen → filter (regex
-    // accept-router + regex reject-router + AI classify) → extract (AI, keeps only) → persist.
-    const deduped = await dedup(normalized);
-    const { unseen, seenKeeps, seenRejects } = await partitionBySeen(deduped);
-    console.log(
-      `Partition: ${unseen.length} new (→ AI), ${seenKeeps.length} seen-keeps, ${seenRejects.length} seen-rejects.`,
-    );
-    const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships(unseen);
-    // The two drop counts are logged but never persisted: those listings stay "unseen" on
-    // purpose, so widening either regex re-evaluates them next run (see reject-router.ts).
-    console.log(
-      `Filter: ${keeps.length} kept, ${newRejects.length} model-rejected, ` +
-        `${titleDropped} title-dropped, ${yoeDropped} experience-dropped.`,
-    );
-    const enriched = await extract(keeps);
-    await persist({ keeps: enriched, newRejects, seenKeeps, seenRejects });
-    // Only now — with this batch's listings durable — do the batch's etags get stored.
-    // If persist() had thrown, the etags stay unwritten and the next run re-downloads:
-    // the safe direction.
-    await persistPendingEtags();
-    totalKept += enriched.length;
-    totalRejected += newRejects.length;
-    console.log(
-      `Persisted batch: ${enriched.length} new listings, ${newRejects.length} new rejects, ` +
-        `${seenKeeps.length} refreshed, ${seenRejects.length} reject bumps.`,
-    );
+      // Shared tail (Decision 9 + Decision 12): dedup → partition-by-seen → filter (regex
+      // accept-router + regex reject-router + AI classify) → extract (AI, keeps only) → persist.
+      const deduped = await dedup(normalized);
+      const { unseen, seenKeeps, seenRejects } = await partitionBySeen(deduped);
+      console.log(
+        `Partition: ${unseen.length} new (→ AI), ${seenKeeps.length} seen-keeps, ${seenRejects.length} seen-rejects.`,
+      );
+      const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships(unseen);
+      // The two drop counts are logged but never persisted: those listings stay "unseen" on
+      // purpose, so widening either regex re-evaluates them next run (see reject-router.ts).
+      console.log(
+        `Filter: ${keeps.length} kept, ${newRejects.length} model-rejected, ` +
+          `${titleDropped} title-dropped, ${yoeDropped} experience-dropped.`,
+      );
+      const enriched = await extract(keeps);
+      const { keepsWritten, keepsFailed } = await persist({
+        keeps: enriched,
+        newRejects,
+        seenKeeps,
+        seenRejects,
+      });
+      // Only now — with this batch's listings durable — do the batch's etags get stored.
+      // If persist() had thrown, the etags stay unwritten and the next run re-downloads:
+      // the safe direction.
+      await persistPendingEtags();
+      totalKept += keepsWritten;
+      totalRejected += newRejects.length;
+      console.log(
+        `Persisted batch: ${keepsWritten} new listings` +
+          (keepsFailed > 0 ? ` (${keepsFailed} FAILED writes)` : "") +
+          `, ${newRejects.length} new rejects, ` +
+          `${seenKeeps.length} refreshed, ${seenRejects.length} reject bumps.`,
+      );
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[orchestrator] BATCH LOST — shared tail failed, this batch's boards persist nothing ` +
+          `this run: ${reason}`,
+      );
+      // Drop the failed batch's queued etags WITHOUT writing them — the invariant above:
+      // these boards' listings never reached the DB, so storing their etags would make the
+      // next run 304 straight past the lost listings. Dropped, the next run re-downloads
+      // and re-evaluates the same boards: the self-healing direction.
+      pendingEtags = [];
+    }
   }
 
   for (const src of SOURCES) {

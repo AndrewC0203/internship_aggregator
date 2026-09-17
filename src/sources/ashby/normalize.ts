@@ -84,6 +84,15 @@ function mapWorkplaceType(job: AshbyPosting): WorkplaceType | null {
   return job.isRemote ? "remote" : null;
 }
 
+// The DB column is Decimal(12,2): 10 integer digits max. A non-finite or overflow value from
+// the payload wouldn't fail here — it would throw inside persist()'s Prisma write, where (pre
+// 2026-09-17) one bad row cost the whole batch. Same boundary-validation seam as the model
+// enums in classifier.ts: an upstream number gets the same skepticism as an untrusted API.
+function plausibleComp(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return v >= 0 && v < 1e10 ? v : null;
+}
+
 // Pull comp from the Salary summary component. Selection is by compensationType, NEVER by
 // interval: equity components (e.g. "EquityCashValue") also carry interval "1 YEAR" with
 // null min/max, so keying on interval would surface a valueless equity row as the comp.
@@ -97,8 +106,8 @@ function mapCompensation(job: AshbyPosting): {
     (c) => c.compensationType === "Salary",
   );
   return {
-    compMin: salary?.minValue ?? null,
-    compMax: salary?.maxValue ?? null,
+    compMin: plausibleComp(salary?.minValue),
+    compMax: plausibleComp(salary?.maxValue),
     compCurrency: salary?.currencyCode ?? null,
     compInterval: mapCompInterval(salary?.interval),
   };

@@ -127,4 +127,34 @@ removed.
   hard-filter removes them for this user anyway; the eval ranks unfiltered by design.
 - Pooling was built on similarity-only rankings, but production ranks by blend — at
   W_FRESH 0.05 the difference is 1–2 items, accepted; a future eval should pool on the
-  blended ranking.
+  blended ranking. **[Done 2026-09-17: pool now ranks by `blendScore` with a pinned
+  `pooledAt` recorded in rankings.json; score recovers the similarity-only order from
+  stored sims. Same round added NDCG@10 (graded 2/1/0, secondary — strict P@10 stays the
+  pre-registered primary), a `sigt:nomic` Template-v3 candidate (literal title line
+  prepended to the signature text; nomic-only since mxbai is disqualified), and
+  label carry-forward so re-pooling only ADDS rows to label.]**
+
+## Addendum 2026-09-17 — Template v3 gate (title line): GO
+
+Harness v2 round (blend pooling, pinned pooledAt; NDCG@10 secondary; labels carried
+forward — marginal cost 7 new labels, 42 total, select n=34 / holdout n=8). Candidate
+`sigt:nomic` = v2 signature text with the LITERAL `Title:` line prepended; same profile
+vector; nomic only (mxbai stays disqualified). Criteria pre-stated: beat sig:nomic on
+strict P@10, NDCG tiebreak, soft-preference MUST intact.
+
+| approach | P@10 strict | P@10 lenient | NDCG@10 | soft-pref (swe top-20) |
+|---|---|---|---|---|
+| sig:nomic | 0.50 | 0.70 | 0.652 | 15 → 17 ✓ (14→16 this round) |
+| **sigt:nomic** | **0.60** | 0.70 | **0.715** | 11 → 13 ✓ |
+| raw:nomic | 0.40 | 0.70 | 0.449 | — |
+| raw:mxbai | 0.40 | 0.80 | 0.695 | disqualified (2026-09-14 MUST) |
+| overlap | 0.20 | 0.70 | 0.476 | n/a |
+
+Held-out: all approaches tied at P@8 strict 0.50 (sanity floor only, again uninformative).
+
+The entire strict gain is one explained swap: FeverUp "Becas de Excelencia" (irrelevant)
+OUT, Virtu "Core Operations Engineer" (relevant title-term pull) IN — the exact mechanism
+the title line predicts. Duplicate-inflation check clean (Varda/DRW pairs are distinct
+roles; Cloudflare dead-link pair symmetric across approaches). Honest limitation stands:
+one item at n=10; promotion leans on mechanism + NDCG corroboration + cheap reversal, not
+on the margin alone. **Promoted as TEMPLATE_VERSION 3 — Decision 35.**

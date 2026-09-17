@@ -17,9 +17,17 @@ const FIELD_LABEL: Record<string, string> = {
   swe: "SWE", ml_ai: "ML/AI", data: "DATA", quant: "QUANT", security: "SEC",
   hardware_embedded: "HW/EMB", devops_infra: "DEVOPS", it: "IT", product: "PRODUCT", other: "OTHER",
 };
+export const WORKPLACE_LABEL: Record<string, string> = {
+  onsite: "ONSITE", remote: "REMOTE", hybrid: "HYBRID",
+};
 const STATUS_LABEL: Record<string, string> = {
   none: "UNTOUCHED", saved: "SAVED", applied: "APPLIED",
   interviewing: "INTERVIEW", offer: "OFFER", rejected: "REJECTED",
+};
+// Same qualitative-only rule rank.ts's band() has always enforced — cosine never
+// rendered as a percentage.
+const FIT_BAND_LABEL: Record<"strong" | "good" | "fair", string> = {
+  strong: "STRONG FIT", good: "GOOD FIT", fair: "FIT",
 };
 const CITIZEN_LABEL: Record<string, string> = {
   us_citizen_required: "USC REQ", no_sponsorship: "NO SPON", sponsorship_available: "SPON OK",
@@ -62,8 +70,13 @@ function qs(p: SearchParams, over: Record<string, string | null> = {}): string {
   if (p.state) base.state = p.state.join(",");
   if (p.gradYear) base.gradYear = String(p.gradYear);
   if (p.status) base.status = p.status.join(",");
+  if (p.workplace) base.workplace = p.workplace.join(",");
+  if (p.selective) base.selective = "1";
   if (p.newOnly) base.new = "1";
-  if (p.sort && p.sort !== "first_seen") base.sort = p.sort;
+  // Always carried explicitly, never inferred as "the default" — what counts as default
+  // depends on whether ranking is active (hasProfile), which qs() doesn't know here. p.sort
+  // is resolved to a concrete value by runSearch() before render, so this is always exact.
+  if (p.sort) base.sort = p.sort;
   if (p.page && p.page > 1) base.page = String(p.page);
   for (const [k, v] of Object.entries(over)) {
     if (v === null) delete base[k];
@@ -158,7 +171,8 @@ function card(c: SearchResult["cards"][number]): string {
   const multi = rest.length > 0;
   const allLocs = c.variants.map((v) => v.location ?? "?").join(" · ");
   const meta: string[] = [];
-  if (c.csField) meta.push(`<span class="code">${FIELD_LABEL[c.csField] ?? c.csField}</span>`);
+  if (c.band) meta.push(`<span class="fit-band ${c.band}">${FIT_BAND_LABEL[c.band]}</span>`);
+  if (c.csField) meta.push(`<span class="code">${FIELD_LABEL[c.csField] ?? esc(c.csField)}</span>`);
   const grad = gradWindow(rep.gradYearMin, rep.gradYearMax);
   const locCell = multi
     ? `<span class="nloc">${c.variants.length} LOCATIONS</span>`
@@ -169,7 +183,7 @@ function card(c: SearchResult["cards"][number]): string {
 <td class="c-co"><span class="co" title="${esc(c.company)}">${esc(c.company)}</span></td>
 <td class="c-title"><a href="${esc(rep.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — opens at ${esc(c.company)}">${esc(c.title.trim())}</a>
   <span class="m-meta">${meta.join("")}${rep.location ? `<span class="loc">${esc(rep.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${rep.citizenshipStatus && rep.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[rep.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(rep.degreeStatus)}</span></td>
-<td class="c-field">${c.csField ? `<span class="code">${FIELD_LABEL[c.csField] ?? c.csField}</span>` : ""}</td>
+<td class="c-field">${c.csField ? `<span class="code">${FIELD_LABEL[c.csField] ?? esc(c.csField)}</span>` : ""}</td>
 <td class="c-loc" title="${esc(multi ? allLocs : (rep.location ?? ""))}">${locCell}</td>
 <td class="c-grad">${grad}</td>
 <td class="c-cit">${citCell(rep)}</td>
@@ -226,10 +240,18 @@ function railGroup(title: string, body: string, open = true): string {
 
 // --- page ---------------------------------------------------------------------------------
 
-export function renderPage(p: SearchParams, res: SearchResult): string {
+export function renderPage(
+  p: SearchParams,
+  res: SearchResult,
+  profileState: "draft" | "approved" | "stale" | "none",
+): string {
+  // "stale" can't rank either — the FIT control must NOT appear for it (runSearch would
+  // just downgrade); what differs from "none" is the remediation note below.
+  const hasProfile = profileState === "draft" || profileState === "approved";
   const totalSheets = Math.max(1, Math.ceil(res.total / res.per));
   const anyFilter =
-    !!(p.q || p.type || p.field || p.country || p.state || p.gradYear || p.status || p.newOnly);
+    !!(p.q || p.type || p.field || p.country || p.state || p.gradYear || p.status ||
+       p.workplace || p.selective || p.newOnly);
 
   // Ticker items: overall corpus split by type under everything EXCEPT type (facet counts).
   const ticker = Object.entries(TYPE_LABEL)
@@ -276,6 +298,11 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
       frow(qs(p, { status: toggled(p.status, val) }), label, res.facets.status[val], p.status?.includes(val) ?? false),
     )
     .join("");
+  const workplaceRows = Object.entries(WORKPLACE_LABEL)
+    .map(([val, label]) =>
+      frow(qs(p, { workplace: toggled(p.workplace, val) }), label, res.facets.workplace[val], p.workplace?.includes(val) ?? false),
+    )
+    .join("");
   const years = [2026, 2027, 2028, 2029];
   const yearRows = years
     .map((y) => {
@@ -284,12 +311,18 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
     })
     .join("");
   const sorts: Array<[SearchParams["sort"], string]> = [
-    ["first_seen", "FIRST SEEN"], ["published", "PUBLISHED"], ["company", "COMPANY"],
+    ...(hasProfile ? ([["fit", "FIT"]] as Array<[SearchParams["sort"], string]>) : []),
+    ["first_seen", "FIRST SEEN"], ["published", "PUBLISHED"], ["company", "COMPANY"], ["deadline", "DEADLINE"],
   ];
+  // Curated-list toggle (Decision 32's annotation list, promoted to a filter): label-only
+  // chip like the class-year row, deliberately with no count — a live count here would
+  // imply the list is an assessment of the whole corpus rather than 26 hand-picked names.
+  const selectiveOn = !!p.selective;
+  const selectiveRow = `<a class="chip${selectiveOn ? " on" : ""}" href="${qs(p, { selective: selectiveOn ? null : "1" })}" aria-current="${selectiveOn ? "true" : "false"}"><span class="ch-label">CURATED LIST</span></a>`;
   const sortRows = sorts
     .map(([val, label]) => {
-      const on = (p.sort ?? "first_seen") === val;
-      return `<a class="chip${on ? " on" : ""}" href="${qs(p, { sort: val === "first_seen" ? null : (val as string) })}" aria-current="${on ? "true" : "false"}"><span class="ch-label">${label}</span></a>`;
+      const on = p.sort === val;
+      return `<a class="chip${on ? " on" : ""}" href="${qs(p, { sort: val as string })}" aria-current="${on ? "true" : "false"}"><span class="ch-label">${label}</span></a>`;
     })
     .join("");
 
@@ -303,7 +336,7 @@ export function renderPage(p: SearchParams, res: SearchResult): string {
 <p class="empty-sub">Nothing on the board matches these filters.</p>
 ${anyFilter ? `<a class="clear-btn" href="/">CLEAR FILTERS</a>` : ""}</div></td></tr>`;
   } else {
-    const showDividers = (p.sort ?? "first_seen") === "first_seen" && !p.newOnly;
+    const showDividers = p.sort === "first_seen" && !p.newOnly;
     let inNew = false;
     let openedEarlier = false;
     const parts: string[] = [];
@@ -362,7 +395,6 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   </div>
   <nav class="ticker" aria-label="listings by type">${ticker}</nav>
   <nav class="views" aria-label="views">
-    <a href="/foryou">FOR YOU</a>
     <a href="/profile">PROFILE</a>
     <a href="/tryout">TRYOUT</a>
   </nav>
@@ -373,6 +405,22 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 </header>
 <div class="deck">
 <aside class="screener" aria-label="filters">
+  ${railGroup("RESUME", `<div class="resume-box">
+    <textarea id="rs-ta" placeholder="PASTE RESUME TEXT — ranks the board by fit instantly, nothing saved until you say so" rows="4"></textarea>
+    <div class="resume-actions">
+      <button type="button" class="rs-btn primary" id="rs-submit">RANK BY THIS</button>
+      ${profileState === "draft" ? `<button type="button" class="rs-btn" id="rs-save">SAVE AS MY PROFILE</button><button type="button" class="rs-btn" id="rs-clear">CLEAR</button>` : ""}
+    </div>
+    <p class="resume-note" id="rs-note">${esc(
+      profileState === "draft"
+        ? "Ranking by a pasted draft, not saved yet — hit SAVE to make it your profile."
+        : profileState === "approved"
+          ? "Ranking by your approved profile. Paste a resume to try a different one."
+          : profileState === "stale"
+            ? "Your profile's embedding is out of date (the embedding config changed since you approved it) — re-approve it on the PROFILE page to re-enable fit ranking."
+            : "No profile yet — paste a resume to rank the board by fit.",
+    )}</p>
+  </div>`)}
   <form method="get" action="/" class="query">
     <input type="search" name="q" value="${esc(p.q ?? "")}" placeholder="SEARCH TITLE / COMPANY" aria-label="search title or company">
     ${p.type ? `<input type="hidden" name="type" value="${esc(p.type.join(","))}">` : ""}
@@ -380,6 +428,8 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
     ${p.state ? `<input type="hidden" name="state" value="${esc(p.state.join(","))}">` : ""}
     ${p.country ? `<input type="hidden" name="country" value="${esc(p.country.join(","))}">` : ""}
     ${p.status ? `<input type="hidden" name="status" value="${esc(p.status.join(","))}">` : ""}
+    ${p.workplace ? `<input type="hidden" name="workplace" value="${esc(p.workplace.join(","))}">` : ""}
+    ${p.selective ? `<input type="hidden" name="selective" value="1">` : ""}
     ${p.gradYear ? `<input type="hidden" name="gradYear" value="${p.gradYear}">` : ""}
     ${p.newOnly ? `<input type="hidden" name="new" value="1">` : ""}
     ${p.sort && p.sort !== "first_seen" ? `<input type="hidden" name="sort" value="${p.sort}">` : ""}
@@ -388,6 +438,8 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   ${railGroup("FIELD", `<div class="chips">${fieldRows}</div>`)}
   ${railGroup("US STATE", `<div class="chips">${stateRows}</div>${stateMore ? `<details class="more"><summary>ALL STATES</summary><div class="chips">${stateMore}</div></details>` : ""}`)}
   ${railGroup("COUNTRY", `<div class="chips">${countryRows}</div>`, false)}
+  ${railGroup("WORKPLACE", `<div class="chips">${workplaceRows}</div>`, false)}
+  ${railGroup("EMPLOYER", `<div class="chips">${selectiveRow}</div><p class="grp-note">Hand-picked famous-for-selectivity employers (data/company-tiers.json) — unlisted companies are not assessed, not "less selective".</p>`, false)}
   ${railGroup("CLASS YEAR", `<div class="chips" role="group" aria-label="class year">${yearRows}</div><p class="grp-note">Listings stating no window stay visible.</p>`, false)}
   ${railGroup("MY PIPELINE", `<div class="chips">${statusRows}</div>`, false)}
   ${railGroup("ORDER", `<div class="chips" role="group" aria-label="sort">${sortRows}</div>`, false)}
@@ -396,6 +448,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 <main class="board" id="board">
   <div class="board-head">
     <span class="bh-total"><b>${res.total}</b> ROLES</span>
+    ${res.excludedUnenriched ? `<span class="bh-gap">${res.excludedUnenriched} MATCHING BUT NOT YET ENRICHED — EXCLUDED FROM FIT RANKING</span>` : ""}
     <span class="bh-sheet">PAGE ${res.page} / ${totalSheets}</span>
   </div>
   <table class="grid">
@@ -428,7 +481,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
 
 // --- styles -------------------------------------------------------------------------------
 
-// Exported for the profile / For You pages (render-profile.ts, render-foryou.ts): one
+// Exported for the profile / tryout pages (render-profile.ts, render-tryout.ts): one
 // stylesheet, one world — the new pages extend it with their own small blocks instead of
 // forking the terminal look.
 export function css(): string {
@@ -515,9 +568,26 @@ a{color:inherit;text-decoration:none}
   font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--ink-2)}
 .clear-btn:hover{border-color:var(--ink);color:var(--ink)}
 
+.resume-box{display:flex;flex-direction:column;gap:6px}
+.resume-box textarea{background:var(--bg1);border:1px solid var(--line);color:var(--ink);
+  font-family:var(--sans);font-size:12px;padding:8px;resize:vertical;min-height:70px}
+.resume-box textarea::placeholder{color:var(--ink-3)}
+.resume-actions{display:flex;gap:6px;flex-wrap:wrap}
+.rs-btn{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;
+  padding:7px 10px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--bg1);cursor:pointer}
+.rs-btn:hover{border-color:var(--ink);color:var(--ink)}
+.rs-btn.primary{background:var(--ink);color:var(--bg0);border-color:var(--ink)}
+.rs-btn:disabled{opacity:.5;cursor:default}
+.resume-note{font-size:11px;color:var(--ink-3);line-height:1.4;margin:0}
+.fit-band{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.1em;
+  padding:1px 5px;border:1px solid var(--line-2);color:var(--ink-2)}
+.fit-band.strong{background:var(--ink);color:var(--bg0);border-color:var(--ink)}
+.fit-band.good{color:var(--ink);border-color:var(--ink-2)}
+
 /* ---- board ---- */
 .board{min-width:0;padding:0 0 40px}
 .board-head{display:flex;align-items:baseline;justify-content:space-between;padding:13px 22px 10px}
+.bh-gap{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.06em}
 .bh-total{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.18em;color:var(--ink-2)}
 .bh-total b{font-size:14px;color:var(--ink);font-weight:600;letter-spacing:0}
 .bh-sheet{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.08em}
@@ -734,6 +804,40 @@ function js(): string {
   document.addEventListener('mousedown',function(e){
     var tr=e.target.closest('tr.pos');
     if(tr&&!e.target.closest('a,.key'))focusRow(rows.indexOf(tr));
+  });
+
+  // Resume paste-and-go (Decision 34). Full reload on success — a fresh SSR render is the
+  // simplest way to reflect a new ranking mode/profileState without duplicating renderPage's
+  // logic client-side.
+  var rsSubmit=document.getElementById('rs-submit');
+  var rsSave=document.getElementById('rs-save');
+  var rsClear=document.getElementById('rs-clear');
+  var rsTa=document.getElementById('rs-ta');
+  var rsNote=document.getElementById('rs-note');
+  function rsBusy(b){[rsSubmit,rsSave,rsClear].forEach(function(el){if(el)el.disabled=b})}
+  function rsError(msg){if(rsNote)rsNote.textContent=msg;rsBusy(false)}
+  if(rsSubmit)rsSubmit.addEventListener('click',function(){
+    var text=(rsTa.value||'').trim();
+    if(text.length<40){rsError('PASTE MORE RESUME TEXT (40+ CHARS) — nothing sent.');return}
+    rsBusy(true);if(rsNote)rsNote.textContent='EXTRACTING + EMBEDDING…';
+    fetch('/api/search/paste',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({resumeText:text})})
+      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?"OLLAMA IS DOWN — start 'ollama serve' and retry.":(b.reason||b.error||('HTTP '+r.status)))})})
+      .then(function(){window.location.reload()})
+      .catch(function(err){rsError(String(err.message||err))});
+  });
+  if(rsSave)rsSave.addEventListener('click',function(){
+    rsBusy(true);
+    fetch('/api/search/paste/save',{method:'POST'})
+      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error||('HTTP '+r.status))})})
+      .then(function(){window.location.reload()})
+      .catch(function(err){rsError('SAVE FAILED — '+String(err.message||err))});
+  });
+  if(rsClear)rsClear.addEventListener('click',function(){
+    rsBusy(true);
+    fetch('/api/search/paste/clear',{method:'POST'})
+      .then(function(){window.location.reload()})
+      .catch(function(){rsError('CLEAR FAILED — check the server and retry.')});
   });
 })();`;
 }

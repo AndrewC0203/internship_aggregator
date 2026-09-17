@@ -57,14 +57,29 @@ export function passModel(
   return perPass ?? env.OLLAMA_MODEL ?? fallback;
 }
 
-// Boundary guard for degree_status (Decision 24), same seam as gradField/parseDate below:
-// Ollama's structured-output enum enforcement is an external guarantee we don't own, so
-// anything that isn't exactly one of our values normalizes to null rather than leaking into
-// a row. Exported for tests.
+// Boundary guard for EVERY model-emitted enum (Decision 24), same seam as gradField/parseDate
+// below: Ollama's structured-output enum enforcement is an external guarantee we don't own, so
+// anything that isn't exactly one of our values normalizes to null rather than leaking into a
+// row. An off-enum value wouldn't fail here — it would throw inside persist()'s Prisma write,
+// and because these calls run at temperature 0 it would recur on every crawl of the same
+// posting. Exported for tests.
+function normalizeEnum<T extends string>(allowed: readonly T[], raw: string | null): T | null {
+  return (allowed as readonly string[]).includes(raw ?? "") ? (raw as T) : null;
+}
+
 export function normalizeDegreeStatus(raw: string | null): DegreeStatus | null {
-  return (DEGREE_STATUS as readonly string[]).includes(raw ?? "")
-    ? (raw as DegreeStatus)
-    : null;
+  return normalizeEnum(DEGREE_STATUS, raw);
+}
+export function normalizeCitizenshipStatus(raw: string | null): CitizenshipStatus | null {
+  return normalizeEnum(CITIZENSHIP, raw);
+}
+// Null opportunity_type already means "not early-career" to the filter, so an off-enum
+// paraphrase becomes a safe drop instead of a batch-killing enum error at persist time.
+export function normalizeOpportunityType(raw: string | null): OpportunityType | null {
+  return normalizeEnum(OPPORTUNITY_TYPES, raw);
+}
+export function normalizeCsField(raw: string | null): CsField | null {
+  return normalizeEnum(CS_FIELDS, raw);
 }
 
 // Bound the description we send so a pathologically long posting can't blow up the context /
@@ -150,10 +165,10 @@ export async function classify(listing: ClassifyInput): Promise<ClassifyResult> 
 
   return {
     csRelevant: out.cs_relevant,
-    opportunityType: out.opportunity_type,
+    opportunityType: normalizeOpportunityType(out.opportunity_type),
     // A subfield only makes sense on a CS-relevant keep; a stray label on a reject would be
     // noise if it ever leaked into a row, so normalize it away at the boundary.
-    csField: out.cs_relevant ? out.cs_field : null,
+    csField: out.cs_relevant ? normalizeCsField(out.cs_field) : null,
   };
 }
 
@@ -274,7 +289,7 @@ export async function extract(listing: ExtractInput): Promise<ExtractResult> {
     gradDateMax: max.date,
     gradYearMin: min.year,
     gradYearMax: max.year,
-    citizenshipStatus: out.citizenship_status,
+    citizenshipStatus: normalizeCitizenshipStatus(out.citizenship_status),
     degreeStatus: normalizeDegreeStatus(out.degree_status),
     applicationDeadline: out.application_deadline ? parseDate(out.application_deadline) : null,
   };

@@ -151,3 +151,25 @@ test("duplicateKeys starts empty — only dedup.ts ever populates it", () => {
   const out = normalizeAshby(intern, { company: "notion" })!;
   assert.deepEqual(out.duplicateKeys, []);
 });
+
+// Comp plausibility guard — same boundary seam as Lever's: a non-finite or >10-digit value
+// from the payload would otherwise throw inside persist()'s Decimal(12,2) write, not here.
+test("comp values that can't fit Decimal(12,2) — or aren't finite — normalize to null", () => {
+  const bad = {
+    ...salaried,
+    compensation: {
+      summaryComponents: [
+        {
+          compensationType: "Salary",
+          minValue: NaN,
+          maxValue: 99999999999999,
+          currencyCode: "USD",
+          interval: "1 YEAR",
+        },
+      ],
+    },
+  };
+  const out = normalizeAshby(bad, { company: "ramp" })!;
+  assert.equal(out.compMin, null);
+  assert.equal(out.compMax, null);
+});

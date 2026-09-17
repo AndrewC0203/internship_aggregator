@@ -1,7 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { EMBED_MODEL, TEMPLATE_VERSION } from "./config.js";
 import { toVectorLiteral } from "../model/ollama.js";
-import { loadRankingProfile } from "./profile.js";
 import { hardConditions, type Questionnaire } from "./questionnaire.js";
 import { freshness, blendScore, sortRecs, band } from "./score.js";
 import { alignmentChip, selectivityBadge, type AlignmentChip } from "./labels.js";
@@ -11,7 +10,12 @@ import { validateSignature } from "./canonical.js";
 // no candidate truncation. Top-K-by-similarity before blending could evict fresh-but-close
 // listings; at ~2k rows the full set is measured-trivial, so the blend sees everything.
 // Everything after the query is pure Node math (score, sort, paginate, labels) — no model
-// calls on the query path; /foryou works with Ollama down.
+// calls on the query path.
+//
+// /foryou (the standalone page this was built for) was retired in favor of ranking directly
+// on /search (Decision 34's addendum) — rankAgainst() lives on as /tryout's ranking core;
+// the higher-level recommend() wrapper that read the STORED profile is gone with the page
+// that was its only caller.
 
 export interface RecItem {
   id: number;
@@ -122,18 +126,9 @@ interface RankRow {
 
 const MS_PER_DAY = 86_400_000;
 
-export async function recommend(
-  prisma: PrismaClient,
-  opts: { page?: number; per?: number } = {},
-): Promise<RecResult> {
-  const loaded = await loadRankingProfile(prisma);
-  if (loaded.state !== "ready") return { state: loaded.state };
-  return rankAgainst(prisma, { ...loaded, ...opts });
-}
-
-// The ranking core, decoupled from WHERE the profile comes from: recommend() feeds it the
-// stored approved profile; the /tryout flow feeds it an ad-hoc extracted profile + vector
-// that never touches user_profile. Same query, same gate, same scoring either way.
+// The ranking core, decoupled from WHERE the profile comes from: /search's paste-and-go
+// and /tryout both feed it an ad-hoc extracted profile + vector that never touches
+// user_profile. Same query, same gate, same scoring either way.
 export async function rankAgainst(
   prisma: PrismaClient,
   args: {

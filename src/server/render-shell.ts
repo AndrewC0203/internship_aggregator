@@ -1,13 +1,14 @@
 import { css } from "./render.js";
 
-// Shared shell for the non-board pages (/foryou, /profile): same head, same tape header,
+// Shared shell for the non-board pages (/profile, /tryout): same head, same tape header,
 // same stylesheet as the board — one world (DESIGN.md), the sub-pages only add content
 // styles. Kept apart from render.ts because the board page owns search-specific chrome
-// (ticker, NEW block) these pages deliberately don't repeat.
+// (ticker, NEW block) these pages deliberately don't repeat. /foryou retired (Decision 34
+// addendum) — ranking lives on the board itself now.
 
 export function subPage(args: {
   title: string;
-  active: "foryou" | "profile" | "tryout";
+  active: "profile" | "tryout";
   body: string;
   extraCss?: string;
 }): string {
@@ -34,7 +35,6 @@ ${args.extraCss ?? ""}</style>
     <span class="brand-sub">EARLY-CAREER BOARD</span>
   </div>
   <nav class="views" aria-label="views" style="margin-left:auto">
-    <a href="/foryou"${args.active === "foryou" ? ` aria-current="page"` : ""}>FOR YOU</a>
     <a href="/profile"${args.active === "profile" ? ` aria-current="page"` : ""}>PROFILE</a>
     <a href="/tryout"${args.active === "tryout" ? ` aria-current="page"` : ""}>TRYOUT</a>
   </nav>

@@ -16,18 +16,23 @@ const SIG = {
 };
 
 test("listing canonical text is deterministic and sectioned (nomic prefixes)", () => {
-  const a = listingCanonicalText(SIG, "nomic-embed-text");
+  // Template v3 (Decision 35, gate 2026-09-17): the LITERAL title line leads — under v2 a
+  // title term the 7B dropped from focus ("Site Reliability", "Core Operations") was
+  // invisible to the vector; the gate's one strict-P@10 swap was exactly that mechanism.
+  const a = listingCanonicalText("  SWE Intern ", SIG, "nomic-embed-text");
   // Byte-identical on repeat calls — determinism is the invariant embeddings depend on:
   // the same signature must always produce the same vector for a given model+template.
-  assert.equal(a, listingCanonicalText({ ...SIG }, "nomic-embed-text"));
+  assert.equal(a, listingCanonicalText("  SWE Intern ", { ...SIG }, "nomic-embed-text"));
   assert.equal(
     a,
-    "search_document: Role: internship ml_ai — Trains and evaluates ML models for ranking.\nRequires: python, pytorch",
+    "search_document: Title: SWE Intern\n" +
+      "Role: internship ml_ai — Trains and evaluates ML models for ranking.\n" +
+      "Requires: python, pytorch",
   );
 });
 
 test("mxbai: document side has NO prefix; query side has the documented prompt", () => {
-  assert.ok(!listingCanonicalText(SIG, "mxbai-embed-large").startsWith("search_document:"));
+  assert.ok(!listingCanonicalText("T", SIG, "mxbai-embed-large").startsWith("search_document:"));
   const q = profileCanonicalText(
     { skills: ["python"], focus: "Built data pipelines." },
     { types: ["internship"], targetFields: [{ field: "swe", mustHave: false }], interests: "" },
@@ -106,3 +111,4 @@ test("validateSignature: accepts the shape, rejects junk", () => {
   assert.equal(validateSignature({ ...SIG, focus: "x".repeat(301) }), null);
   assert.equal(validateSignature({ ...SIG, skills: Array(25).fill("x") }), null); // cap 20
 });
+

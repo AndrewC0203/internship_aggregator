@@ -57,7 +57,9 @@ const BOARD_BATCH_SIZE = Number(process.env.BOARD_BATCH_SIZE ?? 10);
 // outcome, different one of dedup's two existing branches. The alternative (accumulate
 // everything, flush once) was the status quo; rejected because it makes a large crawl entirely
 // non-durable — hours of classify calls lost to one late failure.
-export async function runPipeline(opts: { limit?: number; full?: boolean } = {}): Promise<void> {
+export async function runPipeline(
+  opts: { limit?: number; full?: boolean; source?: string } = {},
+): Promise<void> {
   let batch: NormalizedListing[] = [];
   // ETags whose listings ride in `batch`, held back until that batch is durably persisted.
   // INVARIANT (crash-window fix, 2026-09-09): an etag may only be persisted AFTER every
@@ -155,7 +157,12 @@ export async function runPipeline(opts: { limit?: number; full?: boolean } = {})
     }
   }
 
-  for (const src of SOURCES) {
+  // --source filters to one ATS (same untyped-string + SOURCES.filter pattern as
+  // src/discovery/orchestrator.ts) — lets a stalled/slow source (e.g. ashby) be targeted
+  // without re-walking sources ahead of it that etag/304 revalidation already makes cheap.
+  const sources = opts.source ? SOURCES.filter((s) => s.source === opts.source) : SOURCES;
+
+  for (const src of sources) {
     // crawl_targets (Decision 11) is discovery's output; refresh only reads rows
     // discovery still considers active. isActive=false is soft-deactivation, not deletion.
     const targets = await prisma.crawlTarget.findMany({

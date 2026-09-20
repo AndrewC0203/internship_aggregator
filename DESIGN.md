@@ -118,10 +118,10 @@ white-to-gray inks, hairline rules — and the market metaphor is structural (de
 numbered index column, tick motion), never literal: no fake charts, no gain/loss color.
 
 The page is near-total monochrome. Exactly one hue exists — blue — and it has exactly one
-job: NEW. Application status is a 10px authored mark plus a code word (HELD / APP / INT /
-OFF / REJ), never a hue. Selection and commitment are weight and monochrome inversion, not
-tint. Nothing glides: every state change is a `steps()` animation that snaps and settles
-like a price tick. Rows are 40px, labels are 9–10px tracked mono caps, every figure is
+job: NEW. Application status lives in one place — the STATUS keycap column, where the
+committed key inverts — never a hue. Selection and commitment are weight and monochrome
+inversion, not tint. Nothing glides: every state change is a `steps()` animation that
+snaps and settles like a price tick. Rows are 40px, labels are 9–10px tracked mono caps, every figure is
 tabular Chivo Mono, and the whole board runs from the keyboard (j/k/enter/s/a/i/o/x/u).
 
 Provenance: direction contract seed `ff70fa62` (market-data terminal, monochrome rendition,
@@ -134,7 +134,7 @@ only external request is the single self-hosted `chivo-mono.woff2`.
 **Key Characteristics:**
 - True-black ruled data surfaces: four background steps, two hairline rules, three inks, one blue
 - One law per hue — blue means NEW and nothing else; no green, no red, anywhere
-- Status is a mark + code word; selection is weight and monochrome inversion
+- Status is the inverted keycap in the STATUS column; selection is weight and monochrome inversion
 - Flat and square: no shadows-as-depth, no radii (focus ring's 1px is the lone exception)
 - Nothing glides — all motion is `steps()`, gated behind `prefers-reduced-motion`
 - One oversized element: the 40px blue NEW figure, which never shrinks
@@ -147,7 +147,7 @@ property on `:root` and is the only place color enters the system.
 
 ### Primary
 - **Blue** (`#4D9FFF`, `--blue`): the page's one chromatic law — it may only ever mean NEW.
-  It renders the oversized NEW figure in the tape, the NEW status diamond on untouched fresh
+  It renders the oversized NEW figure in the tape, the NEW title diamond on untouched fresh
   rows, the NEW divider band (its legend and 1px bottom rule), the 2px inset underline when
   the new-only filter is active, and the favicon square. It never appears as interaction
   chrome, decoration, or any second meaning.
@@ -180,11 +180,14 @@ no green, no red, no amber anywhere on the board: urgency is weight (a live dead
 light (rows at `opacity: .4` with a line-through title), never a hue. A second hue, or a
 second job for blue, breaks the world.
 
-**The Mark-Plus-Code Rule.** Application state is a 10px authored SVG mark plus a mono code
-word: outline square = HELD, filled square = APP / INT / OFF (in flight), stroke cross =
-REJ. State never gets a color; the marks differ by fill and the words differ by ink weight.
-Render-side `statusCell()` and client-side `statusCellHTML()` are the same rule in two
-runtimes and must never drift.
+**The One Status Surface Rule** (replaced the Mark-Plus-Code Rule by user direction
+2026-09-18 — the standalone STATUS column spent the row's lead position mostly on em-dashes
+and restated what the keycaps already showed). Application state renders exactly once: the
+committed keycap in the STATUS column inverts (S / A / I / O / X), rejection additionally
+drops the row to `opacity: .4` with a line-through title, and state never gets a color.
+NEW keeps its own mark — the blue diamond leading the position title on untouched fresh
+rows. Render-side `titleNew()` and client-side `TTL_NEW` are the same rule in two runtimes
+and must never drift.
 
 ## Typography
 
@@ -242,9 +245,10 @@ Full-bleed terminal; no centered max-width container. Structure top-down:
   quieter disclosure, and CLEAR FILTERS at the bottom when any filter is set.
 - **Board** (main): board head (total + page position, 22px gutter), sticky mono column
   heads (`top: 0`, `bg1`, 9px / 700 / .14em), 40px rows with 8px cell padding and `line`
-  bottom rules. Fixed column widths — status 66 (plus the 22px gutter lead) / company 118 /
-  field 60 / location 150 / class 62 / cit 68 / seen 80 / set 140 — with the position
-  column flexing; fixed columns stay lean so POSITION gets the width.
+  bottom rules. Fixed column widths — company 132 (carrying the 22px gutter lead) /
+  field 60 / location 150 / class 62 / cit 68 / seen 80 / status 140 — with the position
+  column flexing; fixed columns stay lean so POSITION gets the width. (The standalone
+  status display column was removed by user direction 2026-09-18; company leads the row.)
   NEW / EARLIER divider bands (28px, `bg1`, 22px gutter) appear only on the default
   first-seen sort without new-only; the NEW band carries the blue legend and blue bottom
   rule.
@@ -255,13 +259,15 @@ There is no index column (removed by user direction 2026-08-28 — it spent widt
 number nobody read): keyboard position is carried by the cursor bar instead (see Rows).
 
 **Responsive — the 880px snap.** One breakpoint, `max-width: 880px`: the tape wraps (brand
-flexes and truncates, NEW block holds, ticker drops to its own full-width row); the deck
-collapses to one column; the rail goes static with all groups collapsed (JS removes
-`[open]` on load) and the search input bumps to 16px (prevents mobile zoom-on-focus); the
-table re-flows to stacked cards — `thead` hidden, `table/tbody/tr` display block, each row
-a `line`-ruled card showing company, wrapped title, the `.m-meta` strip (field chip,
-location, class, citizenship), and the key row, with the status code absolutely placed
-top-right. Keys are always awake on mobile (no hover); the keyboard footer is hidden.
+flexes and truncates, NEW block holds, the PROFILE/TRYOUT views and the ticker each drop
+to their own ruled full-width row — three items on row one clipped the figure at 4-digit
+NEW counts); the deck collapses to one column; the rail goes static with all groups
+collapsed (JS removes `[open]` on load) and the search input bumps to 16px (prevents
+mobile zoom-on-focus); the table re-flows to stacked cards — `thead` hidden,
+`table/tbody/tr` display block, each row a `line`-ruled card showing company, wrapped
+title (the NEW diamond rides along), the `.m-meta` strip (field chip, location, class,
+citizenship), and the key row. Keys are always awake on mobile (no hover); the keyboard
+footer is hidden.
 
 **Motion — nothing glides.** Every animation is `steps()`; nothing eases, fades, or
 slides. The one authored arrival moment is **feed-connect**: rows snap in whole
@@ -302,32 +308,35 @@ chrome: the `:focus-visible` ring carries `border-radius: 1px` (a bare softening
 `design-system-radius` suppression in `.impeccable/config.json`, now lawful here), and the
 scrollbar thumb is 5px-rounded with a 2px `bg0` inset border. Borders are always 1px, in
 `line` (between repeats) or `line-2` (around controls). The only drawn geometry is the
-authored 10px SVG set: the four status marks (outline square, filled square, cross, and
-the blue NEW diamond) and the rail chevron — all `currentColor`, drawn not borrowed. One rounded control exists: the filter
+authored 10px SVG set: the blue NEW diamond and the rail chevron — all `currentColor`,
+drawn not borrowed (the held/flight/reject marks retired with the status column,
+2026-09-18). One rounded control exists: the filter
 chip's pill (user-directed amendment, 2026-08-28). Everything else stays square — no other
 pills, no circles, no icon fonts, no imagery.
 
 ## Components
 
-### Status Cell (signature)
-The first column of every row: an authored mark plus its code word, in 10px / 600 / .08em
-Chivo Mono. HELD (outline square, `ink-2`), APP / INT / OFF (filled square, `ink` — in
-flight), REJ (cross, `ink-3`), NEW (blue diamond mark only, with visually-hidden "new"
-text — the word was noise stamped fifty times a sheet; it survives in the divider and the
-tape figure), or an idle `ink-3` em-dash. Rejected rows additionally drop to `opacity: .4` with a line-through
-title. The markup is generated twice — `statusCell()` server-side, `statusCellHTML()`
-client-side — and the comment in each points at the other; keep them in sync. On mobile
-the cell detaches and pins to the card's top-right corner.
+### NEW Mark (signature)
+The 9px blue diamond leading the position title on untouched fresh rows, with
+visually-hidden "new" text (the word was noise stamped fifty times a sheet; it survives
+in the divider and the tape figure). Setting any status retires the diamond; clearing it
+on a still-new row brings it back. The markup is generated twice — `titleNew()`
+server-side, `TTL_NEW` in `js()` client-side — and the comment in each points at the
+other; keep them in sync. (The standalone status-cell column this mark used to live in
+was removed by user direction 2026-09-18: it led every row with mostly em-dashes and
+duplicated the inverted keycap.)
 
-### Set Keys (status control)
-- **Shape:** five square 22×22px key-caps, S / A / I / O / X, Chivo Mono 10px / 600.
+### Status Keys (the one status surface)
+- **Shape:** five square 22×22px key-caps, S / A / I / O / X, Chivo Mono 10px / 600,
+  under the STATUS column head — both the control and the display of application state.
 - **Rest:** `bg0` well, `ink-2` cap, `line-2` border; the group idles at `opacity: .35`
   and wakes on row hover, keyboard cursor, focus-within, or when one is on. Always awake
   on mobile.
 - **On:** hard monochrome inversion — `ink` ground, `bg0` cap, 700, `aria-pressed="true"`.
 - **Pending:** the `pend` steps-flash while the PUT is in flight (static dim without
   motion); success fires the row tick; failure raises the toast ("WRITE FAILED — status
-  not saved."). Pressing the active key again clears the status.
+  not saved."). Pressing the active key again clears the status. Rejection also dims the
+  row to `opacity: .4` and strikes the title.
 
 ### Filter Chips (screener)
 - **Style:** wrapping pill chips (`rounded.pill`, the world's one rounded control — a
@@ -387,9 +396,9 @@ NEW's identity, not a selection color).
 
 ### Do:
 - **Do** keep blue (`#4D9FFF`) on its one job: NEW, and nothing else — the figure, the
-  status word, the divider band, the new-only underline, the favicon.
-- **Do** express state as an authored 10px mark + mono code word, and urgency as weight
-  (bold white live deadlines, `ink-3` passed ones).
+  title diamond, the divider band, the new-only underline, the favicon.
+- **Do** keep application state on its one surface — the inverted keycap in the STATUS
+  column — and urgency as weight (bold white live deadlines, `ink-3` passed ones).
 - **Do** make committed and focused states hard monochrome inversions with truthful
   `aria-pressed` / `aria-current`.
 - **Do** set every figure, label, and code in Chivo Mono — labels as tracked caps
@@ -401,8 +410,8 @@ NEW's identity, not a selection color).
   steps; keep every control square with a 1px border.
 - **Do** theme browser chrome in-world on any new surface: inverted white selection, white
   caret, dark 10px scrollbar, the 2px white `:focus-visible` ring (1px radius).
-- **Do** keep render-side `statusCell()` and client-side `statusCellHTML()` in lockstep
-  when states change — same rule, two runtimes.
+- **Do** keep render-side `titleNew()` and client-side `TTL_NEW` in lockstep when NEW
+  semantics change — same rule, two runtimes.
 
 ### Don't:
 - **Don't** introduce a second hue or a second job for blue — no green/red gain-loss

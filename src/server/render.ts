@@ -109,26 +109,17 @@ function gradWindow(min: number | null, max: number | null): string {
   return `≤${yy(max as number)}`;
 }
 
-// Authored status marks — one 10px stroke system, drawn not borrowed. State is a mark plus a
-// code word, never a hue: the page's one chromatic law is blue = NEW, and everything else
-// reads in pure monochrome (weight + mark). Keep in sync with client-side statusCellHTML().
-const MARK_HELD = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
-const MARK_FLIGHT = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="currentColor"/></svg>`;
-const MARK_REJ = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4"/></svg>`;
 // New = a blue diamond, not a repeated word: with a young corpus the word stamped 50 times
 // per sheet was pure noise; the divider band and header figure still say NEW in words.
 // Diamond ≠ square keeps the mark readable without color.
 const MARK_NEW = `<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="2.2" width="5.6" height="5.6" transform="rotate(45 5 5)" fill="currentColor"/></svg>`;
 
-function statusCell(status: string | null, isNew: boolean): string {
-  if (status === "saved") return `<span class="st held">${MARK_HELD}HELD</span>`;
-  if (status === "applied") return `<span class="st flight">${MARK_FLIGHT}APP</span>`;
-  if (status === "interviewing") return `<span class="st flight">${MARK_FLIGHT}INT</span>`;
-  if (status === "offer") return `<span class="st flight">${MARK_FLIGHT}OFF</span>`;
-  if (status === "rejected") return `<span class="st rej">${MARK_REJ}REJ</span>`;
-  if (isNew) return `<span class="st new">${MARK_NEW}<span class="vh">new</span></span>`;
-  return `<span class="st idle">—</span>`;
-}
+// The standalone STATUS column was removed (user direction 2026-09-18): it spent the row's
+// lead position mostly on em-dashes and duplicated what the inverted set key already shows.
+// The set keys are now the one status surface; NEW's diamond leads the title instead.
+// Keep in sync with client-side TTL_NEW in js().
+const titleNew = (isNew: boolean, status: string | null): string =>
+  isNew && !status ? `<span class="ttl-new">${MARK_NEW}<span class="vh">new</span></span>` : "";
 
 function setControl(id: number, current: string | null): string {
   const opts: Array<[string, string, string]> = [
@@ -164,7 +155,7 @@ function citCell(v: SearchResult["cards"][number]["variants"][number]): string {
 
 // One CARD per role (Decision 28): the lead row is the newest posting of the role; each
 // further geographic variant renders as its own slim `pos var` row directly beneath —
-// same 9 cells, so columns stay ruled and the client JS (j/k, status keys, enter-to-open)
+// same 8 cells, so columns stay ruled and the client JS (j/k, status keys, enter-to-open)
 // works on variants for free, since every variant row carries its own real listing id.
 function card(c: SearchResult["cards"][number]): string {
   const [rep, ...rest] = c.variants;
@@ -178,10 +169,11 @@ function card(c: SearchResult["cards"][number]): string {
     ? `<span class="nloc">${c.variants.length} LOCATIONS</span>`
     : esc((rep.location ?? "").length > 26 ? (rep.location ?? "").slice(0, 25) + "…" : (rep.location ?? ""));
   const parts = [
-    `<tr class="pos${rep.status === "rejected" ? " rej-row" : ""}" data-id="${rep.id}"${c.isNew ? " data-new" : ""} tabindex="0">
-<td class="c-st">${statusCell(rep.status, rep.isNew)}</td>
+    // data-new is the ROW's own freshness (rep.isNew, not the card-level c.isNew): the client
+    // uses it to restore the title diamond on status-clear, and it must agree with titleNew().
+    `<tr class="pos${rep.status === "rejected" ? " rej-row" : ""}" data-id="${rep.id}"${rep.isNew ? " data-new" : ""} tabindex="0">
 <td class="c-co"><span class="co" title="${esc(c.company)}">${esc(c.company)}</span></td>
-<td class="c-title"><a href="${esc(rep.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — opens at ${esc(c.company)}">${esc(c.title.trim())}</a>
+<td class="c-title"><a href="${esc(rep.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — opens at ${esc(c.company)}">${titleNew(rep.isNew, rep.status)}${esc(c.title.trim())}</a>
   <span class="m-meta">${meta.join("")}${rep.location ? `<span class="loc">${esc(rep.location)}</span>` : ""}${grad ? `<span class="loc">${grad}</span>` : ""}${rep.citizenshipStatus && rep.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[rep.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(rep.degreeStatus)}</span></td>
 <td class="c-field">${c.csField ? `<span class="code">${FIELD_LABEL[c.csField] ?? esc(c.csField)}</span>` : ""}</td>
 <td class="c-loc" title="${esc(multi ? allLocs : (rep.location ?? ""))}">${locCell}</td>
@@ -195,9 +187,8 @@ function card(c: SearchResult["cards"][number]): string {
     const loc = v.location ?? "location unstated";
     const vGrad = gradWindow(v.gradYearMin, v.gradYearMax);
     parts.push(`<tr class="pos var${v.status === "rejected" ? " rej-row" : ""}" data-id="${v.id}"${v.isNew ? " data-new" : ""} tabindex="0">
-<td class="c-st">${statusCell(v.status, v.isNew)}</td>
 <td class="c-co"></td>
-<td class="c-title"><a href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — ${esc(loc)}"><span class="var-arm" aria-hidden="true">↳</span> ${esc(loc)}</a>
+<td class="c-title"><a href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — ${esc(loc)}">${titleNew(v.isNew, v.status)}<span class="var-arm" aria-hidden="true">↳</span> ${esc(loc)}</a>
   <span class="m-meta">${vGrad ? `<span class="loc">${vGrad}</span>` : ""}${v.citizenshipStatus && v.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[v.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(v.degreeStatus)}</span></td>
 <td class="c-field"></td>
 <td class="c-loc" title="${esc(v.location ?? "")}">${esc((v.location ?? "").length > 26 ? (v.location ?? "").slice(0, 25) + "…" : (v.location ?? ""))}</td>
@@ -331,7 +322,7 @@ export function renderPage(
   // divider still falls at a clean boundary.
   let rowsHtml = "";
   if (res.cards.length === 0) {
-    rowsHtml = `<tr class="empty-row"><td colspan="9">
+    rowsHtml = `<tr class="empty-row"><td colspan="8">
 <div class="empty"><p class="empty-head">NO MATCHES</p>
 <p class="empty-sub">Nothing on the board matches these filters.</p>
 ${anyFilter ? `<a class="clear-btn" href="/">CLEAR FILTERS</a>` : ""}</div></td></tr>`;
@@ -343,11 +334,11 @@ ${anyFilter ? `<a class="clear-btn" href="/">CLEAR FILTERS</a>` : ""}</div></td>
     for (let i = 0; i < res.cards.length; i++) {
       const c = res.cards[i];
       if (showDividers && i === 0 && c.isNew) {
-        parts.push(`<tr class="divider new-div"><td colspan="9"><span>NEW</span><span class="div-detail">${res.newCount} IN ${NEW_WINDOW_DAYS} DAYS</span></td></tr>`);
+        parts.push(`<tr class="divider new-div"><td colspan="8"><span>NEW</span><span class="div-detail">${res.newCount} IN ${NEW_WINDOW_DAYS} DAYS</span></td></tr>`);
         inNew = true;
       }
       if (showDividers && inNew && !c.isNew && !openedEarlier) {
-        parts.push(`<tr class="divider"><td colspan="9"><span>EARLIER</span></td></tr>`);
+        parts.push(`<tr class="divider"><td colspan="8"><span>EARLIER</span></td></tr>`);
         openedEarlier = true;
       }
       parts.push(card(c));
@@ -411,9 +402,14 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
       <button type="button" class="rs-btn primary" id="rs-submit">RANK BY THIS</button>
       ${profileState === "draft" ? `<button type="button" class="rs-btn" id="rs-save">SAVE AS MY PROFILE</button><button type="button" class="rs-btn" id="rs-clear">CLEAR</button>` : ""}
     </div>
+    <textarea id="rt-exp" placeholder="OR DESCRIBE YOURSELF — your experience, a sentence or three" rows="2"></textarea>
+    <textarea id="rt-seek" placeholder="WHAT YOU'RE SEEKING (optional)" rows="1"></textarea>
+    <div class="resume-actions">
+      <button type="button" class="rs-btn primary" id="rt-submit">RANK BY DESCRIPTION</button>
+    </div>
     <p class="resume-note" id="rs-note">${esc(
       profileState === "draft"
-        ? "Ranking by a pasted draft, not saved yet — hit SAVE to make it your profile."
+        ? "Ranking by a draft (pasted or typed), not saved yet — hit SAVE to make it your profile."
         : profileState === "approved"
           ? "Ranking by your approved profile. Paste a resume to try a different one."
           : profileState === "stale"
@@ -453,7 +449,6 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   </div>
   <table class="grid">
     <thead><tr>
-      <th class="c-st" scope="col">STATUS</th>
       <th class="c-co" scope="col">COMPANY</th>
       <th class="c-title" scope="col">POSITION</th>
       <th class="c-field" scope="col">FIELD</th>
@@ -461,7 +456,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
       <th class="c-grad" scope="col" title="stated graduation window">CLASS</th>
       <th class="c-cit" scope="col" title="citizenship / sponsorship">CIT</th>
       <th class="c-seen" scope="col" title="first seen (or deadline)">SEEN</th>
-      <th class="c-set" scope="col" title="set application status">SET</th>
+      <th class="c-set" scope="col" title="your application status — press a key to set, same key again to clear">STATUS</th>
     </tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
@@ -597,10 +592,10 @@ table.grid{width:100%;border-collapse:collapse}
   padding:7px 8px;border-bottom:1px solid var(--line-2)}
 .grid td{padding:0 8px;border-bottom:1px solid var(--line);height:40px;vertical-align:middle}
 /* Fixed columns kept lean so POSITION (the flex column) gets the width — it is what the
-   owner actually reads; company is recognizable truncated, a title is not. */
-.c-st{width:66px}
-.grid th.c-st,.grid td.c-st{padding-left:22px}
-.c-co{width:118px}
+   owner actually reads; company is recognizable truncated, a title is not. Company leads
+   the row now (status column removed 2026-09-18) and carries the 22px board gutter. */
+.grid th.c-co,.grid td.c-co{padding-left:22px}
+.c-co{width:132px}
 .c-field{width:60px}
 .c-loc{width:150px}
 .c-grad{width:62px}
@@ -636,14 +631,10 @@ tr.pos.var .var-arm{color:var(--ink-3);margin:0 4px 0 10px}
 .deadline.past{color:var(--ink-3)}
 .m-meta{display:none}
 
-/* ---- status cell ---- */
-.st{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em}
-.st .mk{width:10px;height:10px;flex:none}
-.st.new{color:var(--blue);font-weight:700}
-.st.held{color:var(--ink-2)}
-.st.flight{color:var(--ink)}
-.st.rej{color:var(--ink-3)}
-.st.idle{color:var(--ink-3);font-weight:400}
+/* ---- NEW mark: the blue diamond leads the position title on untouched fresh rows.
+   Blue's one job, kept per-row so NEW survives every sort order. ---- */
+.ttl-new{color:var(--blue);margin-right:7px}
+.ttl-new .mk{width:9px;height:9px;vertical-align:-0.5px}
 
 /* ---- set keys (status control) ---- */
 .keys{display:inline-flex;gap:3px;opacity:.35}
@@ -699,11 +690,14 @@ a.sheet-btn:hover{border-color:var(--ink);color:var(--ink)}
 /* ---- mobile ---- */
 @media (max-width:880px){
   .tape{flex-wrap:wrap;padding:0 14px;gap:0 14px}
-  /* The figure never shrinks (locked raise) — the brand block yields instead */
+  /* The figure never shrinks (locked raise) — the brand block yields instead. The views
+     links leave row one entirely: with a 4-digit NEW count, brand + views + figure
+     overflow 390px and clip the figure. */
   .brand{min-width:0;flex:1;padding:10px 0}
   .brand h1{font-size:11px;overflow:hidden;text-overflow:ellipsis}
   .new-block{order:2;flex:none}
-  .ticker{order:3;flex-basis:100%;border-top:1px solid var(--line);gap:16px}
+  .views{order:3;flex-basis:100%;border-top:1px solid var(--line);padding:7px 0}
+  .ticker{order:4;flex-basis:100%;border-top:1px solid var(--line);gap:16px}
   .deck{grid-template-columns:1fr}
   .screener{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line-2);padding:12px 14px 16px}
   .query input{font-size:16px}
@@ -712,11 +706,10 @@ a.sheet-btn:hover{border-color:var(--ink);color:var(--ink)}
   table.grid,tbody,tr.pos{display:block}
   tr.pos{position:relative;padding:10px 14px 10px 14px;border-bottom:1px solid var(--line)}
   tr.pos td{display:none;border:0;height:auto;padding:0}
-  tr.pos td.c-st{display:block;position:absolute;right:14px;top:12px;width:auto;padding:0}
-  tr.pos td.c-co,tr.pos td.c-title,tr.pos td.c-set{display:block;width:auto}
+  tr.pos td.c-co,tr.pos td.c-title,tr.pos td.c-set{display:block;width:auto;padding-left:0}
   .c-title{max-width:none}
-  .c-title a{white-space:normal;font-size:14px;line-height:1.35;padding-right:64px}
-  .co{max-width:none;padding-right:64px}
+  .c-title a{white-space:normal;font-size:14px;line-height:1.35}
+  .co{max-width:none}
   .m-meta{display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap}
   .m-meta .loc{font-size:11px;color:var(--ink-3);font-family:var(--mono)}
   tr.pos td.c-set{margin-top:9px}
@@ -741,20 +734,8 @@ function js(): string {
   var toast=document.getElementById('toast');var toastT;
   function say(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){toast.classList.remove('show')},3500)}
 
-  // Status cell markup mirrors render-side statusCell(): keep the two in sync.
-  var MK_HELD='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
-  var MK_FLIGHT='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="currentColor"/></svg>';
-  var MK_REJ='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4"/></svg>';
-  var MK_NEW='<svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="2.2" width="5.6" height="5.6" transform="rotate(45 5 5)" fill="currentColor"/></svg>';
-  function statusCellHTML(status,isNew){
-    if(status==='saved')return '<span class="st held">'+MK_HELD+'HELD</span>';
-    if(status==='applied')return '<span class="st flight">'+MK_FLIGHT+'APP</span>';
-    if(status==='interviewing')return '<span class="st flight">'+MK_FLIGHT+'INT</span>';
-    if(status==='offer')return '<span class="st flight">'+MK_FLIGHT+'OFF</span>';
-    if(status==='rejected')return '<span class="st rej">'+MK_REJ+'REJ</span>';
-    if(isNew)return '<span class="st new">'+MK_NEW+'<span class="vh">new</span></span>';
-    return '<span class="st idle">—</span>';
-  }
+  // NEW title-diamond markup mirrors render-side titleNew(): keep the two in sync.
+  var TTL_NEW='<span class="ttl-new"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="2.2" width="5.6" height="5.6" transform="rotate(45 5 5)" fill="currentColor"/></svg><span class="vh">new</span></span>';
   function setStatus(tr,status){
     var id=tr.getAttribute('data-id');
     var btns=tr.querySelectorAll('.key');
@@ -772,8 +753,12 @@ function js(): string {
           b.setAttribute('aria-pressed',on?'true':'false');
         });
         tr.classList.toggle('rej-row',next==='rejected');
-        var isNew=tr.hasAttribute('data-new');
-        tr.querySelector('.c-st').innerHTML=statusCellHTML(next,isNew&&!next);
+        // NEW = untouched fresh row: setting a status retires the diamond, clearing on a
+        // still-new row brings it back (same rule titleNew() applies server-side).
+        var link=tr.querySelector('.c-title a');
+        var mark=link&&link.querySelector('.ttl-new');
+        if(next&&mark)mark.remove();
+        else if(!next&&!mark&&tr.hasAttribute('data-new')&&link)link.insertAdjacentHTML('afterbegin',TTL_NEW);
         // the tick: a committed write flashes and settles, like a price update
         tr.classList.remove('ticked');void tr.offsetWidth;tr.classList.add('ticked');
       })
@@ -825,6 +810,21 @@ function js(): string {
       .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?"OLLAMA IS DOWN — start 'ollama serve' and retry.":(b.reason||b.error||('HTTP '+r.status)))})})
       .then(function(){window.location.reload()})
       .catch(function(err){rsError(String(err.message||err))});
+  });
+  // Typed mode: same reload-on-success contract as paste; embed-only server side (no 14B),
+  // so the busy note skips "EXTRACTING".
+  var rtSubmit=document.getElementById('rt-submit');
+  var rtExp=document.getElementById('rt-exp');
+  var rtSeek=document.getElementById('rt-seek');
+  if(rtSubmit)rtSubmit.addEventListener('click',function(){
+    var exp=(rtExp.value||'').trim();
+    if(exp.length<10){rsError('DESCRIBE YOUR EXPERIENCE (10+ CHARS) — nothing sent.');return}
+    rsBusy(true);rtSubmit.disabled=true;if(rsNote)rsNote.textContent='EMBEDDING…';
+    fetch('/api/search/typed',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({experience:exp,seeking:(rtSeek.value||'').trim()})})
+      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?"OLLAMA IS DOWN — start 'ollama serve' and retry.":(b.error||('HTTP '+r.status)))})})
+      .then(function(){window.location.reload()})
+      .catch(function(err){rtSubmit.disabled=false;rsError(String(err.message||err))});
   });
   if(rsSave)rsSave.addEventListener('click',function(){
     rsBusy(true);

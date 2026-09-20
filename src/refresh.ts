@@ -2,18 +2,25 @@ import { runPipeline } from "./pipeline/orchestrator.js";
 import { prisma } from "./db.js";
 import { enrichListings, formatEnrichSummary } from "./recommend/enrich.js";
 
-// CLI entrypoint for the ingestion refresh: `npm run refresh -- [--limit <n>] [--full]`
-//   --limit <n>   cap boards per source (use a small n for a first smoke-test run;
-//                 omit for a full refresh of every active crawl_target)
-//   --full        ignore stored etags and re-download every board (Decision 23). Needed
-//                 when stored rows must be REBUILT from bodies an unchanged-board 304
-//                 would skip — e.g. after fixing a normalize bug.
+// CLI entrypoint for the ingestion refresh:
+//   `npm run refresh -- [--limit <n>] [--full] [--source <name>]`
+//   --limit <n>      cap boards per source (use a small n for a first smoke-test run;
+//                    omit for a full refresh of every active crawl_target)
+//   --full           ignore stored etags and re-download every board (Decision 23). Needed
+//                    when stored rows must be REBUILT from bodies an unchanged-board 304
+//                    would skip — e.g. after fixing a normalize bug.
+//   --source <name>  run only this ATS (greenhouse | lever | ashby); default = all, in
+//                    source-list order. Etag/304 revalidation (Decision 23) already makes
+//                    re-running the full default cheap for sources ahead of the one you
+//                    actually want — this flag is for when you want to skip that walk
+//                    entirely, e.g. targeting the one source still mid-crawl.
 //
 // Mirrors src/discovery/run.ts. Reads active crawl_targets, fetches + normalizes + dedups +
 // partitions + classifies + extracts + persists (Decisions 9–12).
 interface CliArgs {
   limit?: number;
   full?: boolean;
+  source?: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -33,6 +40,8 @@ function parseArgs(argv: string[]): CliArgs {
         throw new Error(`--limit expects a positive integer, got "${value}"`);
       }
       args.limit = n;
+    } else if (flag === "--source") {
+      args.source = value;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -41,13 +50,14 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 async function main(): Promise<void> {
-  const { limit, full } = parseArgs(process.argv.slice(2));
+  const { limit, full, source } = parseArgs(process.argv.slice(2));
   console.log(
-    `Refresh run starting (${limit ? `limit ${limit} board(s) per source` : "all active boards"}` +
+    `Refresh run starting (${source ?? "all sources"}, ` +
+      `${limit ? `limit ${limit} board(s) per source` : "all active boards"}` +
       `${full ? ", full re-download — etags ignored" : ""})...`,
   );
 
-  await runPipeline({ limit, full });
+  await runPipeline({ limit, full, source });
 
   // Recommendation enrichment (Decisions 29-31): non-fatal BY CONTRACT — a failed
   // enrichment never blocks ingest; the listing stays in ordinary search and the

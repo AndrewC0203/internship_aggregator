@@ -119,8 +119,11 @@ app.put<{ Params: { id: string }; Body: { status?: string | null; note?: string 
 
 const port = Number(process.env.PORT) || 3000;
 app
-  .listen({ port, host: "127.0.0.1" })
-  .then(() => console.log(`hub listening on http://127.0.0.1:${port}`))
+  // 0.0.0.0, not 127.0.0.1: a PaaS container's external proxy can't reach a
+  // loopback-only bind — this is the one-line difference between "works on
+  // localhost" and "times out in production."
+  .listen({ port, host: "0.0.0.0" })
+  .then(() => console.log(`hub listening on 0.0.0.0:${port} (http://127.0.0.1:${port} locally)`))
   .catch((err) => {
     console.error(err);
     process.exit(1);

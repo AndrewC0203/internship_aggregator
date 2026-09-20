@@ -38,6 +38,29 @@ export function parseVectorText(text: string | null): number[] | null {
   return vals.length > 0 && vals.every((v) => Number.isFinite(v)) ? vals : null;
 }
 
+// Typed-profile mode (Decision 34 addendum, 2026-09-17): the "describe yourself" path.
+// Two typed fields map 1:1 onto the canonical sections — experience -> Experience: (the
+// focus sentence, typed directly, so NO 14B extraction runs) and seeking -> Seeking:
+// (questionnaire interests). Skills stay EMPTY on purpose: typed skill claims are
+// unverifiable self-report, and skills don't pull the vector anyway (Template v2) — they
+// only drive chips/overlap, which honestly show nothing for a typed draft. Bounds: focus
+// is a sentence or three, not a resume — under 10 chars means nothing to rank on, over
+// 1000 means paste-a-resume territory (and token-share dilution of Seeking:, the same
+// asymmetry MAX_FOCUS caps on the listing side).
+export function buildTypedProfile(
+  experience: unknown,
+  seeking: unknown,
+): { profile: ProfileJson; questionnaire: Questionnaire } | null {
+  if (typeof experience !== "string") return null;
+  const focus = experience.trim();
+  if (focus.length < 10 || focus.length > 1000) return null;
+  const interests = typeof seeking === "string" ? seeking.trim() : "";
+  return {
+    profile: { skills: [], focus },
+    questionnaire: parseQuestionnaire({ interests }),
+  };
+}
+
 // The single-row table's row, created on first touch. id is always 1.
 export async function ensureProfileRow(prisma: PrismaClient): Promise<void> {
   await prisma.userProfile.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });

@@ -111,6 +111,18 @@
   `rankAgainst()`), fully STATELESS — the pasted resume is PII and never touches
   `user_profile` or any table; optional free-text interests exercise the soft-steering
   mechanism. Built for manually testing other people's profiles and live demos.
+- Public deploy of the search/browse hub (Decision 36, 2026-09-18) — `npm run serve` deploys
+  free on Render + Neon; `discover`/`refresh`/`reclassify`/`enrich` (Ollama-dependent) stay
+  local against the same DB. Required fixing two latent bugs found in the process: the
+  server bound to `127.0.0.1` (unreachable from outside a container) instead of `0.0.0.0`,
+  and `package.json`'s `main`/`start` pointed at a stale DB-smoke-test stub instead of the
+  real Fastify server, so `npm start` never actually served anything.
+- Profile pre-seed script + free keep-alive (Decision 36 addendum, 2026-09-19) —
+  `npx tsx src/seed-profile.ts` publishes an approved profile from local, gitignored
+  resume/questionnaire files against any `DATABASE_URL`, so the deployed hub's `/search`
+  defaults to live fit-sorted results for every visitor with zero Ollama calls at request
+  time. Paired with a free external ping (cron-job.org or similar) to avoid Render's
+  free-tier cold start on the live link.
 
 # Priority 1
 
@@ -822,3 +834,47 @@
 - Template v3 SHIPPED (Decision 35, same day): literal `Title:` line now leads the listing
   embed text; TEMPLATE_VERSION 3, corpus re-embedded. The approved profile goes stale by
   design until re-approved on /profile (the new stale banner is the remediation path).
+
+## Typed-profile mode — "describe yourself" on /search (2026-09-17)
+
+- Two typed fields beside resume paste: experience (→ `Experience:` focus sentence,
+  10–1000 chars) and optional seeking (→ `Seeking:` interests). `POST /api/search/typed`,
+  embed-only — NO 14B extraction, so it's faster than paste and only needs Ollama for the
+  embed call. Shares the draft slot + sequence guard with paste (most-recent-action wins);
+  same SAVE/CLEAR flow.
+- Decisions to remember: typed drafts have EMPTY skills on purpose (typed skill claims are
+  unverifiable; skills don't pull the vector per Template v2 — chips/overlap just show
+  nothing). The two-field split is load-bearing: a single merged box would blur has/wants,
+  the exact conflation the canonical sections exist to prevent (raw-text bake-off ranked
+  PhD roles 1–3 through that blur). Saving a typed draft publishes an empty-skills profile
+  — /profile's editor (PUT /api/profile) requires ≥1 skill, so re-approving later from
+  /profile means adding a skill there first; acceptable v1 quirk, noted.
+
+## Source-filtered refresh — `--source` flag (2026-09-17)
+
+- `npm run refresh -- --source <name>` (`greenhouse` | `lever` | `ashby`) runs one ATS only,
+  same untyped-string + `SOURCES.filter()` pattern `npm run discover -- --source` already
+  uses. Added so a long-running default refresh can be interrupted and re-targeted at
+  whichever source is still mid-crawl, without re-walking sources ahead of it.
+- Decisions to remember: this only skips *crawling* the other sources — the automatic
+  `enrichListings()` tail call at the end of `refresh.ts` is corpus-wide and fingerprint-
+  driven with no source filter, so it still processes every stale row regardless of
+  `--source`. No validation on an unrecognized `--source` value (matches `discover`'s
+  existing behavior) — a typo silently filters `SOURCES` to empty and the run does nothing
+  for any source; same tradeoff already accepted for `discover`, not new here.
+
+## Board UI: status column removed (2026-09-18)
+
+- Removed the standalone STATUS column (user direction: confusing, space-hungry). It led
+  every row with mostly em-dashes and duplicated what the S/A/I/O/X keycaps already show —
+  the committed key inverts. The keycap column (right edge) is now headed STATUS and is the
+  single status surface; POSITION absorbed the reclaimed ~88px. The blue NEW diamond moved
+  inline before the position title (survives every sort order; retired when a status is
+  set, restored on clear — `titleNew()` server-side / `TTL_NEW` client-side, kept in sync).
+- Mobile tape fix in the same pass: PROFILE/TRYOUT views drop to their own ruled row under
+  880px — three items on row one clipped the 40px NEW figure at 4-digit counts.
+- Decisions to remember: lead-row `data-new` now carries the lead posting's own freshness
+  (`rep.isNew`), not the card-level flag — it must agree with what `titleNew()` rendered,
+  or a status-clear could paint a diamond SSR would not. Rejection still reads without the
+  code word: row dims to `opacity:.4` + title strikethrough. DESIGN.md's Mark-Plus-Code
+  Rule is replaced by the One Status Surface Rule (same file, dated).

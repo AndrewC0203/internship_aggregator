@@ -1880,3 +1880,99 @@ re-introduce some marketing noise ("Rockstar Engineer") that distillation existe
 remove — bounded to one line of token share by construction.
 
 Date: 2026-09-17
+
+---
+
+## Decision 36: Deployment split — serve-only goes public, Ollama-dependent stages stay local
+
+Problem: User wants a real, live link for recruiting without taking on ongoing per-call
+inference cost. The initial framing was "deploy everything except embedding," but that
+undercounts the actual dependency: `classify`/`extract` (Decision 12/25, 14B+7B models,
+~22GB resident together) run on local Ollama too, not just the enrichment embed step — so
+excluding only embedding still leaves a deploy target that can't run the ingestion pipeline
+without either a paid high-RAM host or a cloud LLM API (the exact per-call cost Decision 12
+rejected: ~$8.8/day estimated at only 163 boards). Separately, Decision 3 (BullMQ + Redis)
+was never implemented — `package.json` has no queue dependency; `discover`/`refresh`/
+`reclassify`/`enrich` are plain npm/tsx scripts with no scheduler to migrate. Data volume
+itself is a non-issue: 6,965 listings, 93MB total DB (checked live).
+
+Options considered:
+
+1. Serve-only public deploy — the Fastify hub (`npm run serve`: search/browse, `/profile`,
+   `/tryout`, `/search` paste-to-rank) deploys to a free host reading a free hosted Postgres;
+   `discover`/`refresh`/`reclassify`/`enrich` keep running on the operator's own machine
+   against the same DB. $0/month. The plain-browse path never touches Ollama; the routes
+   that do (resume upload, `/tryout`, paste-to-rank) already 503 gracefully via
+   `ollamaDown()` (`src/server/recommend.ts`) when Ollama isn't reachable from the host —
+   pre-existing behavior, not new work. Tradeoff: the public DB only updates when the
+   operator's machine runs a refresh; if that machine is off for a while, the live listings
+   go stale (recruiter sees whatever was last synced, not a live crawl).
+2. Deploy the whole pipeline, including `refresh`/`classify`/`extract`/`enrich`, to a paid
+   host with enough RAM for both Ollama models — real recurring cost ($20–80+/mo range for
+   that much RAM on any current host), and turns board-scraping into a 24/7
+   externally-facing job the ATS hosts could rate-limit against (Decision 27 pacing was
+   tuned for a personal machine's cadence, not a public server's).
+3. Swap `classify`/`extract`/`embed` to a cloud LLM API for the deployed pipeline only —
+   reintroduces the per-call cost Decision 12 already measured and rejected, and gets worse,
+   not better, as board coverage grows past 163.
+
+Decision: Option 1. Verified current (2026-09, since pricing/free-tier terms shift and
+shouldn't be asserted from stale knowledge): Render offers a real free web-service tier, no
+card required; Railway and Fly.io no longer do (trial credit only). For Postgres, Neon's
+free tier auto-suspends on idle and resumes transparently on the next connection; Supabase's
+free tier pauses after 7 days idle and needs a manual dashboard click to resume — worse for
+a portfolio link a recruiter might open sporadically. Picked Render (web) + Neon (DB).
+`render.yaml` added (blueprint: `npm ci && npx prisma migrate deploy && npm run build` /
+`npm start`). Fixed two real deploy-blockers found while wiring this up: the server bound to
+`host: "127.0.0.1"` (unreachable from outside its own container — now `0.0.0.0`), and
+`package.json`'s `main`/`start` pointed at a stale DB-smoke-test stub (`src/index.ts`), not
+the real Fastify server — `npm start` would have connected to Postgres, logged a row count,
+and exited without ever serving anything. Also added `postinstall: prisma generate` (a
+clean `npm ci` on a new host has no generated client otherwise) and a `postbuild` step
+copying `src/server/public` (the self-hosted font) into `dist/server/public`, since `tsc`
+doesn't copy non-`.ts` assets. Verified live: compiled server builds, binds `0.0.0.0`, serves
+`/` and `/api/search` with 200s; full suite (335/335) still passes.
+
+Reason: This is free, fully reversible (delete the two accounts, nothing lost), and the
+better interview answer of the three — "I kept inference local because that's the
+cost-conscious call at this data volume, and the read/write boundary was already an
+architectural invariant (README: browsing works with Ollama down) before I even needed to
+deploy; I just drew the deployment line along it" beats either eating a recurring GPU-host
+bill or reintroducing the per-call cost Decision 12 rejected.
+
+Tradeoffs accepted: The public deploy's data freshness is bounded by how often the
+operator's own machine runs `refresh` — no cron/scheduler enforces a cadence (Decision 3's
+BullMQ was never built, and this doesn't revisit that). Resume upload / `/tryout` / paste-
+to-rank will 503 on the deployed link whenever Ollama isn't reachable from Render, which is
+always, since Ollama only runs locally — accepted; those routes were already built to
+degrade this way. Neon's free tier has a real storage ceiling that hasn't been hit yet (93MB
+against typical free-tier limits in the low-single-digit GB) but would eventually need
+revisiting if the corpus grows an order of magnitude. Migrating off either free host later
+is a connection-string/redeploy change, not a rewrite.
+
+Date: 2026-09-18
+
+**Addendum (2026-09-19):** Two enhancements added on top of the same free architecture, both
+user-confirmed choices (not re-opening the core split):
+- **Pre-seeded demo profile.** New `src/seed-profile.ts` — a one-off script (no HTTP round
+  trip) that calls the existing `ensureProfileRow`/`publishProfile` (`src/recommend/
+  profile.ts`) against whatever `DATABASE_URL` is set, from two new local-only,
+  `.gitignore`d files (`resume.local.txt`, `questionnaire.local.json`, never committed).
+  Run once against the Neon DB, this makes `/search`'s fit-sort work for every public
+  visitor by default (Decision 34: fit-sort activates whenever an approved profile exists)
+  with zero Ollama calls at request time — the operator's real resume/questionnaire content
+  lands in the public `user_profile` row, a conscious tradeoff (reversible: clear the row to
+  undo) chosen because the recommendation engine is the project's actual differentiator and
+  was otherwise invisible on the live link.
+- **Free keep-alive ping.** An external free ping service (e.g. cron-job.org) hits the
+  deployed URL every ~10 minutes so Render's free-tier cold start (~30-60s after 15 min
+  idle) never surprises a recruiter. No code change; pure operational config outside the
+  repo. Accepted tradeoff: one more free third-party dependency to maintain, in exchange for
+  a link that's always warm.
+
+Explicitly deferred, not built: automating local `refresh`/`enrich` on a schedule (FIRST-
+DRAFT-MINE scheduler-orchestration territory — Decision 3's BullMQ was never implemented and
+this doesn't revisit that) and swapping the ingestion pipeline to a free-tier cloud LLM to
+remove the local-machine dependency entirely (a real technology-choice-with-lock-in decision,
+not taken here — see the Decision 36 body above for why it cuts against Decision 12/13/25's
+local-model story).

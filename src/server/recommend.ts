@@ -6,7 +6,7 @@ import {
   ensureProfileRow,
   publishProfile,
   saveQuestionnaire,
-  loadRankingProfile,
+  buildTypedProfile,
 } from "../recommend/profile.js";
 import { parseQuestionnaire, defaultQuestionnaire } from "../recommend/questionnaire.js";
 import { canonicalizeSkills } from "../recommend/aliases.js";
@@ -188,6 +188,52 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
       return reply.code(422).send({ error: "extraction_failed", reason });
     }
   });
+
+  // "Describe yourself" typed mode (Decision 34 addendum): two fields -> the two canonical
+  // sections directly. NO extraction call — the user typed the focus sentence, so the only
+  // model dependency is the embed. Shares the draft slot with paste (most-recent-action
+  // wins) and the same sequence guard against out-of-order completions.
+  app.post<{ Body: { experience?: string; seeking?: string } }>(
+    "/api/search/typed",
+    async (req, reply) => {
+      const built = buildTypedProfile(req.body?.experience, req.body?.seeking);
+      if (!built) {
+        return reply
+          .code(400)
+          .send({ error: "experience required (10–1000 chars — a sentence or three)" });
+      }
+      const fingerprint = draftFingerprint(
+        `typed:${built.profile.focus}\n${built.questionnaire.interests}`,
+      );
+      const existing = getDraft();
+      if (existing && existing.fingerprint === fingerprint) {
+        return { profile: existing.profile };
+      }
+      const seq = beginDraft();
+      try {
+        const [vector] = await embed(
+          [profileCanonicalText(built.profile, built.questionnaire, EMBED_MODEL)],
+          EMBED_MODEL,
+        );
+        setDraft(
+          {
+            fingerprint,
+            profile: built.profile,
+            vector,
+            embeddingModel: EMBED_MODEL,
+            templateVersion: TEMPLATE_VERSION,
+          },
+          seq,
+        );
+        return { profile: built.profile };
+      } catch (err) {
+        if (ollamaDown(err)) {
+          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+        }
+        throw err;
+      }
+    },
+  );
 
   app.post("/api/search/paste/clear", async () => {
     clearDraft();

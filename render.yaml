@@ -1,0 +1,16 @@
+# Render blueprint for the search/browse hub only (Decision 36).
+# Does NOT include refresh/discover/reclassify/enrich — those stages call Ollama
+# (classify/extract/embed) and keep running on the operator's own machine against
+# the same DATABASE_URL. This service is a pure-SQL reader; it never calls Ollama
+# except on the few routes that gracefully 503 when it's unreachable (profile
+# resume upload, /tryout, and /search's paste-to-rank draft mode).
+services:
+  - type: web
+    name: internship-aggregator-hub
+    env: node
+    plan: free
+    buildCommand: npm ci && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false # set manually to the Neon connection string

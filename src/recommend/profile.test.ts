@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { softEditRequiresReembed, parseVectorText } from "./profile.js";
+import { softEditRequiresReembed, parseVectorText, buildTypedProfile } from "./profile.js";
 import { defaultQuestionnaire } from "./questionnaire.js";
 
 const PROFILE = { skills: ["typescript"], focus: "Built a job aggregator." };
@@ -57,4 +57,25 @@ test('parseVectorText: "[]" is malformed (zero-dim vector), not [0]', () => {
   // "malformed -> null" contract silently produced a bogus 1-dim zero vector.
   assert.equal(parseVectorText("[]"), null);
   assert.equal(parseVectorText("[ ]"), null);
+});
+
+// Typed-profile mode (2026-09-17): the two fields map 1:1 onto the canonical sections —
+// experience -> Experience: (focus), seeking -> Seeking: (questionnaire interests). No 14B
+// extraction: the user typed the focus sentence directly, so skills are EMPTY (typed skill
+// claims are unverifiable self-report; chips/overlap simply have nothing to show).
+test("buildTypedProfile: maps experience->focus and seeking->interests, skills stay empty", () => {
+  const out = buildTypedProfile("  Built a Fastify + Postgres job aggregator.  ", " quant or ML infra ");
+  assert.ok(out);
+  assert.equal(out.profile.focus, "Built a Fastify + Postgres job aggregator.");
+  assert.deepEqual(out.profile.skills, []);
+  assert.equal(out.questionnaire.interests, "quant or ML infra");
+});
+
+test("buildTypedProfile: seeking is optional; junk types are rejected or defaulted", () => {
+  const out = buildTypedProfile("Built distributed crawlers in TypeScript.", undefined);
+  assert.ok(out);
+  assert.equal(out.questionnaire.interests, "");
+  assert.equal(buildTypedProfile(42, "x"), null);
+  assert.equal(buildTypedProfile("too short", "x"), null); // < 10 chars after trim
+  assert.equal(buildTypedProfile("x".repeat(1001), "x"), null); // cap: focus is a sentence, not a resume
 });

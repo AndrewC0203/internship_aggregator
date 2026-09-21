@@ -153,10 +153,11 @@ function citCell(v: SearchResult["cards"][number]["variants"][number]): string {
   return `${v.citizenshipStatus && v.citizenshipStatus !== "unknown" ? `<span class="cit">${CITIZEN_LABEL[v.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(v.degreeStatus)}`;
 }
 
-// One CARD per role (Decision 28): the lead row is the newest posting of the role; each
-// further geographic variant renders as its own slim `pos var` row directly beneath —
-// same 8 cells, so columns stay ruled and the client JS (j/k, status keys, enter-to-open)
-// works on variants for free, since every variant row carries its own real listing id.
+// One CARD per role (Decision 28): the lead row is the newest posting of the role; every
+// OTHER geographic variant collapses into a single links row beneath it (not one row each —
+// a role with 10 locations used to cost 10 rows). The links row has no `data-id`, so it's
+// excluded from keyboard row-nav/status-setting (see the `[data-id]` guards in js()) — it
+// represents many listings at once, not one position to triage.
 function card(c: SearchResult["cards"][number]): string {
   const [rep, ...rest] = c.variants;
   const multi = rest.length > 0;
@@ -183,19 +184,24 @@ function card(c: SearchResult["cards"][number]): string {
 <td class="c-set">${setControl(rep.id, rep.status)}</td>
 </tr>`,
   ];
-  for (const v of rest) {
-    const loc = v.location ?? "location unstated";
-    const vGrad = gradWindow(v.gradYearMin, v.gradYearMax);
-    parts.push(`<tr class="pos var${v.status === "rejected" ? " rej-row" : ""}" data-id="${v.id}"${v.isNew ? " data-new" : ""} tabindex="0">
+  if (multi) {
+    const links = rest
+      .map((v) => {
+        const loc = v.location ?? "location unstated";
+        return `<a href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — ${esc(loc)}">${esc(loc)}</a>`;
+      })
+      .join(", ");
+    // No data-id/tabindex/status control: this row stands for `rest.length` listings at
+    // once, not one — there's no single id for j/k or a status key to act on.
+    parts.push(`<tr class="pos var">
 <td class="c-co"></td>
-<td class="c-title"><a href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(c.title.trim())} — ${esc(loc)}">${titleNew(v.isNew, v.status)}<span class="var-arm" aria-hidden="true">↳</span> ${esc(loc)}</a>
-  <span class="m-meta">${vGrad ? `<span class="loc">${vGrad}</span>` : ""}${v.citizenshipStatus && v.citizenshipStatus !== "unknown" ? `<span class="loc">${CITIZEN_LABEL[v.citizenshipStatus] ?? ""}</span>` : ""}${degreeBadge(v.degreeStatus)}</span></td>
+<td class="c-title"><span class="var-arm" aria-hidden="true">↳</span> ${links}</td>
 <td class="c-field"></td>
-<td class="c-loc" title="${esc(v.location ?? "")}">${esc((v.location ?? "").length > 26 ? (v.location ?? "").slice(0, 25) + "…" : (v.location ?? ""))}</td>
-<td class="c-grad">${vGrad}</td>
-<td class="c-cit">${citCell(v)}</td>
-<td class="c-seen">${seenCell(v)}</td>
-<td class="c-set">${setControl(v.id, v.status)}</td>
+<td class="c-loc"></td>
+<td class="c-grad"></td>
+<td class="c-cit"></td>
+<td class="c-seen"></td>
+<td class="c-set"></td>
 </tr>`);
   }
   return parts.join("\n");
@@ -729,7 +735,7 @@ function js(): string {
     document.querySelectorAll('.grp[open]').forEach(function(d){d.removeAttribute('open')});
   }
   var KEYMAP={s:'saved',a:'applied',i:'interviewing',o:'offer',x:'rejected'};
-  var rows=Array.prototype.slice.call(document.querySelectorAll('tr.pos'));
+  var rows=Array.prototype.slice.call(document.querySelectorAll('tr.pos[data-id]'));
   var cur=-1;
   var toast=document.getElementById('toast');var toastT;
   function say(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){toast.classList.remove('show')},3500)}
@@ -787,7 +793,7 @@ function js(): string {
   });
   // Row click (not on a link/button) selects it for keyboard work.
   document.addEventListener('mousedown',function(e){
-    var tr=e.target.closest('tr.pos');
+    var tr=e.target.closest('tr.pos[data-id]');
     if(tr&&!e.target.closest('a,.key'))focusRow(rows.indexOf(tr));
   });
 
@@ -807,7 +813,7 @@ function js(): string {
     rsBusy(true);if(rsNote)rsNote.textContent='EXTRACTING + EMBEDDING…';
     fetch('/api/search/paste',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({resumeText:text})})
-      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?"OLLAMA IS DOWN — start 'ollama serve' and retry.":(b.reason||b.error||('HTTP '+r.status)))})})
+      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?(b.hint||"OLLAMA IS DOWN — start 'ollama serve' and retry."):(b.reason||b.error||('HTTP '+r.status)))})})
       .then(function(){window.location.reload()})
       .catch(function(err){rsError(String(err.message||err))});
   });
@@ -822,7 +828,7 @@ function js(): string {
     rsBusy(true);rtSubmit.disabled=true;if(rsNote)rsNote.textContent='EMBEDDING…';
     fetch('/api/search/typed',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({experience:exp,seeking:(rtSeek.value||'').trim()})})
-      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?"OLLAMA IS DOWN — start 'ollama serve' and retry.":(b.error||('HTTP '+r.status)))})})
+      .then(function(r){if(r.ok)return r.json();return r.json().then(function(b){throw new Error(b.error==='ollama_down'?(b.hint||"OLLAMA IS DOWN — start 'ollama serve' and retry."):(b.error||('HTTP '+r.status)))})})
       .then(function(){window.location.reload()})
       .catch(function(err){rtSubmit.disabled=false;rsError(String(err.message||err))});
   });

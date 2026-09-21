@@ -53,7 +53,7 @@ $("go").onclick = async () => {
   });
   const d = await res.json().catch(() => ({}));
   if (!res.ok) {
-    $("status").textContent = res.status === 503 ? "OLLAMA DOWN — RUN: ollama serve"
+    $("status").textContent = res.status === 503 ? (d.hint || "OLLAMA DOWN — RUN: ollama serve")
       : (d.error || "FAILED") + (d.reason ? ": " + d.reason : "");
     return;
   }

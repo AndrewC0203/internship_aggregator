@@ -152,7 +152,7 @@ async function call(el, method, url, body) {
   const data = await res.json().catch(() => ({}));
   if (res.ok) { el.textContent = "OK — RELOADING"; location.reload(); return; }
   if (res.status === 409) { el.textContent = "CONFLICT: A NEWER EDIT EXISTS — RELOAD THE PAGE"; return; }
-  if (res.status === 503) { el.textContent = "OLLAMA DOWN — RUN: ollama serve"; return; }
+  if (res.status === 503) { el.textContent = data.hint || "OLLAMA DOWN — RUN: ollama serve"; return; }
   el.textContent = (data.error || "FAILED") + (data.reason ? ": " + data.reason : "");
 }
 $("extract").onclick = () => call($("extract-status"), "POST", "/api/profile/resume", { resumeText: $("resume").value });

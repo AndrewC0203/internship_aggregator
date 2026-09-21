@@ -14,3 +14,5 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false # set manually to the Neon connection string
+      - key: PUBLIC_DEPLOY
+        value: "true" # swaps the ollama_down hint to a public-demo explanation (recommend.ts)

@@ -29,6 +29,15 @@ import { draftFingerprint, beginDraft, getDraft, setDraft, clearDraft } from "..
 export const ollamaDown = (err: unknown): boolean =>
   err instanceof OllamaError && (err.status === undefined || err.status === 429 || err.status >= 500);
 
+// PUBLIC_DEPLOY (render.yaml): "start `ollama serve`" is correct advice locally and
+// meaningless to a visitor on the public hub, who cannot start anything on the developer's
+// machine. Computed once — every ollama_down response below shares it, so there's one place
+// to word this, not seven.
+export const OLLAMA_DOWN_HINT =
+  process.env.PUBLIC_DEPLOY === "true"
+    ? "Needs a local AI model that only runs on the developer's machine — disabled on this public demo by design. Browsing below is already ranked against the maintainer's own profile."
+    : "start `ollama serve`";
+
 function parseProfileBody(raw: unknown): ProfileJson | null {
   if (typeof raw !== "object" || raw === null) return null;
   const o = raw as Record<string, unknown>;
@@ -56,7 +65,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
       return { extracted };
     } catch (err) {
       if (ollamaDown(err)) {
-        return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+        return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
       }
       // Grounding failure (focus evidence not in resume) or schema bug: honest 422, the
       // user edits manually instead of receiving invented content.
@@ -117,7 +126,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
         return { ok: true, revision: result.revision };
       } catch (err) {
         if (ollamaDown(err)) {
-          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+          return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
         }
         throw err;
       }
@@ -141,7 +150,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
         if (ollamaDown(err)) {
           // Only a SOFT edit reaches the model (re-embed); hard-only edits are SQL and
           // succeed with Ollama down — exactly the spec's availability split.
-          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+          return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
         }
         throw err;
       }
@@ -182,7 +191,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
       return { extracted };
     } catch (err) {
       if (ollamaDown(err)) {
-        return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+        return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
       }
       const reason = err instanceof Error ? err.message : String(err);
       return reply.code(422).send({ error: "extraction_failed", reason });
@@ -228,7 +237,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
         return { profile: built.profile };
       } catch (err) {
         if (ollamaDown(err)) {
-          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+          return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
         }
         throw err;
       }
@@ -264,7 +273,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
       return { ok: true, revision: result.revision };
     } catch (err) {
       if (ollamaDown(err)) {
-        return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+        return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
       }
       throw err;
     }
@@ -301,7 +310,7 @@ export function registerRecommendRoutes(app: FastifyInstance): void {
         return { extracted, ...ranked };
       } catch (err) {
         if (ollamaDown(err)) {
-          return reply.code(503).send({ error: "ollama_down", hint: "start `ollama serve`" });
+          return reply.code(503).send({ error: "ollama_down", hint: OLLAMA_DOWN_HINT });
         }
         const reason = err instanceof Error ? err.message : String(err);
         return reply.code(422).send({ error: "extraction_failed", reason });

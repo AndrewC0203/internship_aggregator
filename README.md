@@ -89,10 +89,20 @@ on idle, no manual resume) + [Render](https://render.com) for the web service
    `render.yaml`'s build command runs `prisma migrate deploy` on every deploy.
 2. In Render, "New from Blueprint" → point at this repo → set `DATABASE_URL` to the Neon
    connection string → deploy.
-3. Optional, one-time: `npx tsx src/seed-profile.ts` (with `DATABASE_URL` pointed at Neon)
+3. **`prisma migrate deploy` only creates the empty schema — it copies no rows.** A brand
+   new Neon DB has zero listings until you copy your existing data over once:
+   ```
+   pg_dump "$LOCAL_DATABASE_URL" --data-only --exclude-table=_prisma_migrations -Fc -f data.dump
+   pg_restore --data-only -d "<neon connection string>" data.dump
+   ```
+   (`--disable-triggers` will fail with "permission denied" on Neon's managed role — that's
+   expected and harmless, since pg_dump already orders tables by FK dependency; the actual
+   COPY still succeeds. `user_profile` may also warn on a duplicate `id=1` if you already
+   ran `seed-profile.ts` first — also harmless, that row is a placeholder.)
+4. Optional, one-time: `npx tsx src/seed-profile.ts` (with `DATABASE_URL` pointed at Neon)
    publishes an approved profile so `/search` defaults to live fit-sorted results for every
    visitor instead of just freshness-sorted browsing — see the Commands table.
-4. Optional: a free external ping (e.g. cron-job.org) hitting the Render URL every ~10 min
+5. Optional: a free external ping (e.g. cron-job.org) hitting the Render URL every ~10 min
    avoids the free tier's ~30-60s cold start after 15 min idle.
 
 Ollama-dependent routes (profile resume upload, `/tryout`, `/search`'s paste-to-rank draft

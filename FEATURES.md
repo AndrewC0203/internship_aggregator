@@ -665,6 +665,12 @@
   slim indented `pos var` row beneath it with its own link, status marks, and SET keys
   (real listing ids, so existing client JS works untouched). Meridial's 6-country spam:
   one card, "6 LOCATIONS", five sub-rows. Board went 1,817 listings → 1,599 roles.
+  **Superseded 2026-09-21:** those five sub-rows are now ONE row of comma-separated links
+  (`src/server/render.ts` `card()`) — a 10-location role cost 10 rows before, now costs 2.
+  The links row has no `data-id`/status controls (it stands for N listings, not one), so
+  it's excluded from j/k row-nav and status-key handling via a `tr.pos[data-id]` selector
+  guard in the client JS — losing per-variant status-tracking on anything but the lead
+  posting, accepted for board scannability at high location counts.
 - Everything user-facing counts cards: total ("N ROLES"), NEW figure, pagination
   (group-level, so a role's variants can never straddle a page boundary), and ALL facet
   chip counts (distinct trimmed roles — verified chip count == click-through total).

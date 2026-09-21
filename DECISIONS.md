@@ -1976,3 +1976,14 @@ this doesn't revisit that) and swapping the ingestion pipeline to a free-tier cl
 remove the local-machine dependency entirely (a real technology-choice-with-lock-in decision,
 not taken here — see the Decision 36 body above for why it cuts against Decision 12/13/25's
 local-model story).
+
+**Addendum (2026-09-21): context-aware `ollama_down` messaging.** Every route gated on
+Ollama (`/api/profile/resume`, `PUT /api/profile`, `PUT /api/profile/questionnaire`,
+`/api/search/paste`, `/api/search/typed`, `/api/tryout`) previously 503'd with the identical
+hint `"start \`ollama serve\`"` — correct advice locally, meaningless to a public visitor who
+cannot start anything on the developer's machine. New `render.yaml` env var `PUBLIC_DEPLOY`
+switches one shared constant (`OLLAMA_DOWN_HINT`, `src/server/recommend.ts`) to a public-demo
+explanation instead; all four client-side error handlers (`render.ts` ×2, `render-profile.ts`,
+`render-tryout.ts`) now display whatever hint the server sent rather than a hardcoded string,
+so the wording lives in exactly one place. Requires the Render service's environment to pick
+up the new var (redeploy, or add it manually in the dashboard if blueprint auto-sync is off).

@@ -102,8 +102,12 @@ on idle, no manual resume) + [Render](https://render.com) for the web service
 4. Optional, one-time: `npx tsx src/seed-profile.ts` (with `DATABASE_URL` pointed at Neon)
    publishes an approved profile so `/search` defaults to live fit-sorted results for every
    visitor instead of just freshness-sorted browsing — see the Commands table.
-5. Optional: a free external ping (e.g. cron-job.org) hitting the Render URL every ~10 min
-   avoids the free tier's ~30-60s cold start after 15 min idle.
+5. Optional: a free external ping (e.g. cron-job.org) hitting `/healthz` every ~10 min
+   avoids the free tier's ~30-60s cold start after 15 min idle. Point the ping at
+   `https://<your-app>.onrender.com/healthz`, NOT the root URL: cron-job.org aborts any
+   job whose response exceeds 64 KB and auto-disables it after ~25 straight failures,
+   and the SSR board at `/` is ~120 KB. `/healthz` is also DB-free, so the ping keeps
+   Render warm without holding Neon's compute awake around the clock.
 
 Ollama-dependent routes (profile resume upload, `/tryout`, `/search`'s paste-to-rank draft
 mode) already 503 gracefully (`ollamaDown()` in `src/server/recommend.ts`) when Ollama isn't

@@ -16,6 +16,14 @@ import { EMBED_MODEL, TEMPLATE_VERSION } from "../recommend/config.js";
 
 const app = Fastify({ logger: { level: "warn" } });
 
+// Keep-alive ping target (Decision 36 addendum). Deliberately tiny and DB-free:
+// cron-job.org aborts any job whose response exceeds 64 KB (the SSR board at "/" is
+// ~120 KB, which failed and auto-disabled the ping), and skipping the DB lets Neon
+// auto-suspend while the ping keeps only Render warm.
+app.get("/healthz", async (_req, reply) => {
+  reply.type("text/plain").send("ok");
+});
+
 // Self-hosted fonts. Hand-rolled instead of @fastify/static because it's exactly one file —
 // the allowlist doubles as the path-traversal guard. (national-park.woff2 retired with the
 // Dispatch Board world, 2026-08-28.)

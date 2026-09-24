@@ -123,6 +123,11 @@
   defaults to live fit-sorted results for every visitor with zero Ollama calls at request
   time. Paired with a free external ping (cron-job.org or similar) to avoid Render's
   free-tier cold start on the live link.
+- `GET /healthz` keep-alive endpoint (2026-09-23) — tiny DB-free ping target for the
+  external keep-alive. The original recipe pinged `/`, whose ~120 KB SSR response exceeds
+  cron-job.org's 64 KB output cap — the job failed every run and was auto-disabled after
+  25 failures. `/healthz` returns 2 bytes and skips the DB entirely, so the ping keeps
+  Render warm while still letting Neon auto-suspend between real visitors.
 
 # Priority 1
 

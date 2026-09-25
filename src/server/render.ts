@@ -617,7 +617,11 @@ tr.rej-row .c-title a{text-decoration:line-through;text-decoration-color:var(--i
 /* Variant rows (Decision 28): further locations of the role above. Slimmer, word-voice
    location as the link, no repeated company/title — the lead row already said them. */
 tr.pos.var td{height:32px;border-bottom-style:dashed}
-tr.pos.var .c-title a{font-size:12px;font-weight:400;color:var(--ink-2)}
+/* Links must be inline: .c-title a's display:block (for lead-title ellipsis) would put each
+   location on its own line and orphan the ", " text nodes between anchors onto lines of
+   their own. Truncation moves up to the cell so a 10-location row is still one row. */
+tr.pos.var .c-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+tr.pos.var .c-title a{display:inline;font-size:12px;font-weight:400;color:var(--ink-2)}
 tr.pos.var .var-arm{color:var(--ink-3);margin:0 4px 0 10px}
 .nloc{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--ink)}
 /* Company is a word, so it speaks the word voice (sans, normal case) — Two Voices rule */
@@ -715,6 +719,7 @@ a.sheet-btn:hover{border-color:var(--ink);color:var(--ink)}
   tr.pos td.c-co,tr.pos td.c-title,tr.pos td.c-set{display:block;width:auto;padding-left:0}
   .c-title{max-width:none}
   .c-title a{white-space:normal;font-size:14px;line-height:1.35}
+  tr.pos.var .c-title{white-space:normal;overflow:visible}
   .co{max-width:none}
   .m-meta{display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap}
   .m-meta .loc{font-size:11px;color:var(--ink-3);font-family:var(--mono)}

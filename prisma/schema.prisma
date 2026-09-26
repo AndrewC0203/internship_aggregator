@@ -15,6 +15,9 @@ enum Source {
   greenhouse
   lever
   ashby
+  // Curated GitHub repo feed (SimplifyJobs), not an ATS — one crawl_target per repo,
+  // entries carry no description, pre-classified at normalize (Decision 38).
+  simplify
   other
 }
 

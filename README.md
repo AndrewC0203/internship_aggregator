@@ -42,7 +42,8 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run refresh` | Full ingestion pipeline over every active `crawl_target`: fetch → normalize → delist-stale → dedup → filter → classify → extract → persist. Listings absent from a board's successful crawl are delisted (`is_listed=false`, kept in DB; see DECISIONS.md Decision 22) — failed crawls never delist. Unchanged boards are skipped cheaply via ETag/304 revalidation (Decision 23). Requires `ollama serve` running. |
 | `npm run refresh -- --limit 5` | Refresh capped to 5 boards per source (smoke test) |
 | `npm run refresh -- --full` | Ignore stored ETags and re-download every board — use after fixing a normalize bug, when stored rows must be rebuilt from bodies a 304 would skip |
-| `npm run refresh -- --source ashby` | Refresh one ATS only (`greenhouse` \| `lever` \| `ashby`), skipping the others entirely for this run — for resuming/targeting one source without walking the others (mostly-cheap 304s anyway, but this skips them) |
+| `npm run refresh -- --source ashby` | Refresh one source only (`greenhouse` \| `lever` \| `ashby` \| `simplify`), skipping the others entirely for this run — for resuming/targeting one source without walking the others (mostly-cheap 304s anyway, but this skips them). `--source simplify` needs no Ollama: its listings are pre-classified (Decision 38), so the AI tail never runs for them (the trailing enrich pass still wants Ollama, but is non-fatal without it). |
+| `npm run refresh:nightly` | Run the nightly-refresh wrapper immediately (bypasses its AC-power and night-window gates, keeps the single-instance lock and GPU pacing). Extra flags pass through to `refresh`: `npm run refresh:nightly -- --limit 2`. The scheduled path is the same script, gated, via launchd — see "Nightly refresh" below. |
 | `npm run reclassify -- --dry-run` | Preview re-running the current classify prompt against all active listings (no writes). Run after any prompt change. Requires `ollama serve`. |
 | `npm run reclassify` | Apply it: still-keeps get `opportunity_type`/`cs_field` updated and their location facets (`loc_countries`/`loc_us_states`) recomputed; new-rejects are delisted (kept in DB, `is_listed=false`) and remembered in `seen_listings` |
 | `npm run reclassify -- --extract --limit 20` | Also re-run the extraction pass (grad dates / citizenship); `--limit` caps rows for a smoke run |
@@ -56,7 +57,7 @@ findings live in [research/](research/); shipped features in [FEATURES.md](FEATU
 | `npm run build` | Type-check + compile to `dist/` |
 | `npx tsx src/backfill-dedup.ts` | One-time cleanup: collapses pre-existing duplicate rows already in `listings` (see DECISIONS.md Decision 15) |
 | `npx tsx src/backfill-locations.ts` | Re-derives stored location facets (`loc_countries`/`loc_us_states`) for ALL rows with the current resolver. Idempotent; run after any `location.ts` fix or dictionary widening — persisted rows never re-derive on their own. |
-| `npx tsx src/seed-crawl-target.ts <source> <token>` | Dev-only: manually inserts one `crawl_target` row (e.g. `lever palantir`) for smoke-testing a source with no real discovery mechanism wired up yet. NOT how boards get discovered in production — `npm run discover` is the real path once a source has one. |
+| `npx tsx src/seed-crawl-target.ts <source> <token>` | Dev-only for the ATSs: manually inserts one `crawl_target` row (e.g. `lever palantir`) for smoke-testing — `npm run discover` is the real path once a source has one. For `simplify` this IS the production path (no discovery exists): `simplify SimplifyJobs/Summer2026-Internships`, token = GitHub `owner/repo`. Keep simplify at ONE active target — source-scoped delisting hard no-ops otherwise (Decision 38). |
 | `npx tsx src/seed-profile.ts [resumePath] [questionnairePath]` | One-off (Decision 36): publish an approved profile from local `resume.local.txt` + `questionnaire.local.json` (both gitignored — never commit real resume content) against whatever `DATABASE_URL` is set, e.g. the deployed hub's Neon DB. Requires `ollama serve` for this one call; ranking never calls Ollama afterward. |
 
 Note: `--limit` and other flags need the `--` separator (`npm run refresh -- --limit 5`), or npm
@@ -65,6 +66,33 @@ consumes the flag itself instead of passing it through.
 Request pacing (Decision 27): discovery validation and refresh space board-level requests
 to each ATS host by `ATS_MIN_INTERVAL_MS` (default 500ms); on a 429 the source pauses for
 `ATS_429_PAUSE_MS` (default 60s). Both are env vars — no flags.
+
+GPU pacing (Decision 37): `OLLAMA_MIN_INTERVAL_MS` (default 0 = off) enforces a minimum
+gap between the starts of consecutive Ollama calls — a duty-cycle throttle so long
+unattended runs don't pin the GPU (fan noise). The nightly wrapper sets it to 6000
+(~43% duty cycle at 14B-classify speeds); interactive runs are unaffected.
+
+### Nightly refresh
+
+`scripts/nightly-refresh.sh`, scheduled by a launchd agent at **02:30 daily**
+(`scripts/com.internship-aggregator.nightly-refresh.plist`, installed to
+`~/Library/LaunchAgents/`). The script gates itself: runs only on **AC power**, only
+between **00:00–07:59** (a slept-through 02:30 fires at next wake; the window stops that
+from landing mid-workday), and only if no other refresh holds the lock. It starts Ollama
+if it isn't running (and stops it after), holds the Mac awake with `caffeinate -s`
+(effective on AC only), and logs to `logs/nightly-refresh-YYYY-MM-DD.log` (14-day
+retention).
+
+One-time setup so the Mac actually wakes for it (needs sudo, so run it yourself):
+
+    sudo pmset repeat wakeorpoweron MTWRFSU 02:25:00
+
+Without the scheduled wake, the job still fires at the next wake inside the window — or
+skips that night entirely, which is fine: ETag/304 + seen-listing partitioning make the
+next run absorb the missed one at no extra cost. Lid open (display asleep) is the
+reliable overnight posture; lid closed without an external display depends on dark-wake
+behavior — check the log the first morning. Uninstall:
+`launchctl bootout gui/$(id -u)/com.internship-aggregator.nightly-refresh`.
 
 ## Architecture
 

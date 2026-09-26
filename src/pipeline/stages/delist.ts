@@ -25,6 +25,9 @@ export interface DelistRepo {
     company: string;
     seenExternalIds: string[];
   }): Promise<number>;
+  // Decision 38 variant: same absence rule, scoped by SOURCE alone. Only sound when one
+  // crawl covers the source's entire listing universe — see delistStaleForSource's guard.
+  delistMissingBySource(params: { source: Source; seenExternalIds: string[] }): Promise<number>;
 }
 
 export const prismaDelistRepo: DelistRepo = {
@@ -33,6 +36,18 @@ export const prismaDelistRepo: DelistRepo = {
       where: {
         source,
         company,
+        isListed: true,
+        sourceExternalId: { notIn: seenExternalIds },
+      },
+      data: { isListed: false },
+    });
+    return result.count;
+  },
+
+  async delistMissingBySource({ source, seenExternalIds }) {
+    const result = await prisma.listing.updateMany({
+      where: {
+        source,
         isListed: true,
         sourceExternalId: { notIn: seenExternalIds },
       },
@@ -93,4 +108,33 @@ export async function delistStaleForBoard(
   const delistedCount = await repo.delistMissing({ source, company, seenExternalIds });
 
   return { delistedCount, resolvedCompany: freshCompany };
+}
+
+// Source-scoped staleness check (Decision 38) for a source whose one crawl IS its whole
+// listing universe — the simplify file spans hundreds of companies, so the company anchor
+// above cannot scope it, but the source itself can. Same core rule as delistStaleForBoard:
+// only ever called after a confirmed-successful fetch; absence from that fetch delists,
+// zero grace period; reversal is free via the seenKeep resurrect path.
+//
+// `activeTargetCount` is the soundness guard: with two active targets per source (say a
+// second Simplify repo), each crawl sees only ITS file's actives, and a source-wide absence
+// delist would let one repo's crawl delist the other's rows. Listings carry no board
+// discriminator today, so >1 target makes this a hard no-op — the caller must pass the
+// source's ACTIVE crawl_targets count, not the count it happened to iterate.
+export async function delistStaleForSource(
+  source: Source,
+  boardListings: NormalizedListing[],
+  activeTargetCount: number,
+  repo: DelistRepo = prismaDelistRepo,
+): Promise<{ delistedCount: number }> {
+  if (activeTargetCount !== 1) {
+    console.error(
+      `[delist] ${source}: source-scoped delist skipped — ${activeTargetCount} active targets ` +
+        `(sound only with exactly 1; add a board discriminator to listings before adding more)`,
+    );
+    return { delistedCount: 0 };
+  }
+  const seenExternalIds = boardListings.map((l) => l.sourceExternalId);
+  const delistedCount = await repo.delistMissingBySource({ source, seenExternalIds });
+  return { delistedCount };
 }

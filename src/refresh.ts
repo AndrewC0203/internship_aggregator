@@ -9,7 +9,7 @@ import { enrichListings, formatEnrichSummary } from "./recommend/enrich.js";
 //   --full           ignore stored etags and re-download every board (Decision 23). Needed
 //                    when stored rows must be REBUILT from bodies an unchanged-board 304
 //                    would skip — e.g. after fixing a normalize bug.
-//   --source <name>  run only this ATS (greenhouse | lever | ashby); default = all, in
+//   --source <name>  run only this source (greenhouse | lever | ashby | simplify); default = all, in
 //                    source-list order. Etag/304 revalidation (Decision 23) already makes
 //                    re-running the full default cheap for sources ahead of the one you
 //                    actually want — this flag is for when you want to skip that walk

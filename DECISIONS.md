@@ -1987,3 +1987,176 @@ explanation instead; all four client-side error handlers (`render.ts` ×2, `rend
 `render-tryout.ts`) now display whatever hint the server sent rather than a hardcoded string,
 so the wording lives in exactly one place. Requires the Render service's environment to pick
 up the new var (redeploy, or add it manually in the dashboard if blueprint auto-sync is off).
+
+## Decision 37: Nightly refresh — full sweep every night via gated launchd agent, no board rotation
+
+Problem: Listings need a reliable daily refresh (success metric) without manual runs, on a
+laptop: it must run only when plugged in, must not spin the fans audibly, and must still
+finish. Open design question: full `refresh` over all boards nightly, or rotate a cohort of
+boards per night?
+
+Options considered:
+
+1. Full sweep nightly — every active board, every night. The pipeline already makes this
+   cheap: ETag/304 (Decision 23) skips unchanged boards, `partitionBySeen` keeps seen
+   listings away from the model, and the reject-router drops ~82% of new titles before
+   classify. Nightly model cost is the daily *delta*, not the corpus — minutes of GPU, not
+   the ~2–3.4h full-sweep numbers (research/model-rebenchmark-m5max.md, those are
+   `reclassify` costs). HTTP cost: ~163 boards × 500ms host gate ≈ 2–3 min.
+2. Rotate boards across N nights — spreads a first-crawl cost that only exists once (the
+   currently-uncrawled boards), and permanently degrades freshness: delisting (Decision 22)
+   only happens when a board is crawled, so dead postings linger up to N days. Dead links
+   are the worst demo failure. Also more state (rotation cursor) for less result.
+3. Full crawl + per-night model-call budget with carry-over queue — protects against a big
+   catch-up night, but the chunked flush (BOARD_BATCH_SIZE=10) already makes partial nights
+   durable and self-converging: whatever a night doesn't finish, the next night's partition
+   marks the finished part seen and continues. The budget mechanism duplicates that for free.
+
+Decision: Option 1. Mechanism: launchd LaunchAgent at 02:30 (coalesces a slept-through
+trigger into a next-wake run; survives reboots) running `scripts/nightly-refresh.sh`, which
+gates on (a) AC power via `pmset -g ps`, (b) a 00:00–07:59 window so a coalesced run can't
+land mid-workday, (c) a single-instance lock. `caffeinate -s` (AC-only assertion — matches
+gate a) holds the Mac awake through the run. Fan control: new `OLLAMA_MIN_INTERVAL_MS`
+(default 0 = off; wrapper sets 6000) enforces a minimum gap between starts of consecutive
+Ollama calls — reuses `createRateGate` from Decision 27, one shared gate across
+classify/extract/distill/embed, giving ~43% GPU duty cycle at 14B-classify speeds instead
+of sustained max load. Cron and an in-app scheduler were rejected: cron doesn't coalesce
+missed triggers on macOS, and an always-on Node scheduler process still needs launchd to
+survive reboots while adding nothing.
+
+Reason: rotation optimizes the wrong variable — board count was never the nightly cost
+driver (the model tail on *new* listings is), and the incremental machinery Decisions 22/23
++ seen-partitioning already collapse an all-boards night to its delta. Full sweep maximizes
+the two things that matter for the demo: ≤24h freshness and same-night delisting of dead
+postings.
+
+Tradeoffs accepted: skipped nights (on battery, or slept through past 08:00) simply wait
+for the next 02:30 — freshness degrades to 48h occasionally rather than adding retry
+complexity; the catch-up run costs the same as the run it replaces. The duty-cycle gate
+roughly doubles the wall clock of the AI tail (acceptable: the window is 5.5h wide and
+nightly deltas are minutes). The wake-at-02:25 `pmset` schedule needs a one-time sudo
+command the agent can't run itself; without it the run fires at next wake inside the
+window or skips.
+
+Date: 2026-09-25
+
+---
+
+## Decision 38: Simplify GitHub repo as a curated source — trust its curation, bypass the model
+
+Problem: The SimplifyJobs/Summer2026-Internships repo is the de-facto community internship
+list: 4,639 active+visible entries in a machine-readable `listings.json` (13MB, one fetch,
+real ETags), 81% of them on hosts we cannot crawl at all (1,789 Workday + 1,978 other) —
+measured in research/simplify-source-measurements.md. But entries carry NO description, and
+the entire AI tail (classify, YOE filter, extract) reads descriptions. What stands in for
+classification, and how does a multi-company "board" fit a pipeline built around
+one-board-one-company?
+
+Options considered:
+
+1. Trust the curation, bypass the model. The repo is human-curated internships-only; its
+   `category` values map deterministically onto `cs_field`, `sponsorship` onto
+   `citizenship_status`. Synthesize an honest structured description (category/term/
+   locations/degrees + provenance) so cards, search, and the Decision 35 embed text get
+   real text. Zero model calls.
+2. Run the 14B classifier on title-only. Source-consistent, but a title-only model call is
+   a strictly worse judge than the human curation it would second-guess, and ~4,600 calls
+   per cold ingest is hours of Ollama time for negative information value.
+
+Decision: Option 1, as amendments to earlier decisions rather than new machinery:
+- `Source` enum grows `simplify` (additive migration `20260925_add_simplify_source`... see
+  prisma/migrations). Token = GitHub "owner/repo" slug, so their New-Grad repo later is
+  just another crawl_targets row.
+- Amends Decision 10 (ingestion scope): a curated feed's own scope verdict is accepted at
+  write time in place of the CS-relevance filter. Its curation IS the classifier for its
+  rows; `opportunity_type = internship` for every entry of this repo.
+- New generic mechanism, not simplify-specific plumbing: normalize() may attach
+  `preclassified` (opportunityType/csField/citizenshipStatus); pipeline/stages/
+  preclassified.ts routes such listings around filter+extract. Fetch filters to
+  active+visible entries so FetchResult keeps the shared "present = live" semantic.
+- Amends Decision 22 (staleness): a multi-company board cannot anchor delisting on company,
+  so delistStaleForSource() applies the same zero-grace absence rule scoped by SOURCE —
+  guarded to hard no-op unless the source has exactly ONE active crawl_target (two repos
+  would delist each other's rows; listings carry no board discriminator yet).
+- employment_type stays null (the feed states none — the internship claim lives in the
+  classification, keeping Decision 5/10's "what the ATS said" vs "what we classified"
+  split honest).
+
+Reason: The repo's value is reach (81% uncrawlable hosts) and its curation is the strongest
+classification signal available for entries with no text to classify. Bypassing the model
+follows the same logic as the Decision 13/14 regex tiers: never pay a model call for a
+verdict a cheaper, more reliable signal already supplies.
+
+Tradeoffs accepted: We inherit Simplify's false positives unmeasured (their Hardware/
+Product buckets are in-scope per Decision 10, but their judgment substitutes for ours).
+AI-extracted fields (grad window, degree status) stay null for these rows — the synthetic
+description has nothing to extract from. `terms` ("Summer 2027") is dropped — no column
+models it. cs_field's single-label rule maps "AI/ML/Data" wholly to ml_ai. Simplify edits
+to category/sponsorship after first persist never propagate (seenKeep updates skip AI
+columns — same freeze every source has). Enrichment embeds title + synthetic description —
+thinner signal than a real posting, accepted because template v3 (Decision 35) already
+leans on the title line. Measured on first ingest (2026-09-25): 4,639 fetched, 3,760
+persisted, 0 model calls, 0 rejects; cs_field populated on 100% of rows.
+
+Date: 2026-09-25
+
+---
+
+## Decision 39: Cross-source dedup — alias keys parsed from URLs, ATS-preferred survivor
+
+Problem: Decision 15's exact-string key (company, title, location) was measured against
+one-source data and its accepted tradeoff — "a second source with differently-formatted
+locations could reopen this" — materialized with Simplify: 603 of its active entries sit on
+boards already in crawl_targets, but the string key catches only 15 (Simplify writes
+"Alpharetta, GA" where ATS payloads write fuller forms). Unhandled, that's ~600 user-visible
+duplicate pairs (~5%+ on its own) against the <5% success metric.
+
+Options considered:
+
+1. Alias-key dedup + ATS-preferred survivor. Simplify URLs embed the target ATS's OWN job
+   id (Greenhouse numeric id, Lever/Ashby posting UUID) — exactly the sourceExternalId our
+   normalizers store. Parse it at normalize time into `duplicateKeys` as an ALIAS entry;
+   identity is then provable, no fuzzy matching. Two directions: (a) forward, in dedup() —
+   a feed copy whose alias target is an active row (or arrives in the same batch) folds
+   into it; (b) reverse, at persist() — an ATS row that lands while a feed carrier is
+   active RETIRES the carrier (delist + fold), because the ATS copy has the real
+   description and should be canonical.
+2. Drop Simplify entries whose board is in crawl_targets. ~20 lines, but it drops against a
+   GUESS — the board may be uncrawled, or the crawl may have false-rejected the listing —
+   the invisible-loss pattern Decisions 14/24 rejected.
+3. Accept the duplicates. Blows the <5% metric visibly. Rejected.
+
+Decision: Option 1. Key placements, each load-bearing:
+- Forward pass runs INSIDE dedup(), pre-partition: a feed copy whose ATS row is active must
+  be suppressed EVERY run, or partitionBySeen would route it as a seenKeep and persist()
+  would resurrect its retired row beside the ATS canonical.
+- Retire runs at PERSIST time, not in dedup: dedup precedes filter, and delisting the feed
+  row for an ATS copy the classifier later rejects would lose the posting outright. At
+  persist the ATS row provably exists. Running on seenKeeps too makes it self-healing after
+  a crash between upsert and retire.
+- Aliases live in `duplicateKeys` (no schema change): an alias is a cross-source entry
+  (k.source != row.source); same-source entries remain string-key suppressed siblings. The
+  one semantic amendment to Decision 15's "dedup.ts is the only populator."
+- ALIAS_SOURCES = ["simplify"] constant scopes both the forward pass and the carrier query;
+  a future curated feed appends to it.
+- retireCarrier folds keys BEFORE delisting (a crash between leaves both rows active and
+  linked — retried next sighting; the reverse order would briefly lose the link).
+
+Reason: The URL-embedded ATS id makes cross-source identity exact where string matching is
+hopeless (15/603). It preserves every Decision 9/15 invariant (active-canonical-only,
+never delete, self-healing), needs no location-normalization decision by the back door,
+and keeps the richer ATS row canonical whichever order the copies arrive.
+
+Tradeoffs accepted: Only ATS-hosted Simplify entries dedup this way — same-role postings on
+Workday/company sites under different URLs still rely on the string key (safe-direction
+false negatives). The carrier lookup fetches all active alias-source rows per persist call
+(~3.8k skinny rows, in-memory match) — fine locally, needs a GIN index + containment SQL if
+alias sources grow 10×. mergeDuplicateKeys/retireCarrier stay non-transactional under
+Decision 4's single-instance assumption. If the ATS copy is classifier-REJECTED, the feed
+row stays canonical (Simplify's precision wins over our model — deliberate). Measured on
+first ingest (2026-09-25): 524 feed copies folded into ATS rows by the forward pass
+(vs. the 280 strict-URL floor — the parser catches /apply, /application, gh_jid variants);
+invariant query confirms 0 active feed rows beside their active ATS target; global dup rate
+under the Decision 15 key: 0.00% across 10,066 active listings.
+
+Date: 2026-09-25

@@ -889,3 +889,61 @@
   or a status-clear could paint a diamond SSR would not. Rejection still reads without the
   code word: row dims to `opacity:.4` + title strikethrough. DESIGN.md's Mark-Plus-Code
   Rule is replaced by the One Status Surface Rule (same file, dated).
+
+## Nightly refresh — gated launchd schedule + GPU duty-cycle pacing (2026-09-25)
+
+- Full `refresh` sweep every night at 02:30 via a launchd LaunchAgent (Decision 37 — no
+  board rotation; ETag/304 + seen-partitioning already collapse an all-boards night to its
+  delta). `scripts/nightly-refresh.sh` self-gates: AC power only, 00:00–07:59 window only
+  (a slept-through 02:30 fires at next wake — the window stops it landing mid-workday),
+  single-instance lock. Starts Ollama if down and stops it after; `caffeinate -s` holds the
+  Mac awake; logs to `logs/nightly-refresh-YYYY-MM-DD.log` (14-day retention).
+- New `OLLAMA_MIN_INTERVAL_MS` (src/model/ollama.ts, default 0 = off): minimum gap between
+  starts of consecutive Ollama calls, reusing `createRateGate` — one shared gate across
+  classify/extract/distill/embed. Wrapper sets 6000 → ~43% GPU duty cycle → quiet fans.
+- `npm run refresh:nightly` runs the wrapper immediately (gates bypassed, lock + pacing
+  kept); extra flags pass through to `refresh`.
+- Decisions to remember: skipped nights are POLICY (exit 0), not failures — battery or a
+  late wake just defers to the next 02:30, and the catch-up run costs the same as the run
+  it missed. The plist is a repo copy with machine-specific absolute paths; installing on a
+  new machine means editing paths + `launchctl bootstrap`. The wake-at-02:25
+  `sudo pmset repeat wakeorpoweron MTWRFSU 02:25:00` is one-time manual setup — without it
+  the Mac must be awake (or wake on its own) inside the window for the run to fire.
+
+## Simplify GitHub repo source + cross-source alias dedup (Decisions 38–39, 2026-09-25)
+
+- New `simplify` source: the SimplifyJobs/Summer2026-Internships repo's machine-readable
+  `listings.json` (one 13MB fetch, real ETags — Decision 23 path unchanged). Token is the
+  GitHub "owner/repo" slug; seeded via `seed-crawl-target.ts`, no discovery mechanism.
+- Entries have NO descriptions → pre-classified bypass: normalize() attaches
+  `preclassified` (internship + category→cs_field + sponsorship→citizenship) and
+  `pipeline/stages/preclassified.ts` routes those listings around classify/extract
+  entirely. First ingest: 4,639 fetched, 3,760 persisted, **0 model calls**.
+- Synthetic description from structured fields (category/term/locations/degrees +
+  provenance line) — honest facts only, feeds cards/search/embed text.
+- Cross-source dedup (Decision 39): ATS-native keys parsed from Simplify URLs into
+  `duplicateKeys` as aliases; dedup()'s forward pass folds feed copies into active ATS
+  rows (524 on first ingest), persist()'s retire pass delists a feed carrier when the
+  real ATS copy lands. 0.00% dup rate across 10,066 active listings after ingest.
+- Source-scoped delisting: `delistStaleForSource` applies Decision 22's zero-grace absence
+  rule scoped by source (multi-company board can't anchor on company), hard-guarded to a
+  single active crawl_target per source.
+- Corpus impact: 6,298 → 10,066 active listings (+60%); 81% of Simplify entries are on
+  hosts we can't crawl (Workday etc.) — that reach is the point of the source.
+
+# Decisions to remember (Simplify)
+
+- `duplicateKeys` semantics widened: a CROSS-source entry on a feed row is an alias
+  (identity assertion), not a suppressed row. Same-source entries keep the old meaning.
+- The alias forward pass must stay PRE-partition: it's what stops a retired feed row from
+  being resurrected as a seenKeep next to its ATS canonical.
+- Retire must stay AT persist: retiring in dedup would delist the feed row before knowing
+  whether the classifier keeps the ATS copy — a lost posting if it rejects.
+- If the classifier REJECTS the ATS copy of a Simplify-listed role, the Simplify row stays
+  canonical on purpose (their curation beats our title-only signal for these).
+- ONE active simplify crawl_target only — a second repo needs a board discriminator on
+  listings first (delistStaleForSource hard no-ops otherwise, loudly).
+- Simplify AI columns (cs_field, citizenship) freeze at first persist like every source's;
+  category edits in the repo don't propagate to existing rows.
+- Simplify rows' grad/degree fields are always null (nothing to extract from); `terms`
+  ("Summer 2027") is dropped — no column models it yet.

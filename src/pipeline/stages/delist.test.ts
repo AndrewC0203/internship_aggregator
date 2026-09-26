@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveBoardCompany, delistStaleForBoard } from "./delist.js";
+import { deriveBoardCompany, delistStaleForBoard, delistStaleForSource } from "./delist.js";
 import type { DelistRepo } from "./delist.js";
 import type { NormalizedListing } from "../types.js";
 
@@ -35,6 +35,9 @@ function fakeRepo(): DelistRepo & { calls: Array<{ source: string; company: stri
       calls.push({ source, company, seenExternalIds });
       // Pretend exactly one row would have matched "isListed AND not in seenExternalIds".
       return 1;
+    },
+    async delistMissingBySource() {
+      throw new Error("source-scoped path must not be used by company-scoped delisting");
     },
   };
 }
@@ -106,4 +109,62 @@ test("delistStaleForBoard: ambiguous multi-company crawl is a no-op even with a 
 
   assert.equal(repo.calls.length, 0);
   assert.deepEqual(result, { delistedCount: 0, resolvedCompany: null });
+});
+
+// ---- Source-scoped delisting (Decision 38): the simplify "board" is one file spanning ----
+// ---- hundreds of companies, so the company anchor can't scope it — the source does.   ----
+
+function fakeSourceRepo(): DelistRepo & {
+  sourceCalls: Array<{ source: string; seenExternalIds: string[] }>;
+} {
+  const sourceCalls: Array<{ source: string; seenExternalIds: string[] }> = [];
+  return {
+    sourceCalls,
+    async delistMissing() {
+      throw new Error("company-scoped path must not be used");
+    },
+    async delistMissingBySource({ source, seenExternalIds }) {
+      sourceCalls.push({ source, seenExternalIds });
+      return 2;
+    },
+  };
+}
+
+test("source-scoped: rows of the source absent from a successful crawl are delisted", async () => {
+  const repo = fakeSourceRepo();
+  const crawled = [
+    listing({ source: "simplify", sourceExternalId: "a" }),
+    listing({ source: "simplify", sourceExternalId: "b" }),
+  ];
+
+  const { delistedCount } = await delistStaleForSource("simplify", crawled, 1, repo);
+
+  assert.equal(delistedCount, 2);
+  assert.deepEqual(repo.sourceCalls, [{ source: "simplify", seenExternalIds: ["a", "b"] }]);
+});
+
+test("source-scoped: refuses to act when the source has more than one active target", async () => {
+  // Two simplify repos would each see only their own file's actives — an absence-delist
+  // scoped by source would let repo A's crawl delist repo B's listings. Until listings
+  // carry a board discriminator, >1 active target makes this delist unsound: hard no-op.
+  const repo = fakeSourceRepo();
+
+  const { delistedCount } = await delistStaleForSource(
+    "simplify",
+    [listing({ source: "simplify" })],
+    2,
+    repo,
+  );
+
+  assert.equal(delistedCount, 0);
+  assert.deepEqual(repo.sourceCalls, []);
+});
+
+test("source-scoped: an empty successful crawl delists the source's whole set (zero grace)", async () => {
+  const repo = fakeSourceRepo();
+
+  const { delistedCount } = await delistStaleForSource("simplify", [], 1, repo);
+
+  assert.equal(delistedCount, 2);
+  assert.deepEqual(repo.sourceCalls, [{ source: "simplify", seenExternalIds: [] }]);
 });

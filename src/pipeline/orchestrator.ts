@@ -12,12 +12,15 @@ import { fetchLever } from "../sources/lever/fetch.js";
 import { normalizeLever } from "../sources/lever/normalize.js";
 import { fetchAshby } from "../sources/ashby/fetch.js";
 import { normalizeAshby } from "../sources/ashby/normalize.js";
+import { fetchSimplify } from "../sources/simplify/fetch.js";
+import { normalizeSimplify } from "../sources/simplify/normalize.js";
 import { dedup } from "./stages/dedup.js";
 import { partitionBySeen } from "./stages/partition.js";
+import { splitPreclassified } from "./stages/preclassified.js";
 import { filterInternships } from "./stages/filter.js";
 import { extract } from "./stages/extract.js";
 import { persist } from "./stages/persist.js";
-import { delistStaleForBoard } from "./stages/delist.js";
+import { delistStaleForBoard, delistStaleForSource } from "./stages/delist.js";
 import { ATS_MIN_INTERVAL_MS, createRateGate, pauseAfter429 } from "./rate-limit.js";
 
 const SOURCES: Array<{
@@ -29,7 +32,19 @@ const SOURCES: Array<{
   // live 2026-09-08, see src/sources/ashby/fetch.ts). Lever stays false: its fetch paginates,
   // and its per-page ETag can't represent the whole board (see src/sources/lever/fetch.ts).
   supportsFreshness: boolean;
+  // How a successful crawl's absence-delist is scoped (Decision 38). Default "company": one
+  // board = one company, the Decision 22 anchor. "source": one crawl IS the source's whole
+  // universe (the simplify file spans hundreds of companies, so only the source can scope
+  // it) — sound only while the source has exactly ONE active target; delistStaleForSource
+  // enforces that.
+  delistScope?: "company" | "source";
 }> = [
+  // simplify first: one cheap fetch with thousands of pre-classified listings and no AI
+  // tail — it persists in minutes, before the hours-long ATS walk. Arrival order vs. the
+  // ATSs doesn't affect correctness either way: dedup's alias pass catches simplify copies
+  // of existing ATS rows, and persist's retire pass catches ATS copies of existing simplify
+  // rows (Decision 39).
+  { source: "simplify", fetch: fetchSimplify, normalize: normalizeSimplify, supportsFreshness: true, delistScope: "source" },
   { source: "greenhouse", fetch: fetchGreenhouse, normalize: normalizeGreenhouse, supportsFreshness: true },
   { source: "lever", fetch: fetchLever, normalize: normalizeLever, supportsFreshness: false },
   { source: "ashby", fetch: fetchAshby, normalize: normalizeAshby, supportsFreshness: true },
@@ -114,10 +129,15 @@ export async function runPipeline(
       // accept-router + regex reject-router + AI classify) → extract (AI, keeps only) → persist.
       const deduped = await dedup(normalized);
       const { unseen, seenKeeps, seenRejects } = await partitionBySeen(deduped);
+      // Pre-classified bypass (Decision 38): a curated feed's unseen listings skip both AI
+      // stages — the source's verdict is already the enriched row. Split BEFORE filter so
+      // the AI tail's cost and logs only cover listings that actually need a model.
+      const { pre, rest } = splitPreclassified(unseen);
       console.log(
-        `Partition: ${unseen.length} new (→ AI), ${seenKeeps.length} seen-keeps, ${seenRejects.length} seen-rejects.`,
+        `Partition: ${unseen.length} new (${pre.length} pre-classified, ${rest.length} → AI), ` +
+          `${seenKeeps.length} seen-keeps, ${seenRejects.length} seen-rejects.`,
       );
-      const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships(unseen);
+      const { keeps, newRejects, titleDropped, yoeDropped } = await filterInternships(rest);
       // The two drop counts are logged but never persisted: those listings stay "unseen" on
       // purpose, so widening either regex re-evaluates them next run (see reject-router.ts).
       console.log(
@@ -126,7 +146,7 @@ export async function runPipeline(
       );
       const enriched = await extract(keeps);
       const { keepsWritten, keepsFailed } = await persist({
-        keeps: enriched,
+        keeps: [...enriched, ...pre],
         newRejects,
         seenKeeps,
         seenRejects,
@@ -198,7 +218,14 @@ export async function runPipeline(
             where: { id: target.id },
             data: { lastCrawledAt: new Date(), lastError: null },
           });
-          if (target.company) {
+          if (src.delistScope === "source") {
+            // Source-scoped boards never resolve a company (many companies per crawl), so
+            // their 304 sighting bump is scoped the same way their delist is: by source.
+            await prisma.listing.updateMany({
+              where: { source: src.source, isListed: true },
+              data: { lastSeenAt: new Date() },
+            });
+          } else if (target.company) {
             await prisma.listing.updateMany({
               where: { source: src.source, company: target.company, isListed: true },
               data: { lastSeenAt: new Date() },
@@ -236,25 +263,46 @@ export async function runPipeline(
           // Gated on supportsFreshness so a source whose fetch might only be a partial page (not
           // yet true for any wired source) can't have a real listing wrongly read as "absent."
           if (src.supportsFreshness) {
-            const { delistedCount, resolvedCompany } = await delistStaleForBoard(
-              src.source,
-              boardListings,
-              target.company,
-            );
-            if (delistedCount > 0) {
-              console.log(
-                `[delist] ${src.source}/${target.token}: ${delistedCount} listing(s) delisted ` +
-                  `(absent from a successful crawl)`,
-              );
-            }
-            // Only a FRESH resolution (derived from this run's own response) overwrites the
-            // cache — a fallback to the old cached value on an empty-response run isn't new
-            // information about this board, so it isn't worth a write.
-            if (resolvedCompany && resolvedCompany !== target.company) {
-              await prisma.crawlTarget.update({
-                where: { id: target.id },
-                data: { company: resolvedCompany },
+            if (src.delistScope === "source") {
+              // Source-scoped absence delist (Decision 38). The count is queried fresh, NOT
+              // taken from this run's (possibly --limit-capped) target list — the guard
+              // must see every active target the source has, or a capped run could delist
+              // rows a second uncrawled target still vouches for.
+              const activeTargetCount = await prisma.crawlTarget.count({
+                where: { source: src.source, isActive: true },
               });
+              const { delistedCount } = await delistStaleForSource(
+                src.source,
+                boardListings,
+                activeTargetCount,
+              );
+              if (delistedCount > 0) {
+                console.log(
+                  `[delist] ${src.source}/${target.token}: ${delistedCount} listing(s) delisted ` +
+                    `(absent from a successful crawl)`,
+                );
+              }
+            } else {
+              const { delistedCount, resolvedCompany } = await delistStaleForBoard(
+                src.source,
+                boardListings,
+                target.company,
+              );
+              if (delistedCount > 0) {
+                console.log(
+                  `[delist] ${src.source}/${target.token}: ${delistedCount} listing(s) delisted ` +
+                    `(absent from a successful crawl)`,
+                );
+              }
+              // Only a FRESH resolution (derived from this run's own response) overwrites the
+              // cache — a fallback to the old cached value on an empty-response run isn't new
+              // information about this board, so it isn't worth a write.
+              if (resolvedCompany && resolvedCompany !== target.company) {
+                await prisma.crawlTarget.update({
+                  where: { id: target.id },
+                  data: { company: resolvedCompany },
+                });
+              }
             }
           }
         }
@@ -280,6 +328,12 @@ export async function runPipeline(
         await flush();
       }
     }
+
+    // Flush at every source boundary, not just every N boards. Matters most for simplify
+    // (one board, thousands of listings, no AI tail): without this its batch would wait in
+    // the chunk for up to 9 ATS boards' worth of slow classify/extract work — and one of
+    // THOSE boards' tail failure would throw away simplify's already-free listings too.
+    await flush();
   }
 
   await flush(); // remainder: fewer than BOARD_BATCH_SIZE boards since the last flush

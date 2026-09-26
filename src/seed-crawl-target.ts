@@ -8,7 +8,11 @@ import { prisma } from "./db.js";
 //
 // Usage: `npx tsx src/seed-crawl-target.ts <source> <token>`
 //   e.g. `npx tsx src/seed-crawl-target.ts lever palantir`
-const VALID_SOURCES: Source[] = ["greenhouse", "lever", "ashby", "other"];
+//   e.g. `npx tsx src/seed-crawl-target.ts simplify SimplifyJobs/Summer2026-Internships`
+//        (simplify's token is the GitHub "owner/repo" slug — Decision 38; seeding is the
+//        ONLY discovery path for it, and it must stay a single active target until listings
+//        carry a board discriminator — see delistStaleForSource)
+const VALID_SOURCES: Source[] = ["greenhouse", "lever", "ashby", "simplify", "other"];
 
 async function main(): Promise<void> {
   const [sourceArg, token] = process.argv.slice(2);

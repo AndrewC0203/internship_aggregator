@@ -2,6 +2,7 @@ import type { Source, Prisma } from "@prisma/client";
 import type { EnrichedListing, NormalizedListing, ListingKey } from "../types.js";
 import { prisma } from "../../db.js";
 import { resolveLocation } from "./location.js";
+import { retireAliasCarriers } from "./dedup.js";
 
 export interface PersistInput {
   keeps: EnrichedListing[]; // new keeps → upsert the full classified+extracted row into listings
@@ -61,6 +62,18 @@ export async function persist(input: PersistInput): Promise<PersistResult> {
     return { locCountries: loc.countries, locUsStates: loc.usStates };
   };
 
+  // `preclassified` is pipeline ROUTING metadata (Decision 38), not row data — Prisma
+  // rejects unknown fields, so it must never reach the row spreads below. splitPreclassified
+  // already consumes it on the keeps path; this strip is the choke-point guarantee for the
+  // seenKeeps path (partition hands those over normalize-fresh, marker intact).
+  const rowOf = <T extends NormalizedListing>(listing: T): Omit<T, "preclassified"> => {
+    const { preclassified: _preclassified, ...row } = listing;
+    return row;
+  };
+
+  // Natural keys this call durably wrote — the retire pass's input (Decision 39).
+  const writtenKeys: ListingKey[] = [];
+
   // New keeps — full-row upsert (source + AI fields).
   let keepsWritten = 0;
   let keepsFailed = 0;
@@ -76,13 +89,13 @@ export async function persist(input: PersistInput): Promise<PersistResult> {
         // duplicateKeys cast: see the same note in dedup.ts — Prisma's Json input type wants an
         // index signature that ListingKey[] deliberately doesn't have.
         create: {
-          ...listing,
+          ...rowOf(listing),
           ...locFacets(listing),
           isListed: true,
           duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
         },
         update: {
-          ...listing,
+          ...rowOf(listing),
           ...locFacets(listing),
           lastSeenAt: now,
           isListed: true,
@@ -90,6 +103,7 @@ export async function persist(input: PersistInput): Promise<PersistResult> {
         },
       });
       keepsWritten++;
+      writtenKeys.push({ source: listing.source, sourceExternalId: listing.sourceExternalId });
     } catch (err) {
       keepsFailed++;
       logFailure("keep upsert", listing, err);
@@ -128,16 +142,33 @@ export async function persist(input: PersistInput): Promise<PersistResult> {
           },
         },
         data: {
-          ...listing,
+          ...rowOf(listing),
           ...locFacets(listing),
           lastSeenAt: now,
           isListed: true,
           duplicateKeys: listing.duplicateKeys as unknown as Prisma.InputJsonValue,
         },
       });
+      writtenKeys.push({ source: listing.source, sourceExternalId: listing.sourceExternalId });
     } catch (err) {
       logFailure("seen-keep refresh", listing, err);
     }
+  }
+
+  // Retire pass (Decision 39): any ACTIVE feed carrier aliasing a row this call just wrote
+  // is now superseded by the richer ATS copy — delist it, fold its keys in. Runs HERE, after
+  // the rows are durable, because retiring a carrier for a copy that failed to persist would
+  // lose the posting. Covers seenKeeps too, which is what makes it self-healing after a
+  // crash between an ATS upsert and its retire. Failure costs only this run — the carrier
+  // stays active and the next sighting retries.
+  try {
+    const retired = await retireAliasCarriers(writtenKeys);
+    if (retired > 0) {
+      console.log(`[persist] retired ${retired} feed carrier(s) superseded by ATS rows`);
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[persist] alias-carrier retire failed (will retry next sighting): ${reason}`);
   }
 
   // Already-seen rejects — bump so a future stale-key prune can tell live rejects from dead ones.

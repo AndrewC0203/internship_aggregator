@@ -60,7 +60,23 @@ export interface NormalizedListing {
   // NormalizedListing means persist()'s existing `{...listing}` spreads carry it through to
   // both the create and the seenKeep-update paths without either file needing to know dedup
   // exists.
+  //
+  // ONE amendment to "dedup.ts is the only populator" (Decision 39): a normalize() may seed
+  // this with an ALIAS — the natural key of the SAME posting on its home ATS, parsed from the
+  // listing's own URL (simplify does this; the URL embeds the ATS's job id). An alias entry is
+  // an identity assertion, not a suppressed row; dedup.ts's alias pass and persist()'s
+  // carrier-retire read it to link the two copies whichever order they arrive in.
   duplicateKeys: ListingKey[];
+
+  // Present only when the SOURCE itself settles classification (Decision 38): a curated feed
+  // whose entries carry no description has nothing for the model to read, and its curation IS
+  // the verdict. Listings carrying this skip filter (classify) and extract (AI) entirely —
+  // see pipeline/stages/preclassified.ts. Absent for every ATS source.
+  preclassified?: {
+    opportunityType: OpportunityType;
+    csField: CsField | null;
+    citizenshipStatus: CitizenshipStatus | null;
+  };
 }
 
 // The natural key of a listing — how a reject flows through the pipeline (rejects never

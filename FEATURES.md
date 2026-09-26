@@ -903,9 +903,16 @@
   classify/extract/distill/embed. Wrapper sets 6000 → ~43% GPU duty cycle → quiet fans.
 - `npm run refresh:nightly` runs the wrapper immediately (gates bypassed, lock + pacing
   kept); extra flags pass through to `refresh`.
+- Wrapper also sets `OLLAMA_TIMEOUT_MS=45000` (interactive default 120s): distill poison
+  rows (constrained-decoding hangs) burn timeout×4 attempts of pinned GPU per pass, and
+  the first smoke run showed the list GREW — 6 rows failed (4 known + #6930, #6986), ≈49
+  min of the 51-min run. 45s caps that at ~19 min/night until the per-row attempt budget
+  (the documented "if more appear" follow-up — trigger now fired) gets designed.
 - Decisions to remember: skipped nights are POLICY (exit 0), not failures — battery or a
   late wake just defers to the next 02:30, and the catch-up run costs the same as the run
-  it missed. The plist is a repo copy with machine-specific absolute paths; installing on a
+  it missed. Nightly wall clock is dominated by the 304 walk: ~6,574 active boards ×
+  500ms host pacing ≈ 55 min of quiet HTTP before any GPU work (CLAUDE.md's "163 boards"
+  figure is stale). The plist is a repo copy with machine-specific absolute paths; installing on a
   new machine means editing paths + `launchctl bootstrap`. The wake-at-02:25
   `sudo pmset repeat wakeorpoweron MTWRFSU 02:25:00` is one-time manual setup — without it
   the Mac must be awake (or wake on its own) inside the window for the run to fire.

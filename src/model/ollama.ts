@@ -24,12 +24,27 @@
 //                       retry stays scoped per-layer, since Ollama and Common Crawl want
 //                       different classifiers (a 400 here means a bad schema, not "not found").
 //   OLLAMA_RETRY_BASE_MS — backoff base (default 1s: 1s, 2s, 4s).
+//   OLLAMA_MIN_INTERVAL_MS — GPU duty-cycle gate (Decision 37): minimum gap between the
+//                       STARTS of consecutive Ollama calls, same semantics (and same
+//                       implementation) as the ATS host gate in pipeline/rate-limit.ts.
+//                       Default 0 = off; interactive runs are unchanged. The nightly
+//                       refresh wrapper sets it (~6000) so sustained overnight inference
+//                       idles between calls instead of pinning the GPU — for a target duty
+//                       cycle D with per-call time C, set it to ≈ C/D (e.g. 2.6s classify
+//                       / 6s gap ≈ 43%). Gaps shorter than the call itself add no wait.
+
+import { createRateGate } from "../pipeline/rate-limit.js";
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5:7b-instruct";
 const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS ?? 120_000);
 const OLLAMA_MAX_RETRIES = Number(process.env.OLLAMA_MAX_RETRIES ?? 3);
 const OLLAMA_RETRY_BASE_MS = Number(process.env.OLLAMA_RETRY_BASE_MS ?? 1_000);
+const OLLAMA_MIN_INTERVAL_MS = Number(process.env.OLLAMA_MIN_INTERVAL_MS ?? 0);
+
+// One shared gate: every GPU-bound call (chat + embed) spaces against the same clock, so
+// the duty cycle holds across interleaved classify/extract/enrich stages, not per-stage.
+const gpuGate = createRateGate(OLLAMA_MIN_INTERVAL_MS);
 
 interface ChatJsonOptions {
   system: string;
@@ -122,6 +137,7 @@ export function parseEmbedResponse(body: unknown, expected: number): number[][] 
 export async function embed(texts: string[], model: string): Promise<number[][]> {
   if (texts.length === 0) return [];
   return withOllamaRetry(async () => {
+    await gpuGate.wait();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let res: Response;
@@ -149,6 +165,8 @@ export async function embed(texts: string[], model: string): Promise<number[][]>
 }
 
 async function chatJsonOnce<T>({ system, user, schema, model }: ChatJsonOptions): Promise<T> {
+  // Inside the retry wrapper (not around it) so a retried attempt re-spaces too.
+  await gpuGate.wait();
   const modelTag = model ?? OLLAMA_MODEL;
   // Mirror the fetch-timeout pattern from greenhouse/fetch.ts: the LOCAL model call is far
   // more likely to stall than the remote HTTP GET, so it deserves the same guard.

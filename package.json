@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "discover": "tsx src/discovery/run.ts",
     "refresh": "tsx src/refresh.ts",
+    "refresh:nightly": "bash scripts/nightly-refresh.sh --now",
     "reclassify": "tsx src/reclassify.ts",
     "enrich": "tsx src/enrich.ts",
     "eval:recommend": "tsx src/eval-recommend.ts",

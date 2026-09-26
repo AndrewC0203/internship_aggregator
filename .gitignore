@@ -2,6 +2,8 @@ node_modules/
 .env
 dist/
 *.log
+logs/
+.nightly-refresh.lock/
 research/embedding-eval/vectors.json
 resume.local.txt
 questionnaire.local.json

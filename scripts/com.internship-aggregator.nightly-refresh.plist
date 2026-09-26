@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Nightly refresh schedule (Decision 37). launchd, not cron: it coalesces a slept-through
+  02:30 into one run at next wake (the script's own gates then decide whether that run is
+  allowed), and it survives reboots without re-registration.
+
+  Install (paths are machine-specific — this file is the repo copy):
+    cp scripts/com.internship-aggregator.nightly-refresh.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.internship-aggregator.nightly-refresh.plist
+  Remove:
+    launchctl bootout gui/$(id -u)/com.internship-aggregator.nightly-refresh
+
+  StandardOut/ErrorPath only catch failures BEFORE the script redirects into its dated
+  log — normal runs log to logs/nightly-refresh-YYYY-MM-DD.log instead.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.internship-aggregator.nightly-refresh</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/achoi/internship_aggregator/scripts/nightly-refresh.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/achoi/internship_aggregator</string>
+  <key>StandardOutPath</key>
+  <string>/Users/achoi/internship_aggregator/logs/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/achoi/internship_aggregator/logs/launchd.log</string>
+</dict>
+</plist>

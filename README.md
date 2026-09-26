@@ -83,6 +83,9 @@ if it isn't running (and stops it after), holds the Mac awake with `caffeinate -
 (effective on AC only), and logs to `logs/nightly-refresh-YYYY-MM-DD.log` (14-day
 retention).
 
+The wrapper also tightens `OLLAMA_TIMEOUT_MS` to 45s (interactive default 120s) so
+known distill-hang rows can't pin the GPU for 8 minutes apiece every night.
+
 One-time setup so the Mac actually wakes for it (needs sudo, so run it yourself):
 
     sudo pmset repeat wakeorpoweron MTWRFSU 02:25:00

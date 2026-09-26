@@ -22,6 +22,7 @@ export interface SearchParams {
   gradYear?: number; // class year compatibility
   status?: string[]; // application status; "none" = untouched rows
   workplace?: string[]; // workplace_type values (onsite/remote/hybrid)
+  source?: string[]; // ingestion Source values (greenhouse/lever/ashby/simplify)
   // Curated-list-only toggle (Decision 32's annotation list, promoted to a filter here).
   // NOT a selectivity judgment on the rest of the corpus — see company-tiers.json's own
   // "annotates, never filters" note. Label this in the UI as "curated list", not "selective".
@@ -39,6 +40,9 @@ const ALL_TYPES = ["internship", "co_op", "fellowship", "new_grad", "research", 
 const ALL_FIELDS = ["swe", "ml_ai", "data", "quant", "security", "hardware_embedded", "devops_infra", "it", "product", "other"];
 const ALL_STATUSES = ["saved", "applied", "interviewing", "offer", "rejected"];
 const ALL_WORKPLACE = ["onsite", "remote", "hybrid"];
+// "other" is in the enum but has no rows and no UI chip; accepted here anyway so a listing
+// under it would stay reachable rather than unfilterable.
+const ALL_SOURCES = ["greenhouse", "lever", "ashby", "simplify", "other"];
 
 // Parse raw querystring values (everything arrives as strings) into typed params,
 // dropping anything that isn't a known enum value rather than erroring.
@@ -76,6 +80,7 @@ export function parseParams(raw: Record<string, unknown>): SearchParams {
     gradYear: Number.isInteger(gradYear) && gradYear >= 2020 && gradYear <= 2040 ? gradYear : undefined,
     status: keep(list(raw.status), [...ALL_STATUSES, "none"]),
     workplace: keep(list(raw.workplace), ALL_WORKPLACE),
+    source: keep(list(raw.source), ALL_SOURCES),
     selective: raw.selective === "1" || raw.selective === "true",
     newOnly: raw.new === "1" || raw.new === "true",
     sort,
@@ -94,7 +99,7 @@ export function newCutoff(now = new Date()): Date {
 // selection can't constrain its own counts.
 export function buildWhere(
   p: SearchParams,
-  omit?: "type" | "field" | "country" | "state" | "status" | "workplace",
+  omit?: "type" | "field" | "country" | "state" | "status" | "workplace" | "source",
 ): Prisma.ListingWhereInput {
   const and: Prisma.ListingWhereInput[] = [{ isListed: true }];
   if (p.q) {
@@ -129,6 +134,7 @@ export function buildWhere(
     });
   }
   if (p.workplace && omit !== "workplace") and.push({ workplaceType: { in: p.workplace as never[] } });
+  if (p.source && omit !== "source") and.push({ source: { in: p.source as never[] } });
   if (p.selective) {
     // Case-insensitive OR over the curated list (Decision 32): the file stores lowercased
     // trimmed names for the badge's Set lookup, but Prisma's `in` can't do per-value case
@@ -207,6 +213,7 @@ export interface SearchResult {
     // All counts are card-level (distinct company+title), matching what clicking shows.
     type: Record<string, number>;
     field: Record<string, number>;
+    source: Record<string, number>;
     state: Record<string, number>;
     country: Record<string, number>;
     status: Record<string, number>; // includes "none"
@@ -370,11 +377,12 @@ function countRoles(
 // once here means the ranked path can't drift from the chronological path on what a
 // chip's number means, the same reasoning that keeps buildWhere() itself singular.
 async function computeFacets(prisma: PrismaClient, p: SearchParams): Promise<SearchResult["facets"]> {
-  const [typeTriples, fieldTriples, workplaceTriples, statusPairs, stateRows, countryRows] =
+  const [typeTriples, fieldTriples, workplaceTriples, sourceTriples, statusPairs, stateRows, countryRows] =
     await Promise.all([
       prisma.listing.groupBy({ by: ["opportunityType", "company", "title"], where: buildWhere(p, "type") }),
       prisma.listing.groupBy({ by: ["csField", "company", "title"], where: buildWhere(p, "field") }),
       prisma.listing.groupBy({ by: ["workplaceType", "company", "title"], where: buildWhere(p, "workplace") }),
+      prisma.listing.groupBy({ by: ["source", "company", "title"], where: buildWhere(p, "source") }),
       Promise.all(
         [...ALL_STATUSES, "none"].map(async (s) => {
           const w = buildWhere(p, "status");
@@ -393,6 +401,7 @@ async function computeFacets(prisma: PrismaClient, p: SearchParams): Promise<Sea
     type: countRoles(typeTriples, "opportunityType"),
     field: countRoles(fieldTriples, "csField"),
     workplace: countRoles(workplaceTriples, "workplaceType"),
+    source: countRoles(sourceTriples, "source"),
     state: stateRows,
     country: countryRows,
     status: Object.fromEntries(statusPairs),
@@ -530,6 +539,7 @@ export function searchParamsToSql(p: SearchParams): Prisma.Sql[] {
                           AND (grad_year_max IS NULL OR grad_year_max >= ${p.gradYear})`);
   }
   if (p.workplace) conds.push(Prisma.sql`workplace_type::text = ANY(${p.workplace})`);
+  if (p.source) conds.push(Prisma.sql`source::text = ANY(${p.source})`);
   if (p.selective) conds.push(Prisma.sql`lower(trim(company)) = ANY(${curatedSelectiveCompanies()})`);
   if (p.newOnly) conds.push(Prisma.sql`first_seen_at >= ${newCutoff()}`);
   if (p.status) {

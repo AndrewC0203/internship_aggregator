@@ -931,6 +931,12 @@
 - Corpus impact: 6,298 → 10,066 active listings (+60%); 81% of Simplify entries are on
   hosts we can't crawl (Workday etc.) — that reach is the point of the source.
 
+- SOURCE filter in the board's sidebar (bottom rail group): chip-per-source with honest
+  faceted counts (same omit-own-facet pattern as TYPE/FIELD), wired through parseParams →
+  buildWhere → searchParamsToSql (ranked path) → qs()/hidden-input round-tripping. Note:
+  under FIT sort, un-enriched rows are excluded from ranking as always — a fresh source's
+  rows appear under fit only after their enrichment pass completes.
+
 # Decisions to remember (Simplify)
 
 - `duplicateKeys` semantics widened: a CROSS-source entry on a feed row is an alias

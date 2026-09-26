@@ -292,3 +292,27 @@ test("parseParams: page/per must be integers — 2.5 and Infinity fall to defaul
   assert.equal(parseParams({ per: "2.5" }).per, 50);
   assert.equal(parseParams({ per: "25" }).per, 25);
 });
+
+// ── source facet (Decision 38's UI follow-up: filter the board by ingestion source) ─────
+
+test("parseParams: source keeps only known sources, drops junk", () => {
+  assert.deepEqual(parseParams({ source: "greenhouse,simplify,made_up" }).source, ["greenhouse", "simplify"]);
+  assert.equal(parseParams({ source: "made_up" }).source, undefined);
+  assert.equal(parseParams({}).source, undefined);
+});
+
+test("buildWhere: source filter is an IN, omitted for its own facet count", () => {
+  const p = parseParams({ source: "simplify,ashby" });
+  const where = buildWhere(p) as { AND: Array<Record<string, unknown>> };
+  assert.ok(where.AND.some((c) => JSON.stringify(c) === JSON.stringify({ source: { in: ["simplify", "ashby"] } })));
+  const omitted = buildWhere(p, "source") as { AND: Array<Record<string, unknown>> };
+  assert.ok(!omitted.AND.some((c) => "source" in c));
+});
+
+test("searchParamsToSql: source binds the list like every other enum facet", () => {
+  const conds = searchParamsToSql(parseParams({ source: "lever,simplify" }));
+  assert.equal(conds.length, 2);
+  const src = conds[1];
+  assert.match(src.sql, /source::text = ANY/);
+  assert.deepEqual(src.values, [["lever", "simplify"]]);
+});

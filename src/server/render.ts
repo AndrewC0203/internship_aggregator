@@ -17,6 +17,15 @@ const FIELD_LABEL: Record<string, string> = {
   swe: "SWE", ml_ai: "ML/AI", data: "DATA", quant: "QUANT", security: "SEC",
   hardware_embedded: "HW/EMB", devops_infra: "DEVOPS", it: "IT", product: "PRODUCT", other: "OTHER",
 };
+// Where the row was ingested from (Decision 38). ATS names + the Simplify repo feed;
+// "other" has no rows and no chip — parseParams still accepts it so nothing is unreachable.
+const SOURCE_LABEL: Record<string, string> = {
+  greenhouse: "GREENHOUSE",
+  lever: "LEVER",
+  ashby: "ASHBY",
+  simplify: "SIMPLIFY",
+};
+
 export const WORKPLACE_LABEL: Record<string, string> = {
   onsite: "ONSITE", remote: "REMOTE", hybrid: "HYBRID",
 };
@@ -71,6 +80,7 @@ function qs(p: SearchParams, over: Record<string, string | null> = {}): string {
   if (p.gradYear) base.gradYear = String(p.gradYear);
   if (p.status) base.status = p.status.join(",");
   if (p.workplace) base.workplace = p.workplace.join(",");
+  if (p.source) base.source = p.source.join(",");
   if (p.selective) base.selective = "1";
   if (p.newOnly) base.new = "1";
   // Always carried explicitly, never inferred as "the default" — what counts as default
@@ -248,7 +258,7 @@ export function renderPage(
   const totalSheets = Math.max(1, Math.ceil(res.total / res.per));
   const anyFilter =
     !!(p.q || p.type || p.field || p.country || p.state || p.gradYear || p.status ||
-       p.workplace || p.selective || p.newOnly);
+       p.workplace || p.source || p.selective || p.newOnly);
 
   // Ticker items: overall corpus split by type under everything EXCEPT type (facet counts).
   const ticker = Object.entries(TYPE_LABEL)
@@ -298,6 +308,11 @@ export function renderPage(
   const workplaceRows = Object.entries(WORKPLACE_LABEL)
     .map(([val, label]) =>
       frow(qs(p, { workplace: toggled(p.workplace, val) }), label, res.facets.workplace[val], p.workplace?.includes(val) ?? false),
+    )
+    .join("");
+  const sourceRows = Object.entries(SOURCE_LABEL)
+    .map(([val, label]) =>
+      frow(qs(p, { source: toggled(p.source, val) }), label, res.facets.source[val], p.source?.includes(val) ?? false),
     )
     .join("");
   const years = [2026, 2027, 2028, 2029];
@@ -431,6 +446,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
     ${p.country ? `<input type="hidden" name="country" value="${esc(p.country.join(","))}">` : ""}
     ${p.status ? `<input type="hidden" name="status" value="${esc(p.status.join(","))}">` : ""}
     ${p.workplace ? `<input type="hidden" name="workplace" value="${esc(p.workplace.join(","))}">` : ""}
+    ${p.source ? `<input type="hidden" name="source" value="${esc(p.source.join(","))}">` : ""}
     ${p.selective ? `<input type="hidden" name="selective" value="1">` : ""}
     ${p.gradYear ? `<input type="hidden" name="gradYear" value="${p.gradYear}">` : ""}
     ${p.newOnly ? `<input type="hidden" name="new" value="1">` : ""}
@@ -444,6 +460,7 @@ verdict, DESIGN.md, and every shipping raster carrying its provenance.
   ${railGroup("EMPLOYER", `<div class="chips">${selectiveRow}</div><p class="grp-note">Hand-picked famous-for-selectivity employers (data/company-tiers.json) — unlisted companies are not assessed, not "less selective".</p>`, false)}
   ${railGroup("CLASS YEAR", `<div class="chips" role="group" aria-label="class year">${yearRows}</div><p class="grp-note">Listings stating no window stay visible.</p>`, false)}
   ${railGroup("MY PIPELINE", `<div class="chips">${statusRows}</div>`, false)}
+  ${railGroup("SOURCE", `<div class="chips">${sourceRows}</div><p class="grp-note">Where the listing was ingested from. SIMPLIFY rows come from the community repo and carry no posting text.</p>`, false)}
   ${railGroup("ORDER", `<div class="chips" role="group" aria-label="sort">${sortRows}</div>`, false)}
   ${anyFilter ? `<a class="clear-btn rail-clear" href="/">CLEAR FILTERS</a>` : ""}
 </aside>

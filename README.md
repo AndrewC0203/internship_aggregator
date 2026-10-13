@@ -1,8 +1,15 @@
 # internship_aggregator
 
 CS opportunities hub — aggregates internships, co-ops, fellowships, new-grad, research, and
-part-time roles from ATS boards (Greenhouse now; Lever/Ashby planned), normalizes them into one
-schema, dedups, filters to CS-relevant early-career roles, and stores them for search.
+part-time roles from ATS boards (Greenhouse, Lever, and Ashby, plus Simplify's internship
+tracker), normalizes them into one schema, dedups, filters to CS-relevant early-career roles,
+and stores them for search.
+
+**Live site:** https://internship-aggregator-hub.onrender.com/
+
+Browsing and search work on the live site. Resume upload, `/tryout`, and paste-to-rank need a
+local Ollama model, so they only run locally (see [Deploy](#deploy)). Hosted on Render's free
+tier, so the first load after it's been idle can take up to a minute.
 
 Design rationale and tradeoffs live in [DECISIONS.md](DECISIONS.md); measurements and audit
 findings live in [research/](research/); shipped features in [FEATURES.md](FEATURES.md).
@@ -107,6 +114,8 @@ actual wiring.
 <!-- Architecture diagram maintained by hand, not generated — see CLAUDE.md -->
 
 ## Deploy
+
+Live at https://internship-aggregator-hub.onrender.com/.
 
 Decision 36: only `npm run serve` (the search/browse hub) deploys publicly. `discover` /
 `refresh` / `reclassify` / `enrich` all call Ollama (classify/extract/embed) and keep running
